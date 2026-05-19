@@ -117,7 +117,17 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* EOD section forced-light override — same specificity as .dark, later position wins */
+/* EOD section theme overrides — higher specificity via later position beats .dark */
+
+/* Dark: elevate background to card level so the surface reads clearly */
+[data-eod-theme="dark"] {
+    --background: oklch(0.200 0 0);
+    --card: oklch(0.270 0 0);
+    --muted: oklch(0.300 0 0);
+    --popover: oklch(0.225 0 0);
+    --border: oklch(1 0 0 / 10%);
+}
+
 [data-eod-theme="light"] {
     color-scheme: light;
     --background: oklch(1 0 0);

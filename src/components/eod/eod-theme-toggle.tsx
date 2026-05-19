@@ -42,7 +42,7 @@ export function EodThemeProvider({ children }: { children: React.ReactNode }) {
     <EodThemeContext.Provider value={{ theme, toggle }}>
       <div
         className={cn(theme === 'dark' && 'dark')}
-        data-eod-theme={theme === 'light' ? 'light' : undefined}
+        data-eod-theme={theme}
         style={{ display: 'contents' }}
       >
         {children}
