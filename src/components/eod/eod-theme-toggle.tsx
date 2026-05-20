@@ -61,6 +61,7 @@ export function EodThemeToggleButton() {
           variant="ghost"
           size="icon-sm"
           onClick={toggle}
+          tabIndex={-1}
           aria-label={theme === 'dark' ? 'Switch EOD to light' : 'Switch EOD to dark'}
           className='text-foreground'
         >

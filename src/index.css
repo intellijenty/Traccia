@@ -121,11 +121,13 @@
 
 /* Dark: elevate background to card level so the surface reads clearly */
 [data-eod-theme="dark"] {
-    --background: oklch(0.200 0 0);
-    --card: oklch(0.270 0 0);
-    --muted: oklch(0.300 0 0);
+    --background: oklch(0.225 0 0);
+    --foreground: oklch(0.94 0 0);
+    --card: oklch(0.225 0 0);
+    --muted: oklch(0.350 0 0);
     --popover: oklch(0.225 0 0);
-    --border: oklch(1 0 0 / 10%);
+    --border: oklch(1 0 0 / 7.5%);
+    --primary: oklch(0.424 0.199 265.638);
 }
 
 [data-eod-theme="light"] {
