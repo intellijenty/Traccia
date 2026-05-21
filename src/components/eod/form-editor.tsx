@@ -24,6 +24,7 @@ import {
 } from './eod-dnd'
 import { SortableTaskCard, SimpleSection } from './eod-items'
 import { EodFormProvider, useEodApi } from './eod-form-context'
+import { useUndoHistory } from './use-undo-history'
 
 export type { FormLayoutMode } from './eod-dnd'
 
@@ -67,6 +68,8 @@ const TASK_SHORTCUTS: { keys: React.ReactNode[]; label: string }[] = [
 // DnD context. State + actions live in EodFormProvider.
 
 export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditorProps) {
+  const { historyCommit } = useUndoHistory(value, onChange)
+
   const [activeId, setActiveId] = useState<string | null>(null)
   const [projectedDepth, setProjectedDepth] = useState<0 | 1>(0)
   const projectedDepthRef = useRef<0 | 1>(0)
@@ -170,9 +173,9 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
 
     if (src.container === dstContainer) {
       if (overId === dstContainer) return
-      onChange(reorderWithinContainer(src, overId, value))
+      historyCommit(reorderWithinContainer(src, overId, value))
     } else {
-      onChange(insertIntoDest(dstContainer, overId, src.text, removeFromSource(src, value)))
+      historyCommit(insertIntoDest(dstContainer, overId, src.text, removeFromSource(src, value)))
     }
   }
 
@@ -213,7 +216,7 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
   }
 
   return (
-    <EodFormProvider value={value} onChange={onChange} mode={mode} activeId={activeId}>
+    <EodFormProvider value={value} onChange={historyCommit} mode={mode} activeId={activeId}>
       <DndContext
         sensors={sensors}
         collisionDetection={customCollision}
@@ -333,20 +336,22 @@ function TasksSection({ tasks, mode }: TasksSectionProps) {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-1">
         <SectionHeader>Tasks Completed</SectionHeader>
-        {mode !== 'zen' && (
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pb-3">
-            {TASK_SHORTCUTS.map(({ keys, label }, i) => (
-              <Fragment key={label}>
-                {i > 0 && <span className="text-muted-foreground">&middot;</span>}
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <KbdGroup>{keys}</KbdGroup> {label}
-                </span>
-              </Fragment>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {mode !== 'zen' && (
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pb-2">
+              {TASK_SHORTCUTS.map(({ keys, label }, i) => (
+                <Fragment key={label}>
+                  {i > 0 && <span className="text-muted-foreground">&middot;</span>}
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <KbdGroup>{keys}</KbdGroup> {label}
+                  </span>
+                </Fragment>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>

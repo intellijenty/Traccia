@@ -1,7 +1,10 @@
 ## v0.2.3 - May 2026
 
 ### New
-- **Task Re-ordering** - Drag and drop tasks to reorder them in EOD form editor. Also supports keyboard shortcuts `ALT` + `Up/Down Arrow` to move tasks around.
+<u>Power Composer</u> : Branding eod composer feature as 'Power Composer' cz it's built for **Power Users** 💪🏼
+- **Task Re-ordering** - Drag and drop tasks to reorder them in form editor. Also supports keyboard shortcuts `ALT` + `Up/Down Arrow` to move tasks around.
+- **Duplicate Task** - Easily duplicate existing task or bullet points in form editor using shortcut `ALT` + `D`.
+- **Edit History** - Form editor now supports standard undo/redo operations (`CTRL` + `Z` / `CTRL` + `Y`) to navigate through edit history.
 
 ### Improved
 - EOD subject line respects user edit separators like `/`.
