@@ -34,6 +34,10 @@ export const SortableSub = memo(function SortableSub({ taskId, sub }: SortableSu
     },
     onArrowDown: () => focus.focusNext(`sub:${taskId}:${sub.id}`),
     onArrowUp: () => focus.focusPrev(`sub:${taskId}:${sub.id}`),
+    onAltArrowUp:        () => actions.moveUp({ type: 'sub', taskId, subId: sub.id }),
+    onAltArrowDown:      () => actions.moveDown({ type: 'sub', taskId, subId: sub.id }),
+    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'task', taskId }); focus.focus(`sub:${taskId}:${sub.id}`) },
+    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'task', taskId }); focus.focus(`sub:${taskId}:${sub.id}`) },
   })
 
   return (
@@ -89,6 +93,10 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
     },
     onArrowDown: () => focus.focusNext(`task:${task.id}`),
     onArrowUp: () => focus.focusPrev(`task:${task.id}`),
+    onAltArrowUp:        () => actions.moveUp({ type: 'task', taskId: task.id }),
+    onAltArrowDown:      () => actions.moveDown({ type: 'task', taskId: task.id }),
+    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'task', taskId: task.id }); focus.focus(`task:${task.id}`) },
+    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'task', taskId: task.id }); focus.focus(`task:${task.id}`) },
   })
 
   return (
@@ -147,7 +155,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
       {mode !== 'zen' && (
         <div
           className={cn(
-            'flex items-center gap-1 px-4',
+            'flex items-center gap-1 px-4 pl-10',
             mode === 'comfortable'
               ? 'pb-2.5 pt-0.5'
               : 'h-7 opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 transition-opacity duration-150',
@@ -195,6 +203,10 @@ export const SortableSectionItem = memo(function SortableSectionItem({
     },
     onArrowDown: () => focus.focusNext(`section:${sk}:${item.id}`),
     onArrowUp: () => focus.focusPrev(`section:${sk}:${item.id}`),
+    onAltArrowUp:        () => actions.moveUp({ type: 'section', sk, itemId: item.id }),
+    onAltArrowDown:      () => actions.moveDown({ type: 'section', sk, itemId: item.id }),
+    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'section', sk, itemId: item.id }); focus.focus(`section:${sk}:${item.id}`) },
+    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'section', sk, itemId: item.id }); focus.focus(`section:${sk}:${item.id}`) },
   })
 
   return (

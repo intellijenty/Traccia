@@ -15,6 +15,11 @@ export const SECTION_KEYS: SectionKey[] = ['otherTasks', 'concerns', 'nextDayPla
 
 // ── Item metadata (discriminated union) ───────────────────────────────────────
 
+export type MoveTarget =
+  | { type: 'task';    taskId: string }
+  | { type: 'sub';     taskId: string; subId: string }
+  | { type: 'section'; sk: SectionKey; itemId: string }
+
 export type ItemMeta =
   | { type: 'task';         container: 'tasks';              taskId: string;                       text: string }
   | { type: 'sub';          container: `subs:${string}`;      taskId: string; subId: string;        text: string }

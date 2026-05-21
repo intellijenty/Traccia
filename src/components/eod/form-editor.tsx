@@ -54,11 +54,12 @@ const SECTION_CONFIG: { sk: SectionKey; title: string; placeholder: string }[] =
 ]
 
 const TASK_SHORTCUTS: { keys: React.ReactNode[]; label: string }[] = [
-  { keys: [<Kbd key="e">Enter</Kbd>],                                    label: 'new item' },
-  { keys: [<Kbd key="t">Tab</Kbd>],                                      label: 'indent' },
-  { keys: [<Kbd key="s">Shift</Kbd>, <Kbd key="t">Tab</Kbd>],            label: 'unindent' },
-  { keys: [<Kbd key="u">↑</Kbd>, <Kbd key="d">↓</Kbd>],                  label: 'navigate' },
-  { keys: [<Kbd key="s">Shift</Kbd>, <Kbd key="del">Del</Kbd>],          label: 'delete item' },
+  { keys: [<Kbd key="e">Enter</Kbd>],                                                             label: 'new item' },
+  { keys: [<Kbd key="t">Tab</Kbd>],                                                               label: 'indent' },
+  { keys: [<Kbd key="s">Shift</Kbd>, <Kbd key="t">Tab</Kbd>],                                    label: 'unindent' },
+  { keys: [<Kbd key="u">↑</Kbd>, <Kbd key="d">↓</Kbd>],                                          label: 'navigate' },
+  { keys: [<Kbd key="s">Shift</Kbd>, <Kbd key="del">Del</Kbd>],                                  label: 'delete item' },
+  { keys: [<Kbd key="a">Alt</Kbd>, <Kbd key="au">↑</Kbd>, <Kbd key="ad">↓</Kbd>],               label: 'move item' },
 ]
 
 // ── FormEditor ────────────────────────────────────────────────────────────────

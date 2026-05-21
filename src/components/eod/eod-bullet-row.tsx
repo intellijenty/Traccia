@@ -100,6 +100,10 @@ export interface BulletKeyHandlers {
   onDeleteEmpty?: () => void
   onArrowUp?: () => void
   onArrowDown?: () => void
+  onAltArrowUp?: () => void
+  onAltArrowDown?: () => void
+  onAltShiftArrowUp?: () => void
+  onAltShiftArrowDown?: () => void
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -127,6 +131,22 @@ export function bulletKeyDown(text: string, h: BulletKeyHandlers) {
     }
     if ((e.key === 'Backspace' && text === '') || (e.key === 'Delete' && e.shiftKey)) {
       if (h.onDeleteEmpty) { e.preventDefault(); h.onDeleteEmpty() }
+      return
+    }
+    if (e.key === 'ArrowUp' && e.altKey && e.shiftKey) {
+      if (h.onAltShiftArrowUp) { e.preventDefault(); h.onAltShiftArrowUp() }
+      return
+    }
+    if (e.key === 'ArrowDown' && e.altKey && e.shiftKey) {
+      if (h.onAltShiftArrowDown) { e.preventDefault(); h.onAltShiftArrowDown() }
+      return
+    }
+    if (e.key === 'ArrowUp' && e.altKey) {
+      if (h.onAltArrowUp) { e.preventDefault(); h.onAltArrowUp() }
+      return
+    }
+    if (e.key === 'ArrowDown' && e.altKey) {
+      if (h.onAltArrowDown) { e.preventDefault(); h.onAltArrowDown() }
       return
     }
     if (e.key === 'ArrowUp') {
