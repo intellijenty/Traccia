@@ -28,10 +28,11 @@ export interface EodActions {
   removeSectionItem: (sk: SectionKey, id: string) => void
   setSectionNA: (sk: SectionKey) => void
 
-  moveUp:      (target: MoveTarget) => void
-  moveDown:    (target: MoveTarget) => void
-  reorderUp:   (target: MoveTarget) => void
-  reorderDown: (target: MoveTarget) => void
+  moveUp:       (target: MoveTarget) => void
+  moveDown:     (target: MoveTarget) => void
+  reorderUp:    (target: MoveTarget) => void
+  reorderDown:  (target: MoveTarget) => void
+  duplicateItem:(target: MoveTarget) => void
 }
 
 export interface EodFocusApi {
@@ -378,6 +379,47 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
           const section = v()[target.sk]
           const idx = section.items.findIndex(i => i.id === target.itemId)
           if (idx > 0) commit({ ...v(), [target.sk]: { ...section, items: arrayMove(section.items, idx, idx - 1) } })
+        }
+      },
+
+      duplicateItem: (target) => {
+        const tasks = v().tasksCompleted
+        if (target.type === 'task') {
+          const idx = tasks.findIndex(t => t.id === target.taskId)
+          if (idx < 0) return
+          const src = tasks[idx]
+          const newTask = {
+            id: makeId(),
+            text: src.text,
+            subBullets: src.subBullets.map(s => ({ id: makeId(), text: s.text })),
+          }
+          const next = [...tasks]
+          next.splice(idx + 1, 0, newTask)
+          setTasks(next)
+          pendingFocus.current = `task:${newTask.id}`
+        } else if (target.type === 'sub') {
+          const task = tasks.find(t => t.id === target.taskId)
+          if (!task) return
+          const subIdx = task.subBullets.findIndex(s => s.id === target.subId)
+          if (subIdx < 0) return
+          const newSubId = makeId()
+          const newSub = { id: newSubId, text: task.subBullets[subIdx].text }
+          mapTask(target.taskId, t => {
+            const subs = [...t.subBullets]
+            subs.splice(subIdx + 1, 0, newSub)
+            return { ...t, subBullets: subs }
+          })
+          pendingFocus.current = `sub:${target.taskId}:${newSubId}`
+        } else {
+          const section = v()[target.sk]
+          const idx = section.items.findIndex(i => i.id === target.itemId)
+          if (idx < 0) return
+          const newId = makeId()
+          const newItem = { id: newId, text: section.items[idx].text }
+          const items = [...section.items]
+          items.splice(idx + 1, 0, newItem)
+          commit({ ...v(), [target.sk]: { ...section, items } })
+          pendingFocus.current = `section:${target.sk}:${newId}`
         }
       },
 

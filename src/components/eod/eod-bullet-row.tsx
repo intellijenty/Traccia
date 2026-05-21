@@ -104,6 +104,7 @@ export interface BulletKeyHandlers {
   onAltArrowDown?: () => void
   onAltShiftArrowUp?: () => void
   onAltShiftArrowDown?: () => void
+  onAltD?: () => void
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -131,6 +132,10 @@ export function bulletKeyDown(text: string, h: BulletKeyHandlers) {
     }
     if ((e.key === 'Backspace' && text === '') || (e.key === 'Delete' && e.shiftKey)) {
       if (h.onDeleteEmpty) { e.preventDefault(); h.onDeleteEmpty() }
+      return
+    }
+    if (e.key === 'd' && e.altKey) {
+      if (h.onAltD) { e.preventDefault(); h.onAltD() }
       return
     }
     if (e.key === 'ArrowUp' && e.altKey && e.shiftKey) {
