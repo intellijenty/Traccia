@@ -299,6 +299,7 @@ export interface ElectronAPI {
     htmlBody: string
     plainText: string
   }) => Promise<void>
+  onOutlookPhase: (cb: (phase: 'prewarming' | 'done') => void) => () => void
 }
 
 declare global {

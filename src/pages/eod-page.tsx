@@ -124,6 +124,7 @@ export function EodPage() {
     () => (localStorage.getItem(KEYS.formMode) as FormLayoutMode | null) ?? 'comfortable'
   )
   const [isOpening, setIsOpening] = useState(false)
+  const [isPrewarming, setIsPrewarming] = useState(false)
   const [history, setHistory] = useState<Record<string, EodHistoryEntry>>(loadHistory)
   const [viewingEntry, setViewingEntry] = useState<EodHistoryEntry | null>(null)
 
@@ -276,6 +277,12 @@ export function EodPage() {
     const snapshotSubject = subject
     const snapshotActiveTab = activeTab
     setIsOpening(true)
+    // Subscribe to phase events for this open. Main emits 'prewarming' while
+    // it boots New Outlook on cold start and 'done' when the EML hand-off is
+    // imminent. Listener cleaned up alongside isOpening reset.
+    const unsubscribePhase = window.electronAPI.onOutlookPhase?.((phase) => {
+      setIsPrewarming(phase === 'prewarming')
+    })
     try {
       let htmlBody: string
       let plainText: string
@@ -334,6 +341,8 @@ export function EodPage() {
         } catch { /* ignore */ }
       }
     } finally {
+      unsubscribePhase?.()
+      setIsPrewarming(false)
       setIsOpening(false)
     }
   }
@@ -482,7 +491,11 @@ export function EodPage() {
                         <Send className="h-4 w-4" aria-hidden="true" />
                       )}
                       <span>
-                        {isOpening ? "Opening" : "Open in Outlook"}
+                        {isPrewarming
+                          ? "Warming up Outlook"
+                          : isOpening
+                            ? "Opening"
+                            : "Open in Outlook"}
                       </span>
                     </Button>
                   </span>

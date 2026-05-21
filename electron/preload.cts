@@ -148,6 +148,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     htmlBody: string
     plainText: string
   }) => ipcRenderer.invoke('eod:open-in-outlook', payload) as Promise<{ method: 'com' | 'mailto' | 'eml' }>,
+
+  onOutlookPhase: (cb: (phase: 'prewarming' | 'done') => void) => {
+    const fn = (_e: unknown, phase: 'prewarming' | 'done') => cb(phase)
+    ipcRenderer.on('eod:outlook-phase', fn)
+    return () => ipcRenderer.removeListener('eod:outlook-phase', fn)
+  },
 })
 
 contextBridge.exposeInMainWorld('licenseAPI', {

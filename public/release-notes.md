@@ -1,13 +1,11 @@
-## v0.2.3 — May 2026
+## v0.2.3 - May 2026
 
 ### New
-- **Release Notes** - See what changed on every update, right inside the app
-- **Session Time Calculation** - See break time and session time at floating badge on local entries
-- **Open in New Outlook** - EOD support for opening in new Outlook app
+- **Task Re-ordering** - Drag and drop tasks to reorder them in EOD form editor. Also supports keyboard shortcuts `ALT` + `Up/Down Arrow` to move tasks around.
 
 ### Improved
-- Local entry pair deletion now supports deleting both entries at the same time reliably compared to before.
+- Added muted background support on EOD composer for better readability and focus.
 
 ### Fixed
-- Fixed the local entry deletion bugs.
-- Removed "excludes today" showing on the calendar insights for previous months.
+- Fixed the signature not getting added when new outlook app is closed.
+- Fixed deleting draft mails deletes every traccia drafted mails because of the same message link.

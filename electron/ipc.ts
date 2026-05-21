@@ -99,12 +99,100 @@ const NARROW_HEIGHT = 780
 const electronStore = new ElectronStore();
 const licenseEngine = new LicenseEngine();
 
+// ── New Outlook pre-warm ──────────────────────────────────────────────────────
+// olk.exe spawned as a side-effect of opening an EML doesn't have its cloud
+// signature config loaded yet, so the autosig pipeline silently skips on cold
+// start. Pre-launching and waiting for the main window + cloud sync closes the
+// race. Gated on .eml-handler check so classic-Outlook / Thunderbird users
+// don't pay the latency.
+
+type OutlookPhase = 'prewarming' | 'done'
+type PhaseEmitter = (phase: OutlookPhase) => void
+
+// Runs a one-shot powershell command and resolves to its trimmed stdout, or
+// `null` on spawn error / timeout.
+function runPowerShell(script: string, timeoutMs: number): Promise<string | null> {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (v: string | null) => {
+      if (settled) return
+      settled = true
+      resolve(v)
+    }
+    const ps = spawn('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-Command', script,
+    ], { stdio: ['ignore', 'pipe', 'ignore'] })
+    let out = ''
+    ps.stdout?.on('data', (d: Buffer) => { out += d.toString() })
+    ps.on('close', () => finish(out.trim()))
+    ps.on('error', () => finish(null))
+    setTimeout(() => { try { ps.kill() } catch { /* ignore */ }; finish(null) }, timeoutMs)
+  })
+}
+
+let cachedShouldPrewarm: boolean | null = null
+
+async function shouldPrewarmNewOutlook(): Promise<boolean> {
+  if (cachedShouldPrewarm !== null) return cachedShouldPrewarm
+  const out = await runPowerShell(`
+    $installed = $null -ne (Get-AppxPackage Microsoft.OutlookForWindows -ErrorAction SilentlyContinue)
+    $progId = (Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.eml\\UserChoice' -ErrorAction SilentlyContinue).ProgId
+    $isClassicHandler = $progId -and ($progId -like 'Outlook.File.eml*')
+    $installed -and -not $isClassicHandler
+  `.trim(), 5_000)
+  cachedShouldPrewarm = out?.toLowerCase() === 'true'
+  return cachedShouldPrewarm
+}
+
+// MainWindowTitle becomes non-empty only after WebView2 + the PWA shell have
+// rendered — the earliest point olk.exe can route an EML hand-off.
+async function isOlkWindowReady(): Promise<boolean> {
+  const out = await runPowerShell(`
+    $p = Get-Process olk -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -ne '' } | Select-Object -First 1
+    if ($p) { 'true' } else { 'false' }
+  `.trim(), 3_000)
+  return out?.toLowerCase() === 'true'
+}
+
+async function ensureNewOutlookReady(onPhase?: PhaseEmitter): Promise<void> {
+  if (!(await shouldPrewarmNewOutlook())) return
+  if (await isOlkWindowReady()) return
+
+  onPhase?.('prewarming')
+  try {
+    try { await shell.openExternal('ms-outlook://') } catch { return }
+
+    const POLL_INTERVAL_MS = 1_000
+    const MAX_WAIT_MS      = 20_000
+    // Post-window settle: cloud profile + signature sync runs after the
+    // window paints. EML hand-off during this window still loses the autosig.
+    const POST_READY_DELAY = 4_000
+
+    const start = Date.now()
+    while (Date.now() - start < MAX_WAIT_MS) {
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
+      if (await isOlkWindowReady()) {
+        await new Promise(r => setTimeout(r, POST_READY_DELAY))
+        return
+      }
+    }
+    // Timeout — fall through; worst case is the original cold-start behavior.
+  } finally {
+    onPhase?.('done')
+  }
+}
+
+// Pre-cache eligibility at module load so the first user-triggered open
+// doesn't pay the ~1-2s PowerShell startup latency on top of the window
+// check. Without this, the first click shows "Opening" for far too long
+// before transitioning to "Warming up Outlook…".
+void shouldPrewarmNewOutlook()
+
 // ── EML helper ───────────────────────────────────────────────────────────────
 
 // Returns null on success, or an error string if shell.openPath failed.
-async function openViaEml(payload: OutlookPayload): Promise<string | null> {
+async function openViaEml(payload: OutlookPayload, onPhase?: PhaseEmitter): Promise<string | null> {
   // Per-call unique id used for both the MIME boundary and the Message-ID.
-
   const uid = randomUUID()
   const boundary = `eod-${uid}`
   const messageId = `<${uid}@traccia.local>`
@@ -142,6 +230,7 @@ async function openViaEml(payload: OutlookPayload): Promise<string | null> {
 
   const filePath = path.join(os.tmpdir(), `eod-draft-${Date.now()}-${uid.slice(0, 8)}.eml`)
   fs.writeFileSync(filePath, eml, 'utf-8')
+  await ensureNewOutlookReady(onPhase)
   const err = await shell.openPath(filePath)
   setTimeout(() => fs.unlink(filePath, () => {}), 30_000)
   return err || null
@@ -707,7 +796,10 @@ export function registerIpcHandlers(
     // shell.openPath routes to whatever the OS default .eml handler is.
     // New Outlook users get New Outlook; classic Outlook users get classic.
     // COM is kept as a fallback only for cases where EML routing fails.
-    const emlResult = await openViaEml(payload)
+    const emitPhase: PhaseEmitter = (phase) => {
+      getWindow()?.webContents.send('eod:outlook-phase', phase)
+    }
+    const emlResult = await openViaEml(payload, emitPhase)
     if (emlResult === null) return { method: 'eml' }
 
     // ── Fallback: PowerShell COM (classic Outlook only) ──────────────────────
