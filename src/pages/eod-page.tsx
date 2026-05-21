@@ -17,6 +17,7 @@ import {
   buildEodSubject,
   buildEditorHtml,
   flattenSignatureToBreaks,
+  detectDateSeparator,
 } from "@/lib/eod-utils"
 import { FormEditor } from "@/components/eod/form-editor"
 import type { FormLayoutMode } from "@/components/eod/form-editor"
@@ -138,8 +139,11 @@ export function EodPage() {
       const raw = localStorage.getItem(KEYS.formState)
       if (raw) {
         const savedDate = (JSON.parse(raw) as EodFormState).date
-        if (savedDate !== today && savedSubject === buildEodSubject(savedDate)) {
-          return buildEodSubject(today)
+        if (savedDate !== today && (
+          savedSubject === buildEodSubject(savedDate, '-') ||
+          savedSubject === buildEodSubject(savedDate, '/')
+        )) {
+          return buildEodSubject(today, detectDateSeparator(savedSubject))
         }
       }
     } catch { /* ignore */ }

@@ -4,6 +4,7 @@
 - **Task Re-ordering** - Drag and drop tasks to reorder them in EOD form editor. Also supports keyboard shortcuts `ALT` + `Up/Down Arrow` to move tasks around.
 
 ### Improved
+- EOD subject line respects user edit separators like `/`.
 - Added muted background support on EOD composer for better readability and focus.
 
 ### Fixed

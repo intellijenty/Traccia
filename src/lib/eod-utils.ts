@@ -34,13 +34,18 @@ export function resolveEmail(raw: string, orgDomain: string): string {
   return trimmed
 }
 
-export function formatEodDate(date: string): string {
+export function formatEodDate(date: string, sep: '/' | '-' = '-'): string {
   const [year, month, day] = date.split('-')
-  return `${day}-${month}-${year}`
+  return `${day}${sep}${month}${sep}${year}`
 }
 
-export function buildEodSubject(date: string): string {
-  return `EOD: ${formatEodDate(date)}`
+export function buildEodSubject(date: string, sep: '/' | '-' = '-'): string {
+  return `EOD: ${formatEodDate(date, sep)}`
+}
+
+export function detectDateSeparator(subject: string): '/' | '-' {
+  const m = subject.match(/EOD:\s*\d{2}([/-])\d{2}/)
+  return m?.[1] === '/' ? '/' : '-'
 }
 
 function esc(s: string): string {
