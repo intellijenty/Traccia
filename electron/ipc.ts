@@ -3,12 +3,12 @@ import os from "os"
 import fs from "fs"
 import path from "path"
 import { spawn } from "child_process"
+import { randomUUID } from "crypto"
 import { registerHotkey } from "./hotkey"
 import { syncLeaves } from "./leave-sync"
 import { checkForUpdates, downloadUpdate, quitAndInstall } from "./updater"
 import {
   getEntriesByDate,
-  getEntryById,
   getLastEntry,
   getLastEntryByDate,
   insertEntry,
@@ -103,12 +103,20 @@ const licenseEngine = new LicenseEngine();
 
 // Returns null on success, or an error string if shell.openPath failed.
 async function openViaEml(payload: OutlookPayload): Promise<string | null> {
-  const boundary = `eod-${Date.now()}`
+  // Per-call unique id used for both the MIME boundary and the Message-ID.
+
+  const uid = randomUUID()
+  const boundary = `eod-${uid}`
+  const messageId = `<${uid}@traccia.local>`
+  const date = new Date().toUTCString()
+
   const headers: string[] = []
   if (payload.to) headers.push(`To: ${payload.to}`)
   if (payload.cc) headers.push(`Cc: ${payload.cc}`)
   headers.push(
     `Subject: ${payload.subject}`,
+    `Date: ${date}`,
+    `Message-ID: ${messageId}`,
     `X-Unsent: 1`,
     `MIME-Version: 1.0`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
@@ -132,7 +140,7 @@ async function openViaEml(payload: OutlookPayload): Promise<string | null> {
     `--${boundary}--`,
   ].join('\r\n')
 
-  const filePath = path.join(os.tmpdir(), `eod-draft-${Date.now()}.eml`)
+  const filePath = path.join(os.tmpdir(), `eod-draft-${Date.now()}-${uid.slice(0, 8)}.eml`)
   fs.writeFileSync(filePath, eml, 'utf-8')
   const err = await shell.openPath(filePath)
   setTimeout(() => fs.unlink(filePath, () => {}), 30_000)
