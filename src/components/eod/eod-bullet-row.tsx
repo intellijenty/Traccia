@@ -105,6 +105,8 @@ export interface BulletKeyHandlers {
   onAltShiftArrowUp?: () => void
   onAltShiftArrowDown?: () => void
   onAltD?: () => void
+  /** Fires on Ctrl+C when no text is selected — copy full item text. */
+  onCtrlC?: () => void
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -114,6 +116,13 @@ export function bulletKeyDown(text: string, h: BulletKeyHandlers) {
     // Otherwise it falls through to plain Enter — matches the original
     // behavior where the UI advertises Ctrl+Enter as a synonym for Enter
     // on tasks and section items.
+    if (e.key === 'c' && e.ctrlKey && h.onCtrlC) {
+      const input = e.target as HTMLInputElement
+      if (input.selectionStart === input.selectionEnd) {
+        e.preventDefault(); h.onCtrlC()
+      }
+      return
+    }
     if (e.key === 'Enter' && e.ctrlKey && h.onCtrlEnter) {
       e.preventDefault(); h.onCtrlEnter()
       return

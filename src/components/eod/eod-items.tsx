@@ -26,6 +26,7 @@ export const SortableSub = memo(function SortableSub({ taskId, sub }: SortableSu
     useSortable({ id: sub.id })
 
   const onKeyDown = bulletKeyDown(sub.text, {
+    onCtrlC: () => navigator.clipboard.writeText(sub.text),
     onCtrlEnter: () => actions.addTaskAfter(projectId, taskId),
     onEnter: () => actions.addSub(projectId, taskId, sub.id),
     onShiftTab: () => focus.focus(`task:${taskId}`),
@@ -82,6 +83,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
   const { setNodeRef: setSubDropRef, isOver: isSubOver } = useDroppable({ id: `subs:${task.id}` })
 
   const onKeyDown = bulletKeyDown(task.text, {
+    onCtrlC: () => navigator.clipboard.writeText(task.text),
     onEnter: () => actions.addTaskAfter(projectId, task.id),
     onTab: () => {
       if (task.subBullets.length > 0) {
@@ -200,6 +202,7 @@ export const SortableSectionItem = memo(function SortableSectionItem({
     useSortable({ id: item.id })
 
   const onKeyDown = bulletKeyDown(item.text, {
+    onCtrlC: () => navigator.clipboard.writeText(item.text),
     onEnter: () => actions.addSectionItem(sk, item.id),
     onDeleteEmpty: () => {
       focus.focusPrev(`section:${sk}:${item.id}`)

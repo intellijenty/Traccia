@@ -370,7 +370,13 @@ function ProjectField({ project }: ProjectFieldProps) {
             value={project.name}
             onChange={e => actions.setProjectName(project.id, e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'ArrowDown') {
+              if (e.key === 'ArrowDown' && e.altKey) {
+                e.preventDefault()
+                actions.reorderProjectDown(project.id)
+              } else if (e.key === 'ArrowUp' && e.altKey) {
+                e.preventDefault()
+                actions.reorderProjectUp(project.id)
+              } else if (e.key === 'ArrowDown') {
                 e.preventDefault()
                 focus.focusNext(`project:${project.id}`)
               } else if (e.key === 'ArrowUp') {
