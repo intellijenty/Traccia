@@ -11,6 +11,14 @@ export interface EodTask {
   subBullets: EodSubBullet[]
 }
 
+export interface EodProject {
+  id: string
+  name: string
+  status: ProjectStatus
+  statusNote: string | null  // null = N/A; shown in email below project name when set
+  tasksCompleted: EodTask[]
+}
+
 export interface EodSimpleSection {
   items: { id: string; text: string }[]
   isNA: boolean
@@ -18,9 +26,7 @@ export interface EodSimpleSection {
 
 export interface EodFormState {
   date: string
-  project: string
-  projectStatus: ProjectStatus
-  tasksCompleted: EodTask[]
+  projects: EodProject[]
   otherTasks: EodSimpleSection
   concerns: EodSimpleSection
   nextDayPlan: EodSimpleSection
@@ -56,12 +62,14 @@ export function makeEmptySimpleSection(defaultNA = true): EodSimpleSection {
   return { items: [], isNA: defaultNA }
 }
 
+export function makeEmptyProject(name = ''): EodProject {
+  return { id: makeId(), name, status: 'green', statusNote: null, tasksCompleted: [] }
+}
+
 export function makeDefaultFormState(): EodFormState {
   return {
     date: new Date().toLocaleDateString('en-CA'),
-    project: '',
-    projectStatus: 'green',
-    tasksCompleted: [],
+    projects: [makeEmptyProject()],
     otherTasks: makeEmptySimpleSection(true),
     concerns: makeEmptySimpleSection(true),
     nextDayPlan: makeEmptySimpleSection(false),

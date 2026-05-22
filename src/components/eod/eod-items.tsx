@@ -10,7 +10,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { SectionKey } from './eod-dnd'
 import { BulletRow, bulletKeyDown } from './eod-bullet-row'
-import { useEodApi, useEodDndState } from './eod-form-context'
+import { useEodApi, useEodDndState, useProjectId } from './eod-form-context'
 
 // ── SortableSub ───────────────────────────────────────────────────────────────
 
@@ -21,24 +21,25 @@ interface SortableSubProps {
 
 export const SortableSub = memo(function SortableSub({ taskId, sub }: SortableSubProps) {
   const { actions, focus } = useEodApi()
+  const projectId = useProjectId()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: sub.id })
 
   const onKeyDown = bulletKeyDown(sub.text, {
-    onCtrlEnter: () => actions.addTaskAfter(taskId),
-    onEnter: () => actions.addSub(taskId, sub.id),
+    onCtrlEnter: () => actions.addTaskAfter(projectId, taskId),
+    onEnter: () => actions.addSub(projectId, taskId, sub.id),
     onShiftTab: () => focus.focus(`task:${taskId}`),
     onDeleteEmpty: () => {
       focus.focusPrev(`sub:${taskId}:${sub.id}`)
-      actions.removeSub(taskId, sub.id)
+      actions.removeSub(projectId, taskId, sub.id)
     },
     onArrowDown: () => focus.focusNext(`sub:${taskId}:${sub.id}`),
     onArrowUp: () => focus.focusPrev(`sub:${taskId}:${sub.id}`),
-    onAltD:              () => actions.duplicateItem({ type: 'sub', taskId, subId: sub.id }),
-    onAltArrowUp:        () => actions.moveUp({ type: 'sub', taskId, subId: sub.id }),
-    onAltArrowDown:      () => actions.moveDown({ type: 'sub', taskId, subId: sub.id }),
-    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'task', taskId }); focus.focus(`sub:${taskId}:${sub.id}`) },
-    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'task', taskId }); focus.focus(`sub:${taskId}:${sub.id}`) },
+    onAltD:              () => actions.duplicateItem({ type: 'sub', projectId, taskId, subId: sub.id }),
+    onAltArrowUp:        () => actions.moveUp({ type: 'sub', projectId, taskId, subId: sub.id }),
+    onAltArrowDown:      () => actions.moveDown({ type: 'sub', projectId, taskId, subId: sub.id }),
+    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'task', projectId, taskId }); focus.focus(`sub:${taskId}:${sub.id}`) },
+    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'task', projectId, taskId }); focus.focus(`sub:${taskId}:${sub.id}`) },
   })
 
   return (
@@ -52,9 +53,9 @@ export const SortableSub = memo(function SortableSub({ taskId, sub }: SortableSu
         text={sub.text}
         placeholder="Task detail"
         marker="sub"
-        onUpdate={text => actions.updateSub(taskId, sub.id, text)}
+        onUpdate={text => actions.updateSub(projectId, taskId, sub.id, text)}
         onKeyDown={onKeyDown}
-        onRemove={() => actions.removeSub(taskId, sub.id)}
+        onRemove={() => actions.removeSub(projectId, taskId, sub.id)}
         removeAriaLabel="Remove sub-bullet"
         dragAttributes={attributes}
         dragListeners={listeners}
@@ -72,6 +73,7 @@ interface SortableTaskCardProps {
 
 export const SortableTaskCard = memo(function SortableTaskCard({ task }: SortableTaskCardProps) {
   const { mode, actions, focus } = useEodApi()
+  const projectId = useProjectId()
   const { activeId } = useEodDndState()
   const anyItemDragging = activeId !== null
 
@@ -80,25 +82,25 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
   const { setNodeRef: setSubDropRef, isOver: isSubOver } = useDroppable({ id: `subs:${task.id}` })
 
   const onKeyDown = bulletKeyDown(task.text, {
-    onEnter: () => actions.addTaskAfter(task.id),
+    onEnter: () => actions.addTaskAfter(projectId, task.id),
     onTab: () => {
       if (task.subBullets.length > 0) {
         focus.focus(`sub:${task.id}:${task.subBullets[0].id}`)
       } else {
-        actions.addSub(task.id)
+        actions.addSub(projectId, task.id)
       }
     },
     onDeleteEmpty: () => {
       focus.focusPrev(`task:${task.id}`)
-      actions.removeTask(task.id)
+      actions.removeTask(projectId, task.id)
     },
     onArrowDown: () => focus.focusNext(`task:${task.id}`),
     onArrowUp: () => focus.focusPrev(`task:${task.id}`),
-    onAltD:              () => actions.duplicateItem({ type: 'task', taskId: task.id }),
-    onAltArrowUp:        () => actions.moveUp({ type: 'task', taskId: task.id }),
-    onAltArrowDown:      () => actions.moveDown({ type: 'task', taskId: task.id }),
-    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'task', taskId: task.id }); focus.focus(`task:${task.id}`) },
-    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'task', taskId: task.id }); focus.focus(`task:${task.id}`) },
+    onAltD:              () => actions.duplicateItem({ type: 'task', projectId, taskId: task.id }),
+    onAltArrowUp:        () => actions.moveUp({ type: 'task', projectId, taskId: task.id }),
+    onAltArrowDown:      () => actions.moveDown({ type: 'task', projectId, taskId: task.id }),
+    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'task', projectId, taskId: task.id }); focus.focus(`task:${task.id}`) },
+    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'task', projectId, taskId: task.id }); focus.focus(`task:${task.id}`) },
   })
 
   return (
@@ -115,9 +117,9 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
         text={task.text}
         placeholder="Ticket or task name"
         marker="task"
-        onUpdate={text => actions.updateTask(task.id, text)}
+        onUpdate={text => actions.updateTask(projectId, task.id, text)}
         onKeyDown={onKeyDown}
-        onRemove={() => actions.removeTask(task.id)}
+        onRemove={() => actions.removeTask(projectId, task.id)}
         removeAriaLabel="Remove task"
         dragAttributes={attributes}
         dragListeners={listeners}
@@ -168,7 +170,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
             variant="outline"
             size="xs"
             tabIndex={-1}
-            onClick={() => actions.addSub(task.id)}
+            onClick={() => actions.addSub(projectId, task.id)}
             className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             + sub-bullet

@@ -1,10 +1,10 @@
 import { Fragment, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import type { EodFormState, ProjectStatus } from '@/lib/eod-types'
+import type { EodFormState, EodProject, ProjectStatus } from '@/lib/eod-types'
 import { Button } from '../ui/button'
 import { Kbd, KbdGroup } from '../ui/kbd'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { PlusSignIcon } from '@hugeicons/core-free-icons'
+import { Cancel01Icon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import {
   DndContext, DragOverlay,
@@ -23,7 +23,10 @@ import {
   type ItemMeta,
 } from './eod-dnd'
 import { SortableTaskCard, SimpleSection } from './eod-items'
-import { EodFormProvider, useEodApi } from './eod-form-context'
+import {
+  EodFormProvider, EodProjectContext,
+  useEodApi, useEodDndState, useProjectId,
+} from './eod-form-context'
 import { useUndoHistory } from './use-undo-history'
 
 export type { FormLayoutMode } from './eod-dnd'
@@ -64,8 +67,6 @@ const TASK_SHORTCUTS: { keys: React.ReactNode[]; label: string }[] = [
 ]
 
 // ── FormEditor ────────────────────────────────────────────────────────────────
-// Top-level: owns DnD state (sensors, active id, drag projection) and wires the
-// DnD context. State + actions live in EodFormProvider.
 
 export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditorProps) {
   const { historyCommit } = useUndoHistory(value, onChange)
@@ -82,15 +83,27 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
   )
 
   function findItemMeta(id: string): ItemMeta | null {
-    for (const task of value.tasksCompleted) {
-      if (task.id === id) {
-        return { type: 'task', container: 'tasks', taskId: task.id, text: task.text }
-      }
-      for (const sub of task.subBullets) {
-        if (sub.id === id) {
+    for (const project of value.projects) {
+      for (const task of project.tasksCompleted) {
+        if (task.id === id) {
           return {
-            type: 'sub', container: `subs:${task.id}`,
-            taskId: task.id, subId: sub.id, text: sub.text,
+            type: 'task',
+            container: `tasks:${project.id}`,
+            projectId: project.id,
+            taskId: task.id,
+            text: task.text,
+          }
+        }
+        for (const sub of task.subBullets) {
+          if (sub.id === id) {
+            return {
+              type: 'sub',
+              container: `subs:${task.id}`,
+              projectId: project.id,
+              taskId: task.id,
+              subId: sub.id,
+              text: sub.text,
+            }
           }
         }
       }
@@ -99,8 +112,11 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
       for (const item of value[sk].items) {
         if (item.id === id) {
           return {
-            type: 'section-item', container: `section:${sk}`,
-            sk, itemId: item.id, text: item.text,
+            type: 'section-item',
+            container: `section:${sk}`,
+            sk,
+            itemId: item.id,
+            text: item.text,
           }
         }
       }
@@ -109,10 +125,11 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
   }
 
   function resolveDestContainer(overId: string): string {
-    if (overId === 'tasks' || overId.startsWith('subs:') || overId.startsWith('section:')) {
+    if (overId.startsWith('tasks:') || overId.startsWith('subs:') || overId.startsWith('section:')) {
       return overId
     }
-    return findItemMeta(overId)?.container ?? 'tasks'
+    const meta = findItemMeta(overId)
+    return meta?.container ?? `tasks:${value.projects[0]?.id ?? ''}`
   }
 
   function handleDragStart({ active }: DragStartEvent) {
@@ -158,18 +175,31 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
 
     // Horizontal drag intent overrides container.
     if (savedDepth === 0 && src.type === 'sub') {
-      dstContainer = 'tasks'
+      dstContainer = `tasks:${src.projectId}`
     } else if (savedDepth === 1 && src.type !== 'sub') {
       const overMeta = findItemMeta(overId)
       if (overMeta?.type === 'task' || overMeta?.type === 'sub') {
         dstContainer = `subs:${overMeta.taskId}`
-      } else if (dstContainer === 'tasks') {
-        const last = value.tasksCompleted[value.tasksCompleted.length - 1]
+      } else if (dstContainer.startsWith('tasks:')) {
+        const projectId = dstContainer.slice(6)
+        const project = value.projects.find(p => p.id === projectId)
+        const last = project?.tasksCompleted[project.tasksCompleted.length - 1]
         if (last) dstContainer = `subs:${last.id}`
       }
     }
 
     if (src.type === 'task' && dstContainer === `subs:${src.taskId}`) return
+
+    // Block cross-project drag (guard 1: tasks: container)
+    if ((src.type === 'task' || src.type === 'sub') && dstContainer.startsWith('tasks:')) {
+      if (dstContainer.slice(6) !== src.projectId) return
+    }
+
+    // Block cross-project drag (guard 2: subs: container)
+    if ((src.type === 'task' || src.type === 'sub') && dstContainer.startsWith('subs:')) {
+      const destTaskMeta = findItemMeta(dstContainer.slice(5))
+      if (destTaskMeta && destTaskMeta.projectId !== src.projectId) return
+    }
 
     if (src.container === dstContainer) {
       if (overId === dstContainer) return
@@ -228,9 +258,15 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
       >
         <DragOverlay>{renderOverlay()}</DragOverlay>
 
-        <div className="space-y-6">
-          <ProjectField project={value.project} status={value.projectStatus} tasks={value.tasksCompleted} />
-          <TasksSection tasks={value.tasksCompleted} mode={mode} />
+        <div className="space-y-4">
+          {value.projects.map(project => (
+            <EodProjectContext.Provider key={project.id} value={project.id}>
+              <ProjectCard project={project} canRemove={value.projects.length > 1} mode={mode} />
+            </EodProjectContext.Provider>
+          ))}
+
+          {mode !== 'zen' && <AddProjectButton />}
+
           {SECTION_CONFIG.map(({ sk, title, placeholder }) => (
             <div key={sk} className="group/section">
               <SectionHeader>{title}</SectionHeader>
@@ -253,43 +289,168 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   )
 }
 
-interface ProjectFieldProps {
-  project: string
-  status: ProjectStatus
-  tasks: EodFormState['tasksCompleted']
+function AddProjectButton() {
+  const { actions } = useEodApi()
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      tabIndex={-1}
+      onClick={() => actions.addProject()}
+      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+    >
+      <HugeiconsIcon icon={PlusSignIcon} className="shrink-0 size-3 mr-1" />
+      Add Project
+    </Button>
+  )
 }
 
-function ProjectField({ project, status, tasks }: ProjectFieldProps) {
-  const { actions, focus } = useEodApi()
-  const statusColor = STATUS_COLOR[status]
+// ── ProjectCard ───────────────────────────────────────────────────────────────
+
+interface ProjectCardProps {
+  project: EodProject
+  canRemove: boolean
+  mode: FormLayoutMode
+}
+
+function ProjectCard({ project, canRemove, mode }: ProjectCardProps) {
+  const { actions } = useEodApi()
   return (
-    <div className="flex space-x-2 items-center">
-      <p className="text-xs font-semibold uppercase tracking-wider text-sidebar-primary">Project</p>
-      <div className="flex items-center gap-3 rounded-lg border border-input bg-background px-3 py-0.5 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50">
-        {status !== 'none' && (
-          <span className="h-3.5 w-1 shrink-0 rounded" style={{ backgroundColor: statusColor }} />
+    <div className="rounded-xl border border-border/40 bg-muted/5 px-4 pb-4 pt-3 space-y-3.5">
+      <div className="flex items-start gap-2">
+        <ProjectField project={project} />
+        {canRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            tabIndex={-1}
+            aria-label="Remove project"
+            title={`Remove Project "${project.name || ''}"`}
+            className="shrink-0 mt-0.5 text-muted-foreground/40 hover:text-destructive transition-colors"
+            onClick={() => {
+              const hasContent = project.tasksCompleted.some(t => t.text.trim())
+              if (hasContent && !window.confirm(`Delete project "${project.name || 'Untitled'}"?`)) return
+              actions.removeProject(project.id)
+            }}
+          >
+            <HugeiconsIcon icon={Cancel01Icon} className="shrink-0 size-3" />
+          </Button>
         )}
-        <input
-          ref={focus.reg('project') as React.RefCallback<HTMLInputElement>}
-          type="text"
-          value={project}
-          onChange={e => actions.setProject(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'ArrowDown') {
-              e.preventDefault()
-              focus.focusNext('project')
-            } else if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
-              e.preventDefault()
-              if (tasks.length > 0) focus.focus(`task:${tasks[0].id}`)
-              else actions.addTaskAfter(null)
-            }
-          }}
-          placeholder="Project name"
-          className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none"
-          autoComplete="off"
-          name="project"
-        />
-        <ProjectStatusPicker value={status} onChange={actions.setProjectStatus} />
+      </div>
+      <TasksSection tasks={project.tasksCompleted} mode={mode} />
+    </div>
+  )
+}
+
+// ── ProjectField ──────────────────────────────────────────────────────────────
+
+interface ProjectFieldProps {
+  project: EodProject
+}
+
+function ProjectField({ project }: ProjectFieldProps) {
+  const { actions, focus } = useEodApi()
+  const statusColor = STATUS_COLOR[project.status]
+  return (
+    <div className="flex flex-1 items-center space-x-8">
+      {/* Project name row */}
+      <div className="flex items-center w-full max-w-sm gap-3">
+        <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-sidebar-primary">
+          Project
+        </span>
+        <div className="flex w-full items-center gap-2 rounded-md border border-input bg-background px-2.5 py-0.5 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50">
+          {project.status !== 'none' && (
+            <span className="h-3.5 w-1 shrink-0 rounded" style={{ backgroundColor: statusColor }} />
+          )}
+          <input
+            ref={focus.reg(`project:${project.id}`) as React.RefCallback<HTMLInputElement>}
+            type="text"
+            value={project.name}
+            onChange={e => actions.setProjectName(project.id, e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                focus.focusNext(`project:${project.id}`)
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                focus.focusPrev(`project:${project.id}`)
+              } else if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
+                e.preventDefault()
+                if (project.statusNote !== null) {
+                  focus.focus(`project-status:${project.id}`)
+                } else if (project.tasksCompleted.length > 0) {
+                  focus.focus(`task:${project.tasksCompleted[0].id}`)
+                } else {
+                  actions.addTaskAfter(project.id, null)
+                }
+              }
+            }}
+            placeholder="Project name…"
+            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none"
+            autoComplete="off"
+            name="project"
+          />
+          <ProjectStatusPicker
+            value={project.status}
+            onChange={s => actions.setProjectStatus(project.id, s)}
+          />
+        </div>
+      </div>
+
+      {/* Status note row */}
+      <div className="flex items-center gap-3 w-full max-w-lg">
+        <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-sidebar-primary">
+          Status Text
+        </span>
+        {project.statusNote === null ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            tabIndex={-1}
+            onClick={() => actions.setProjectStatusNote(project.id, '')}
+            className="text-muted-foreground/80 hover:text-foreground rounded-md"
+          >
+            N/A
+          </Button>
+        ) : (
+          <div className="flex flex-1 items-center gap-1 rounded-md border border-input bg-background px-2.5 py-0.5 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50">
+            <input
+              ref={focus.reg(`project-status:${project.id}`) as React.RefCallback<HTMLInputElement>}
+              type="text"
+              value={project.statusNote}
+              onChange={e => actions.setProjectStatusNote(project.id, e.target.value)}
+              onBlur={() => {
+                if (!project.statusNote) actions.setProjectStatusNote(project.id, null)
+              }}
+              onKeyDown={e => {
+                if (e.key === 'ArrowDown') { e.preventDefault(); focus.focusNext(`project-status:${project.id}`) }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); focus.focusPrev(`project-status:${project.id}`) }
+                else if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
+                  e.preventDefault()
+                  focus.focusNext(`project-status:${project.id}`)
+                }
+              }}
+              placeholder="Reason for status (optional)"
+              className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none"
+              autoComplete="off"
+              name="project-status"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              tabIndex={-1}
+              aria-label="Clear status note"
+              onClick={() => actions.setProjectStatusNote(project.id, null)}
+              className="shrink-0 hover:text-destructive transition-colors"
+            >
+              <HugeiconsIcon icon={Cancel01Icon} className="size-2.5" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -324,59 +485,97 @@ function ProjectStatusPicker({
   )
 }
 
+// ── TasksSection ──────────────────────────────────────────────────────────────
+// Consumes EodProjectContext (set by form-editor's project loop).
+
 interface TasksSectionProps {
-  tasks: EodFormState['tasksCompleted']
+  tasks: EodProject['tasksCompleted']
   mode: FormLayoutMode
 }
 
 function TasksSection({ tasks, mode }: TasksSectionProps) {
-  const { actions } = useEodApi()
-  const { setNodeRef: setTasksDropRef } = useDroppable({ id: 'tasks' })
+  const { actions, focus } = useEodApi()
+  const { activeId } = useEodDndState()
+  const anyItemDragging = activeId !== null
+  const projectId = useProjectId()
+  const { setNodeRef: setTasksDropRef, isOver } = useDroppable({ id: `tasks:${projectId}` })
   const lastTaskId = tasks[tasks.length - 1]?.id ?? null
+  const isNA = tasks.length === 0
 
   return (
     <div>
       <div className="flex items-center justify-between pb-1">
         <SectionHeader>Tasks Completed</SectionHeader>
-        <div className="flex items-center gap-2">
-          {mode !== 'zen' && (
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pb-2">
-              {TASK_SHORTCUTS.map(({ keys, label }, i) => (
-                <Fragment key={label}>
-                  {i > 0 && <span className="text-muted-foreground">&middot;</span>}
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <KbdGroup>{keys}</KbdGroup> {label}
-                  </span>
-                </Fragment>
-              ))}
-            </div>
-          )}
-        </div>
+        {mode !== 'zen' && !isNA && (
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pb-2">
+            {TASK_SHORTCUTS.map(({ keys, label }, i) => (
+              <Fragment key={label}>
+                {i > 0 && <span className="text-muted-foreground">&middot;</span>}
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <KbdGroup>{keys}</KbdGroup> {label}
+                </span>
+              </Fragment>
+            ))}
+          </div>
+        )}
       </div>
 
-      <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-        <div ref={setTasksDropRef} className="space-y-1">
-          {tasks.map(task => (
-            <SortableTaskCard key={task.id} task={task} />
-          ))}
-
+      {isNA ? (
+        <div
+          ref={setTasksDropRef}
+          className={cn(
+            'flex items-center gap-3 rounded transition-all',
+            isOver
+              ? 'min-h-10 bg-muted/20 px-2'
+              : anyItemDragging
+                ? 'min-h-10 border border-dashed border-border/60 px-2'
+                : 'min-h-8',
+          )}
+        >
+          <Button
+            variant="outline"
+            size="xs"
+            ref={focus.reg(`na:tasks:${projectId}`) as React.RefCallback<HTMLButtonElement>}
+            className="text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            onClick={() => actions.addTaskAfter(projectId, null)}
+            onKeyDown={e => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); focus.focusNext(`na:tasks:${projectId}`) }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); focus.focusPrev(`na:tasks:${projectId}`) }
+            }}
+          >
+            N/A
+          </Button>
           {mode !== 'zen' && (
-            <div className="flex items-center gap-1">
-              <Button
-                tabIndex={-1}
-                variant="outline"
-                size="sm"
-                onClick={() => actions.addTaskAfter(lastTaskId)}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <HugeiconsIcon icon={PlusSignIcon} className="shrink-0 size-3 mr-1" />
-                <span>Add task</span>
-              </Button>
-              <KbdGroup className="ml-1"><Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></KbdGroup>
-            </div>
+            <span className="text-xs text-muted-foreground/40">
+              {isOver || anyItemDragging ? 'Drop to add' : 'Click to edit'}
+            </span>
           )}
         </div>
-      </SortableContext>
+      ) : (
+        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+          <div ref={setTasksDropRef} className="space-y-1">
+            {tasks.map(task => (
+              <SortableTaskCard key={task.id} task={task} />
+            ))}
+
+            {mode !== 'zen' && (
+              <div className="flex items-center gap-1">
+                <Button
+                  tabIndex={-1}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => actions.addTaskAfter(projectId, lastTaskId)}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <HugeiconsIcon icon={PlusSignIcon} className="shrink-0 size-3 mr-1" />
+                  <span>Add task</span>
+                </Button>
+                <KbdGroup className="ml-1"><Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></KbdGroup>
+              </div>
+            )}
+          </div>
+        </SortableContext>
+      )}
     </div>
   )
 }

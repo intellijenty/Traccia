@@ -82,23 +82,34 @@ function sectionHtml(title: string, s: EodSimpleSection): string {
 
 export function buildEodHtml(form: EodFormState, settings: EodEmailSettings): string {
   const font = 'font-family:Aptos,Calibri,Arial,sans-serif;font-size:15px;color:#1a1a1a;line-height:1.6'
-  const bgColor = STATUS_BG[form.projectStatus]
-  const projectDisplay = form.project ? esc(form.project) : 'N/A'
-  const projectSpan = bgColor
-    ? `<span style="background-color:${bgColor}">${projectDisplay}</span>`
-    : projectDisplay
   const embedSig = settings.embedSignature !== false
   const sig = embedSig && settings.signature
     ? `<br><div style="${font};margin:0;line-height:1.5">${flattenSignatureToBreaks(settings.signature)}</div>`
     : ''
+
+  const projectsHtml = form.projects.map(project => {
+    const bgColor = STATUS_BG[project.status]
+    const projectDisplay = project.name ? esc(project.name) : 'N/A'
+    const projectSpan = bgColor
+      ? `<span style="background-color:${bgColor}">${projectDisplay}</span>`
+      : projectDisplay
+    const statusNoteLine = project.statusNote?.trim()
+      ? `<p style="margin:0 0 8px">${esc(project.statusNote.trim())}</p>`
+      : ''
+    return [
+      `<p style="margin:0 0 8px"><strong>Project:</strong> ${projectSpan}</p>`,
+      statusNoteLine,
+      `<p style="margin:12px 0 4px"><strong>Tasks Completed:</strong></p>`,
+      tasksHtml(project.tasksCompleted),
+    ].join('')
+  }).join('')
+
   return [
     `<!DOCTYPE html><html><head><meta charset="utf-8"></head>`,
     `<body style="margin:0;padding:20px;background:#fff">`,
     `<div style="${font};max-width:600px">`,
     `<p style="margin:0 0 16px">Hello All,<br>Please find my EOD below.</p>`,
-    `<p style="margin:0 0 8px"><strong>Project:</strong> ${projectSpan}</p>`,
-    `<p style="margin:12px 0 4px"><strong>Tasks Completed:</strong></p>`,
-    tasksHtml(form.tasksCompleted),
+    projectsHtml,
     sectionHtml('Other (non-project related) Tasks', form.otherTasks),
     sectionHtml('Concerns', form.concerns),
     sectionHtml('Plan for the next working day', form.nextDayPlan),
@@ -125,16 +136,18 @@ function sectionText(title: string, s: EodSimpleSection): string {
 }
 
 export function buildEodPlainText(form: EodFormState, settings: EodEmailSettings): string {
+  const projectParts = form.projects.flatMap(project => {
+    const lines: string[] = [`Project:\n  ${project.name || 'N/A'}`]
+    if (project.statusNote?.trim()) lines.push(`Status:\n  ${project.statusNote.trim()}`)
+    lines.push('', 'Tasks Completed:', tasksText(project.tasksCompleted), '')
+    return lines
+  })
+
   const parts = [
     'Hello All,',
     'Please find my EOD below.',
     '',
-    'Project:',
-    `  ${form.project || 'N/A'}`,
-    '',
-    'Tasks Completed:',
-    tasksText(form.tasksCompleted),
-    '',
+    ...projectParts,
     sectionText('Other (non-project related) Tasks', form.otherTasks),
     '',
     sectionText('Concerns', form.concerns),
@@ -169,11 +182,22 @@ export function buildEditorHtml(form: EodFormState): string {
       : `<ul>${filled.map(i => `<li>${esc(i.text)}</li>`).join('')}</ul>`
     return `<p><strong>${title}:</strong></p>${body}`
   }
+
+  const projectBlocks = form.projects.map(project => {
+    const statusNoteLine = project.statusNote?.trim()
+      ? `<p><strong>Status:</strong> ${esc(project.statusNote.trim())}</p>`
+      : ''
+    return [
+      `<p><strong>Project:</strong> ${esc(project.name) || 'N/A'}</p>`,
+      statusNoteLine,
+      '<p><strong>Tasks Completed:</strong></p>',
+      tasksList(project.tasksCompleted),
+    ].join('')
+  }).join('')
+
   return [
     '<p>Hello All,<br>Please find my EOD below.</p>',
-    `<p><strong>Project:</strong> ${esc(form.project) || 'N/A'}</p>`,
-    '<p><strong>Tasks Completed:</strong></p>',
-    tasksList(form.tasksCompleted),
+    projectBlocks,
     simpleSection('Other (non-project related) Tasks', form.otherTasks),
     simpleSection('Concerns', form.concerns),
     simpleSection('Plan for the next working day', form.nextDayPlan),

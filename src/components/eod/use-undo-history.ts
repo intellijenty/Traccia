@@ -6,13 +6,17 @@ const COALESCE_MS = 600
 const MAX_HISTORY = 100
 
 function isStructurallyIdentical(a: EodFormState, b: EodFormState): boolean {
-  if (a.projectStatus !== b.projectStatus) return false
-  if (a.tasksCompleted.length !== b.tasksCompleted.length) return false
-  for (let i = 0; i < a.tasksCompleted.length; i++) {
-    const at = a.tasksCompleted[i], bt = b.tasksCompleted[i]
-    if (at.id !== bt.id || at.subBullets.length !== bt.subBullets.length) return false
-    for (let j = 0; j < at.subBullets.length; j++) {
-      if (at.subBullets[j].id !== bt.subBullets[j].id) return false
+  if (a.projects.length !== b.projects.length) return false
+  for (let pi = 0; pi < a.projects.length; pi++) {
+    const ap = a.projects[pi], bp = b.projects[pi]
+    if (ap.id !== bp.id || ap.status !== bp.status) return false
+    if (ap.tasksCompleted.length !== bp.tasksCompleted.length) return false
+    for (let i = 0; i < ap.tasksCompleted.length; i++) {
+      const at = ap.tasksCompleted[i], bt = bp.tasksCompleted[i]
+      if (at.id !== bt.id || at.subBullets.length !== bt.subBullets.length) return false
+      for (let j = 0; j < at.subBullets.length; j++) {
+        if (at.subBullets[j].id !== bt.subBullets[j].id) return false
+      }
     }
   }
   for (const sk of SECTION_KEYS) {
@@ -28,14 +32,16 @@ function isStructurallyIdentical(a: EodFormState, b: EodFormState): boolean {
 function getEditKey(a: EodFormState, b: EodFormState): string | null {
   if (!isStructurallyIdentical(a, b)) return null
 
-  if (a.project !== b.project) return 'project'
-
-  for (let i = 0; i < a.tasksCompleted.length; i++) {
-    const at = a.tasksCompleted[i], bt = b.tasksCompleted[i]
-    if (at.text !== bt.text) return `task:${at.id}`
-    for (let j = 0; j < at.subBullets.length; j++) {
-      if (at.subBullets[j].text !== bt.subBullets[j].text) {
-        return `sub:${at.id}:${at.subBullets[j].id}`
+  for (let pi = 0; pi < a.projects.length; pi++) {
+    const ap = a.projects[pi], bp = b.projects[pi]
+    if (ap.name !== bp.name) return `project:${ap.id}`
+    for (let i = 0; i < ap.tasksCompleted.length; i++) {
+      const at = ap.tasksCompleted[i], bt = bp.tasksCompleted[i]
+      if (at.text !== bt.text) return `task:${at.id}`
+      for (let j = 0; j < at.subBullets.length; j++) {
+        if (at.subBullets[j].text !== bt.subBullets[j].text) {
+          return `sub:${at.id}:${at.subBullets[j].id}`
+        }
       }
     }
   }

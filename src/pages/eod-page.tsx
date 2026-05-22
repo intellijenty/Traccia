@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { makeDefaultFormState } from "@/lib/eod-types"
+import { makeDefaultFormState, makeId } from "@/lib/eod-types"
 import type { EodFormState, EodHistoryEntry } from "@/lib/eod-types"
 import {
   buildEodHtml,
@@ -52,6 +52,38 @@ const KEYS = {
   formMode: "traccia:eod-form-mode",
 } as const
 
+// ── Migration ────────────────────────────────────────────────────────────────
+// Handles old single-project shape: { project, projectStatus, tasksCompleted, ... }
+
+function migrateFormState(raw: unknown): EodFormState {
+  if (!raw || typeof raw !== 'object') return makeDefaultFormState()
+  const obj = raw as Record<string, unknown>
+  if ('project' in obj && !('projects' in obj)) {
+    const { project, projectStatus, tasksCompleted, ...rest } = obj
+    return {
+      ...(rest as Omit<EodFormState, 'projects'>),
+      projects: [{
+        id: makeId(),
+        name: (project as string) ?? '',
+        status: (projectStatus as EodFormState['projects'][0]['status']) ?? 'green',
+        statusNote: null,
+        tasksCompleted: (tasksCompleted as EodFormState['projects'][0]['tasksCompleted']) ?? [],
+      }],
+    }
+  }
+  // Normalize projects array: ensure new fields exist on each entry
+  if ('projects' in obj && Array.isArray(obj.projects)) {
+    return {
+      ...obj,
+      projects: (obj.projects as Record<string, unknown>[]).map(p => ({
+        ...p,
+        statusNote: (p.statusNote as string | null | undefined) ?? null,
+      })),
+    } as EodFormState
+  }
+  return makeDefaultFormState()
+}
+
 // ── Loaders ──────────────────────────────────────────────────────────────────
 
 function loadDraft(): EodFormState {
@@ -59,15 +91,14 @@ function loadDraft(): EodFormState {
   try {
     const raw = localStorage.getItem(KEYS.formState)
     if (raw) {
-      const state = JSON.parse(raw) as EodFormState
-      // Draft is from a previous day — reset date to today, keep all other fields
+      const state = migrateFormState(JSON.parse(raw))
       return state.date !== today ? { ...state, date: today } : state
     }
   } catch { /* ignore */ }
   // Migrate from legacy last-sent if exists
   try {
     const legacy = localStorage.getItem(KEYS.lastSent)
-    if (legacy) return { ...(JSON.parse(legacy) as EodFormState), date: today }
+    if (legacy) return { ...migrateFormState(JSON.parse(legacy)), date: today }
   } catch { /* ignore */ }
   return makeDefaultFormState()
 }
@@ -245,7 +276,7 @@ export function EodPage() {
 
   function handleRestoreFromHistory(entry: EodHistoryEntry) {
     if (entry.formState) {
-      updateFormState(entry.formState)
+      updateFormState(migrateFormState(entry.formState))
     }
     setSubject(entry.subject)
     if (entry.mode === "editor") {
@@ -370,7 +401,7 @@ export function EodPage() {
                 className="text-lg text-foreground font-semibold tracking-tight"
                 style={{ textWrap: "balance" } as React.CSSProperties}
               >
-                EOD Composer
+                Power Composer
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">{longDate}</p>
             </div>
