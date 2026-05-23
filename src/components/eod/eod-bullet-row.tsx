@@ -34,6 +34,7 @@ interface BulletRowProps {
   marker: BulletMarker
   onUpdate: (text: string) => void
   onKeyDown: (e: React.KeyboardEvent) => void
+  onBlur?: () => void
   onRemove: () => void
   removeAriaLabel: string
   /** dnd-kit useSortable().attributes — spread onto grip handle */
@@ -49,7 +50,7 @@ interface BulletRowProps {
 
 export function BulletRow({
   inputRef, text, placeholder, marker,
-  onUpdate, onKeyDown, onRemove, removeAriaLabel,
+  onUpdate, onKeyDown, onBlur, onRemove, removeAriaLabel,
   dragAttributes, dragListeners, className, removeSize = 'icon-xs',
 }: BulletRowProps) {
   const isTask = marker === 'task'
@@ -70,6 +71,7 @@ export function BulletRow({
         value={text}
         onChange={e => onUpdate(e.target.value)}
         onKeyDown={onKeyDown}
+        onBlur={onBlur}
         placeholder={placeholder}
         className="flex-1 min-w-0 bg-transparent py-1.5 text-[15px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none"
       />

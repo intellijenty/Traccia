@@ -1,5 +1,6 @@
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { normalizeTaskText } from '@/lib/task-text-parser'
 import type { EodTask, EodSubBullet, EodSimpleSection } from '@/lib/eod-types'
 import { Button } from '../ui/button'
 import { Kbd } from '../ui/kbd'
@@ -24,6 +25,11 @@ export const SortableSub = memo(function SortableSub({ taskId, sub }: SortableSu
   const projectId = useProjectId()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: sub.id })
+
+  const onNormalize = useCallback(() => {
+    const normalized = normalizeTaskText(sub.text)
+    if (normalized !== sub.text) actions.updateSub(projectId, taskId, sub.id, normalized)
+  }, [sub.text, sub.id, taskId, projectId, actions])
 
   const onKeyDown = bulletKeyDown(sub.text, {
     onCtrlC: () => navigator.clipboard.writeText(sub.text),
@@ -56,6 +62,7 @@ export const SortableSub = memo(function SortableSub({ taskId, sub }: SortableSu
         marker="sub"
         onUpdate={text => actions.updateSub(projectId, taskId, sub.id, text)}
         onKeyDown={onKeyDown}
+        onBlur={onNormalize}
         onRemove={() => actions.removeSub(projectId, taskId, sub.id)}
         removeAriaLabel="Remove sub-bullet"
         dragAttributes={attributes}
@@ -81,6 +88,11 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id })
   const { setNodeRef: setSubDropRef, isOver: isSubOver } = useDroppable({ id: `subs:${task.id}` })
+
+  const onNormalize = useCallback(() => {
+    const normalized = normalizeTaskText(task.text)
+    if (normalized !== task.text) actions.updateTask(projectId, task.id, normalized)
+  }, [task.text, task.id, projectId, actions])
 
   const onKeyDown = bulletKeyDown(task.text, {
     onCtrlC: () => navigator.clipboard.writeText(task.text),
@@ -121,6 +133,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
         marker="task"
         onUpdate={text => actions.updateTask(projectId, task.id, text)}
         onKeyDown={onKeyDown}
+        onBlur={onNormalize}
         onRemove={() => actions.removeTask(projectId, task.id)}
         removeAriaLabel="Remove task"
         dragAttributes={attributes}
@@ -201,6 +214,11 @@ export const SortableSectionItem = memo(function SortableSectionItem({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id })
 
+  const onNormalize = useCallback(() => {
+    const normalized = normalizeTaskText(item.text)
+    if (normalized !== item.text) actions.updateSectionItem(sk, item.id, normalized)
+  }, [item.text, item.id, sk, actions])
+
   const onKeyDown = bulletKeyDown(item.text, {
     onCtrlC: () => navigator.clipboard.writeText(item.text),
     onEnter: () => actions.addSectionItem(sk, item.id),
@@ -230,6 +248,7 @@ export const SortableSectionItem = memo(function SortableSectionItem({
         marker="task"
         onUpdate={text => actions.updateSectionItem(sk, item.id, text)}
         onKeyDown={onKeyDown}
+        onBlur={onNormalize}
         onRemove={() => actions.removeSectionItem(sk, item.id)}
         removeAriaLabel="Remove"
         dragAttributes={attributes}
