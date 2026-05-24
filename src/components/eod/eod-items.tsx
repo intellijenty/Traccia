@@ -129,7 +129,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
       <BulletRow
         inputRef={focus.reg(`task:${task.id}`) as React.RefCallback<HTMLInputElement>}
         text={task.text}
-        placeholder="Ticket or task name"
+        placeholder="Ticket or task description"
         marker="task"
         onUpdate={text => actions.updateTask(projectId, task.id, text)}
         onKeyDown={onKeyDown}
