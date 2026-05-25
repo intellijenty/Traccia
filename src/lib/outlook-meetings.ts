@@ -9,6 +9,8 @@ export interface OutlookMeeting {
   duration: number
   /** ISO 8601 start datetime */
   start: string
+  /** Outlook ResponseStatus: 0=None, 1=Organized, 2=Tentative, 3=Accepted, 4=Declined, 5=NotResponded */
+  responseStatus: number
 }
 
 export interface OutlookMeetingsOptions {
@@ -38,9 +40,10 @@ $items.Sort("[Start]")
 $filter = "[Start] >= '${fmt(from)}' AND [Start] <= '${fmt(to)}'"
 $results = $items.Restrict($filter) | ForEach-Object {
     [PSCustomObject]@{
-        title    = $_.Subject
-        duration = $_.Duration
-        start    = $_.Start.ToString("o")
+        title          = $_.Subject
+        duration       = $_.Duration
+        start          = $_.Start.ToString("o")
+        responseStatus = $_.ResponseStatus
     }
 }
 if ($results) { @($results) | ConvertTo-Json } else { "[]" }
@@ -75,7 +78,8 @@ export async function getOutlookMeetings(
       }
     )
 
-    return JSON.parse(raw.trim()) as OutlookMeeting[]
+    const parsed = JSON.parse(raw.trim())
+    return (Array.isArray(parsed) ? parsed : parsed ? [parsed] : []) as OutlookMeeting[]
   } finally {
     fs.unlinkSync(tmpScript)
   }

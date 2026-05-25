@@ -2,6 +2,7 @@
 
 ### New
 <u>Power Composer</u>: Branding of the EOD composer feature as "Power Composer" because it's built for **Power Users** 💪🏼
+- **Sync Outlook Meetings** - the Power Composer now automatically syncs with your Outlook calendar to import meetings. It daily populates your EOD with current day meetings and removes meetings from previous days. Explore advanced options in the Power Composer settings.
 - **Lazy Inputs** - Type naturally in any task or bullet field. On blur or Enter, the app auto-parses and formats the entry into a clean canonical form. Supports hours (`2hr`, `2.5h`, or just the number `2`), and status (`wip` or `ww`, `done` or `dd`, `hold`) in any order at the end. <br/> Examples: `Fix login bug 2 dd` is formatted as `Fix login bug (2 hr) → Done`. Undo (`CTRL` + `Z`) reverts formatting if needed. check shortcuts dialog for more info.
 - **Item Re-ordering** - Drag and drop tasks in the form editor to reorder them within the same project. It also supports the keyboard shortcuts `ALT` + `Up/Down Arrow` to move projects, tasks, and sub-bullets around. Keyboard shortcuts also support cross-project movement.
 - **Duplicate Task** - Easily duplicate existing tasks or bullet points in the form editor using the shortcut `ALT` + `D`.

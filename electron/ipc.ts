@@ -46,6 +46,8 @@ import {
 } from "./portal-cache"
 import { syncNonPermanentDays } from "./portal-sync"
 import { runDailySync } from "./daily-sync"
+import { getOutlookMeetingsSafe } from '../src/lib/outlook-meetings'
+import type { OutlookMeeting } from '../src/lib/outlook-meetings'
 import ElectronStore from 'electron-store';
 import { LicenseEngine } from './license-engine';
 
@@ -318,7 +320,7 @@ async function openViaOutlookCOM(payload: OutlookPayload): Promise<void> {
       try {
         fs.rmSync(dir, { recursive: true, force: true })
         return true
-      } catch (err) {
+      } catch {
         attempt++
       }
     }
@@ -808,6 +810,21 @@ export function registerIpcHandlers(
       return { method: 'com' }
     } catch (comErr) {
       throw new Error(`Failed to open in Outlook. EML: ${emlResult} | COM: ${String(comErr)}`)
+    }
+  })
+
+  // ── EOD meetings ──
+
+  ipcMain.handle('eod:get-meetings-today', async (): Promise<
+    { ok: true; meetings: OutlookMeeting[] } | { ok: false; error: string }
+  > => {
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const meetings = await getOutlookMeetingsSafe({ from: today, days: 1 })
+      return { ok: true, meetings }
+    } catch (err) {
+      return { ok: false, error: String(err) }
     }
   })
 

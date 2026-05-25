@@ -469,7 +469,7 @@ function ProjectStatusPicker({
     <div className="flex items-center gap-2">
       {STATUS_OPTIONS.map(o => (
         <Tooltip key={o.status} delayDuration={200}>
-          <TooltipTrigger>
+          <TooltipTrigger asChild>
             <button
               type="button"
               onClick={() => onChange(o.status)}

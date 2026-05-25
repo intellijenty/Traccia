@@ -154,6 +154,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on('eod:outlook-phase', fn)
     return () => ipcRenderer.removeListener('eod:outlook-phase', fn)
   },
+
+  eodGetMeetingsToday: (): Promise<
+    { ok: true; meetings: { title: string; duration: number; start: string; responseStatus: number }[] } |
+    { ok: false; error: string }
+  > => ipcRenderer.invoke('eod:get-meetings-today'),
 })
 
 contextBridge.exposeInMainWorld('licenseAPI', {

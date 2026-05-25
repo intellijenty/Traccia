@@ -1,7 +1,7 @@
 import { memo, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { normalizeTaskText } from '@/lib/task-text-parser'
-import type { EodTask, EodSubBullet, EodSimpleSection } from '@/lib/eod-types'
+import type { EodTask, EodSubBullet, EodSimpleSection, EodSectionItem } from '@/lib/eod-types'
 import { Button } from '../ui/button'
 import { Kbd } from '../ui/kbd'
 import { useDroppable } from '@dnd-kit/core'
@@ -124,6 +124,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
       className={cn(
         'group/card rounded-lg border border-border/40 bg-muted/5',
         isDragging && 'opacity-40 z-10 relative shadow-lg',
+        task.meetingKey && 'border-l-2 border-l-primary',
       )}
     >
       <BulletRow
@@ -203,7 +204,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
 
 interface SortableSectionItemProps {
   sk: SectionKey
-  item: { id: string; text: string }
+  item: EodSectionItem
   placeholder: string
 }
 
@@ -253,6 +254,7 @@ export const SortableSectionItem = memo(function SortableSectionItem({
         removeAriaLabel="Remove"
         dragAttributes={attributes}
         dragListeners={listeners}
+        className={cn(item.meetingKey && 'border-l-2 border-primary')}
       />
     </div>
   )

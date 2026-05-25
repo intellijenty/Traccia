@@ -9,6 +9,13 @@ export interface EodTask {
   id: string
   text: string
   subBullets: EodSubBullet[]
+  meetingKey?: string  // set only on system-imported tasks
+}
+
+export interface EodSectionItem {
+  id: string
+  text: string
+  meetingKey?: string  // set only on system-imported items
 }
 
 export interface EodProject {
@@ -20,7 +27,7 @@ export interface EodProject {
 }
 
 export interface EodSimpleSection {
-  items: { id: string; text: string }[]
+  items: EodSectionItem[]
   isNA: boolean
 }
 

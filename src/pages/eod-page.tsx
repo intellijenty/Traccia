@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/tooltip"
 import { makeDefaultFormState, makeId } from "@/lib/eod-types"
 import type { EodFormState, EodHistoryEntry } from "@/lib/eod-types"
+import { applyMeetingSync } from "@/lib/eod-meeting-sync"
+import { loadMeetingsSettings } from "@/lib/eod-meetings-settings"
 import {
   buildEodHtml,
   buildEodPlainText,
@@ -73,13 +75,14 @@ function migrateFormState(raw: unknown): EodFormState {
   }
   // Normalize projects array: ensure new fields exist on each entry
   if ('projects' in obj && Array.isArray(obj.projects)) {
-    return {
+    const migrated = {
       ...obj,
       projects: (obj.projects as Record<string, unknown>[]).map(p => ({
         ...p,
         statusNote: (p.statusNote as string | null | undefined) ?? null,
       })),
     } as EodFormState
+    return migrated
   }
   return makeDefaultFormState()
 }
@@ -157,6 +160,8 @@ export function EodPage() {
   )
   const [isOpening, setIsOpening] = useState(false)
   const [isPrewarming, setIsPrewarming] = useState(false)
+  const [isSyncingMeetings, setIsSyncingMeetings] = useState(false)
+  const syncedThisSession = useRef(false)
   const [history, setHistory] = useState<Record<string, EodHistoryEntry>>(loadHistory)
   const [viewingEntry, setViewingEntry] = useState<EodHistoryEntry | null>(null)
 
@@ -235,6 +240,30 @@ export function EodPage() {
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
+
+  // ── Meeting sync ────────────────────────────────────────────────────────────
+
+  async function runMeetingSync() {
+    if (!isElectron) return
+    const settings = loadMeetingsSettings()
+    if (!settings.enabled) return
+    setIsSyncingMeetings(true)
+    try {
+      const result = await window.electronAPI.eodGetMeetingsToday()
+      if (result.ok) {
+        updateFormState(s => applyMeetingSync(s, result.meetings, settings))
+      }
+    } finally {
+      setIsSyncingMeetings(false)
+    }
+  }
+
+  useEffect(() => {
+    if (syncedThisSession.current) return
+    syncedThisSession.current = true
+    void runMeetingSync()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── State updaters ──────────────────────────────────────────────────────────
@@ -627,6 +656,27 @@ export function EodPage() {
                   //     </button>
                   //   ))}
                   // </div>
+                )}
+
+                {activeTab === "form" && isElectron && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        tabIndex={-1}
+                        onClick={() => void runMeetingSync()}
+                        disabled={isSyncingMeetings}
+                        aria-label="Sync meetings from Outlook"
+                      >
+                        <HugeiconsIcon
+                          icon={Refresh03Icon}
+                          className={cn("size-3.5", isSyncingMeetings && "animate-spin")}
+                        />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Sync meetings from Outlook</TooltipContent>
+                  </Tooltip>
                 )}
 
                 {activeTab === "editor" && editorInitialized && (

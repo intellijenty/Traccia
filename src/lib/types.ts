@@ -300,6 +300,10 @@ export interface ElectronAPI {
     plainText: string
   }) => Promise<void>
   onOutlookPhase: (cb: (phase: 'prewarming' | 'done') => void) => () => void
+  eodGetMeetingsToday: () => Promise<
+    { ok: true; meetings: import('./outlook-meetings').OutlookMeeting[] } |
+    { ok: false; error: string }
+  >
 }
 
 declare global {
