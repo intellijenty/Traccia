@@ -254,7 +254,10 @@ export const SortableSectionItem = memo(function SortableSectionItem({
         removeAriaLabel="Remove"
         dragAttributes={attributes}
         dragListeners={listeners}
-        className={cn(item.meetingKey && 'border-l-2 border-primary')}
+        className={cn(
+          item.meetingKey && 'border-l-2 border-primary',
+          item.leaveKey && 'border-l-2 border-primary',
+        )}
       />
     </div>
   )
@@ -312,7 +315,7 @@ export const SimpleSection = memo(function SimpleSection({
   }
 
   const lastItemId = section.items[section.items.length - 1]?.id ?? null
-  const hasMeetingItems = section.items.some(i => i.meetingKey)
+  const hasSystemItems = section.items.some(i => i.meetingKey || i.leaveKey)
 
   return (
     <div ref={setNodeRef}>
@@ -339,7 +342,7 @@ export const SimpleSection = memo(function SimpleSection({
           >
             + Add item
           </Button>
-          {!hasMeetingItems && (
+          {!hasSystemItems && (
             <Button
               variant="outline"
               size="xs"

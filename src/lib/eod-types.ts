@@ -15,7 +15,8 @@ export interface EodTask {
 export interface EodSectionItem {
   id: string
   text: string
-  meetingKey?: string  // set only on system-imported items
+  meetingKey?: string  // set only on system-imported meeting items
+  leaveKey?: string    // set only on system-imported leave items (YYYY-MM-DD)
 }
 
 export interface EodProject {

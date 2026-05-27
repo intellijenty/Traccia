@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Cancel01Icon, Mail02Icon, Calendar03Icon } from '@hugeicons/core-free-icons'
+import { Cancel01Icon, Mail02Icon, Calendar03Icon, Calendar01Icon } from '@hugeicons/core-free-icons'
 import { cn } from '@/lib/utils'
 import { migratePlainTextSignature } from '@/lib/eod-utils'
 import type { EodEmailSettings } from '@/lib/eod-types'
@@ -23,6 +23,10 @@ import {
   loadMeetingsSettings, saveMeetingsSettings,
   type EodMeetingsSettings, type MeetingRule, type MeetingRouteTarget,
 } from '@/lib/eod-meetings-settings'
+import {
+  loadHolidaysSettings, saveHolidaysSettings,
+  type EodHolidaysSettings,
+} from '@/lib/eod-holidays-settings'
 import { makeId } from '@/lib/eod-types'
 
 const STORAGE_KEY = 'traccia:eod-settings'
@@ -59,6 +63,7 @@ export function saveEodSettings(s: EodEmailSettings): void {
 const DIALOG_TABS = [
   { value: 'email',    label: 'Email',    icon: Mail02Icon     },
   { value: 'meetings', label: 'Meetings', icon: Calendar03Icon },
+  { value: 'holidays', label: 'Holidays', icon: Calendar01Icon },
 ] as const
 
 type DialogTab = (typeof DIALOG_TABS)[number]['value']
@@ -154,6 +159,9 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
   // ── Meetings tab state ──────────────────────────────────────────────────────
   const [meetingsSettings, setMeetingsSettings] = useState<EodMeetingsSettings>(loadMeetingsSettings)
 
+  // ── Holidays tab state ──────────────────────────────────────────────────────
+  const [holidaysSettings, setHolidaysSettings] = useState<EodHolidaysSettings>(loadHolidaysSettings)
+
   useEffect(() => {
     if (open) {
       setToInput(settings.to)
@@ -164,6 +172,7 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
       setSignature(settings.signature)
       setEmbedSignature(settings.embedSignature ?? true)
       setMeetingsSettings(loadMeetingsSettings())
+      setHolidaysSettings(loadHolidaysSettings())
     }
   }, [open, settings])
 
@@ -206,6 +215,7 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
     onSave(emailS)
     saveEodSettings(emailS)
     saveMeetingsSettings(meetingsSettings)
+    saveHolidaysSettings(holidaysSettings)
     onOpenChange(false)
   }
 
@@ -472,6 +482,55 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                   <Button type="button" variant="outline" size="sm" onClick={addRule} className="gap-1.5">
                     <Plus className="size-3.5" aria-hidden="true" /> Add Rule
                   </Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="holidays" className="mt-0 flex h-full flex-col overflow-y-auto px-6 pt-5 pb-6 no-scrollbar">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold">Holidays</h2>
+                <Separator className="mt-3" />
+              </div>
+              <div className="space-y-6">
+                {/* Sync enabled */}
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Sync Upcoming Holidays</p>
+                    <p className="text-xs text-muted-foreground">
+                      Auto-fill Upcoming Holidays from approved leave applications
+                    </p>
+                  </div>
+                  <Switch
+                    checked={holidaysSettings.enabled}
+                    onCheckedChange={v => setHolidaysSettings(s => ({ ...s, enabled: v }))}
+                  />
+                </div>
+
+                <Separator />
+
+                {/* Look-ahead window */}
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Look-ahead Window</p>
+                    <p className="text-xs text-muted-foreground">
+                      Only show leaves starting within this many days from today
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={90}
+                      value={holidaysSettings.windowDays}
+                      onChange={e => {
+                        const v = Math.min(90, Math.max(1, Number(e.target.value) || 14))
+                        setHolidaysSettings(s => ({ ...s, windowDays: v }))
+                      }}
+                      className="h-8 w-20 text-sm text-right"
+                      aria-label="Look-ahead window in days"
+                    />
+                    <span className="text-sm text-muted-foreground">days</span>
+                  </div>
                 </div>
               </div>
             </TabsContent>

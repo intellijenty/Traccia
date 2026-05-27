@@ -21,7 +21,7 @@ export function ReleaseNotesDialog({ version, open, onClose }: ReleaseNotesDialo
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="sm:max-w-3xl gap-0 p-0 overflow-hidden"
+        className="sm:max-w-4xl gap-0 p-0 overflow-hidden"
         overlayBlur="supports-backdrop-filter:backdrop-blur-2xl"
       >
         {/* Header */}
@@ -32,7 +32,7 @@ export function ReleaseNotesDialog({ version, open, onClose }: ReleaseNotesDialo
         </DialogHeader>
 
         {/* Markdown content */}
-        <div className="scrollbar-hide overflow-y-auto px-6 py-5" style={{ maxHeight: 380 }}>
+        <div className="scrollbar-hide overflow-y-auto px-6 py-5" style={{ maxHeight: 500 }}>
           {notes ? (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
@@ -48,7 +48,7 @@ export function ReleaseNotesDialog({ version, open, onClose }: ReleaseNotesDialo
                   <ul className="space-y-2">{children}</ul>
                 ),
                 li: ({ children }) => (
-                  <li className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2 text-sm text-foreground">
                     <span className="mt-1.25 h-1 w-1 shrink-0 rounded-full bg-foreground/25" />
                     <span>{children}</span>
                   </li>

@@ -13,6 +13,8 @@ import { makeDefaultFormState, makeId } from "@/lib/eod-types"
 import type { EodFormState, EodHistoryEntry } from "@/lib/eod-types"
 import { applyMeetingSync } from "@/lib/eod-meeting-sync"
 import { loadMeetingsSettings } from "@/lib/eod-meetings-settings"
+import { applyLeavesSync } from "@/lib/eod-leave-sync"
+import { loadHolidaysSettings } from "@/lib/eod-holidays-settings"
 import {
   buildEodHtml,
   buildEodPlainText,
@@ -255,22 +257,34 @@ export function EodPage() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
 
-  // ── Meeting sync ────────────────────────────────────────────────────────────
+  // ── EOD sync (meetings + leaves) ────────────────────────────────────────────
 
   async function runMeetingSync({ force = false } = {}) {
     if (!isElectron) return
-    const settings = loadMeetingsSettings()
-    if (!settings.enabled) return
     if (!force && hasSyncedToday()) return
     if (syncingInProgress.current) return
     syncingInProgress.current = true
     setIsSyncingMeetings(true)
     try {
-      const result = await window.electronAPI.eodGetMeetingsToday()
-      if (result.ok) {
-        updateFormState(s => applyMeetingSync(s, result.meetings, settings))
-        markSyncedToday()
+      // Meetings sync
+      const meetingsSettings = loadMeetingsSettings()
+      if (meetingsSettings.enabled) {
+        const result = await window.electronAPI.eodGetMeetingsToday()
+        if (result.ok) {
+          updateFormState(s => applyMeetingSync(s, result.meetings, meetingsSettings))
+        }
       }
+
+      // Leaves / holidays sync
+      const holidaysSettings = loadHolidaysSettings()
+      if (holidaysSettings.enabled) {
+        const result = await window.electronAPI.eodGetUpcomingLeaves(holidaysSettings.windowDays)
+        if (result.ok) {
+          updateFormState(s => applyLeavesSync(s, result.dates))
+        }
+      }
+
+      markSyncedToday()
     } finally {
       setIsSyncingMeetings(false)
       syncingInProgress.current = false

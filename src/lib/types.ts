@@ -326,6 +326,9 @@ export interface ElectronAPI {
     { ok: true; meetings: import('./outlook-meetings').OutlookMeeting[] } |
     { ok: false; error: string }
   >
+  eodGetUpcomingLeaves: (windowDays: number) => Promise<
+    { ok: true; dates: string[] } | { ok: false; error: string }
+  >
 }
 
 declare global {

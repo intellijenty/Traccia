@@ -166,6 +166,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     { ok: true; meetings: { title: string; duration: number; start: string; responseStatus: number }[] } |
     { ok: false; error: string }
   > => ipcRenderer.invoke('eod:get-meetings-today'),
+
+  eodGetUpcomingLeaves: (windowDays: number): Promise<
+    { ok: true; dates: string[] } | { ok: false; error: string }
+  > => ipcRenderer.invoke('eod:get-upcoming-leaves', windowDays),
 })
 
 contextBridge.exposeInMainWorld('licenseAPI', {

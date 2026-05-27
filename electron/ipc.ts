@@ -6,6 +6,7 @@ import { spawn } from "child_process"
 import { randomUUID } from "crypto"
 import { registerHotkey } from "./hotkey"
 import { syncLeaves } from "./leave-sync"
+import { getUpcomingApprovedLeaves } from "./leave-database"
 import { checkForUpdates, downloadUpdate, quitAndInstall } from "./updater"
 import {
   getEntriesByDate,
@@ -851,6 +852,46 @@ export function registerIpcHandlers(
       today.setHours(0, 0, 0, 0)
       const meetings = await getOutlookMeetingsSafe({ from: today, days: 1 })
       return { ok: true, meetings }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  })
+
+  // ── EOD leaves ──
+
+  ipcMain.handle('eod:get-upcoming-leaves', async (
+    _event,
+    windowDays: number
+  ): Promise<{ ok: true; dates: string[] } | { ok: false; error: string }> => {
+    try {
+      // Use local date strings throughout — toISOString() returns UTC and causes
+      // off-by-one errors in timezones ahead of UTC (e.g. IST = UTC+5:30)
+      const localDateStr = (d: Date): string =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const from = localDateStr(today)
+
+      const toDate = new Date(today)
+      toDate.setDate(toDate.getDate() + windowDays - 1)
+      const to = localDateStr(toDate)
+
+      const leaves = getUpcomingApprovedLeaves(from, to)
+
+      // Expand date ranges into individual dates within [from, to]
+      const dateSet = new Set<string>()
+      for (const leave of leaves) {
+        const leaveStart = new Date(leave.start_date + 'T00:00:00')
+        const leaveEnd = new Date(leave.end_date + 'T00:00:00')
+        const cursor = new Date(Math.max(leaveStart.getTime(), today.getTime()))
+        while (cursor <= leaveEnd && cursor <= toDate) {
+          dateSet.add(localDateStr(cursor))
+          cursor.setDate(cursor.getDate() + 1)
+        }
+      }
+
+      return { ok: true, dates: Array.from(dateSet).sort() }
     } catch (err) {
       return { ok: false, error: String(err) }
     }

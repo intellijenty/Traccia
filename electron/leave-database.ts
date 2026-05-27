@@ -106,6 +106,18 @@ export function getLeavesForDate(date: string): LeaveRecord[] {
   return getLeavesByDateRange(date, date)
 }
 
+/**
+ * Returns approved (status=5) leaves that overlap with [fromDate, toDate].
+ * Both dates are YYYY-MM-DD strings. Used for EOD holiday auto-import.
+ */
+export function getUpcomingApprovedLeaves(fromDate: string, toDate: string): LeaveRecord[] {
+  return getDb()
+    .prepare(
+      "SELECT * FROM leaves WHERE status = 5 AND start_date <= ? AND end_date >= ? ORDER BY start_date ASC"
+    )
+    .all(toDate, fromDate) as LeaveRecord[]
+}
+
 export function getLeaveCount(): number {
   const result = getDb()
     .prepare("SELECT COUNT(*) as count FROM leaves")
