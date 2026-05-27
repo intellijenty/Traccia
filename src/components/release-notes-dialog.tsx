@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import rehypeRaw from "rehype-raw"
 import {
   Dialog,
   DialogContent,
@@ -32,15 +33,16 @@ export function ReleaseNotesDialog({ version, open, onClose }: ReleaseNotesDialo
         </DialogHeader>
 
         {/* Markdown content */}
-        <div className="scrollbar-hide overflow-y-auto px-6 py-5" style={{ maxHeight: 500 }}>
+        <div className="scrollbar-hide overflow-y-auto px-6 py-5" style={{ maxHeight: 600 }}>
           {notes ? (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
               components={{
                 // Strip the top-level "## vX.Y.Z — Date" heading — already in dialog header
                 h2: () => null,
                 h3: ({ children }) => (
-                  <h3 className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wider text-foreground/80 first:mt-0">
+                  <h3 className="mb-4 mt-4 font-semibold tracking-tight text-foreground first:mt-0">
                     {children}
                   </h3>
                 ),
@@ -49,18 +51,18 @@ export function ReleaseNotesDialog({ version, open, onClose }: ReleaseNotesDialo
                 ),
                 li: ({ children }) => (
                   <li className="flex items-start gap-2 text-sm text-foreground">
-                    <span className="mt-1.25 h-1 w-1 shrink-0 rounded-full bg-foreground/25" />
+                    <span className="mt-2 size-1 shrink-0 rounded-full bg-foreground/50" />
                     <span>{children}</span>
                   </li>
                 ),
                 p: ({ children }) => (
-                  <p className="text-sm text-muted-foreground">{children}</p>
+                  <p className="text-sm text-foreground">{children}</p>
                 ),
                 strong: ({ children }) => (
-                  <strong className="font-medium text-foreground">{children}</strong>
+                  <strong className="font-extrabold text-foreground">{children}</strong>
                 ),
                 code: ({ children }) => (
-                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+                  <code className="rounded bg-muted-foreground/50 px-1.5 py-0.5 font-mono text-xs">
                     {children}
                   </code>
                 ),
@@ -69,7 +71,7 @@ export function ReleaseNotesDialog({ version, open, onClose }: ReleaseNotesDialo
               {notes}
             </ReactMarkdown>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground">
               No release notes available for this version.
             </p>
           )}
