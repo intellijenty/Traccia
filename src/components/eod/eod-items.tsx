@@ -312,6 +312,7 @@ export const SimpleSection = memo(function SimpleSection({
   }
 
   const lastItemId = section.items[section.items.length - 1]?.id ?? null
+  const hasMeetingItems = section.items.some(i => i.meetingKey)
 
   return (
     <div ref={setNodeRef}>
@@ -338,15 +339,17 @@ export const SimpleSection = memo(function SimpleSection({
           >
             + Add item
           </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            tabIndex={-1}
-            onClick={() => actions.setSectionNA(sk)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Set N/A
-          </Button>
+          {!hasMeetingItems && (
+            <Button
+              variant="outline"
+              size="xs"
+              tabIndex={-1}
+              onClick={() => actions.setSectionNA(sk)}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Set N/A
+            </Button>
+          )}
         </div>
       )}
     </div>

@@ -4,6 +4,8 @@ import type {
   WeekDaySummary,
   DayWorkWindow,
   NightShiftConfig,
+  DayTarget,
+  DayTargetType,
 } from "@/lib/types"
 import {
   getDaysOfWeek,
@@ -44,6 +46,9 @@ interface WeeklyCalendarProps {
   ) => void
   onDeleteWorkWindow?: (date: string) => void
   nightShift?: NightShiftConfig
+  dayTargets?: Map<string, DayTarget>
+  onSetTarget?: (date: string, type: DayTargetType, value: string | null) => Promise<void>
+  onDeleteTarget?: (date: string) => Promise<void>
 }
 
 export function WeeklyCalendar({
@@ -56,6 +61,9 @@ export function WeeklyCalendar({
   onSetWorkWindow,
   onDeleteWorkWindow,
   nightShift,
+  dayTargets,
+  onSetTarget,
+  onDeleteTarget,
 }: WeeklyCalendarProps) {
   const weekRange = getWeekRange(selectedDate)
   const days = getDaysOfWeek(weekRange.start)
@@ -248,6 +256,9 @@ export function WeeklyCalendar({
               onSetWorkWindow={onSetWorkWindow}
               onDeleteWorkWindow={onDeleteWorkWindow}
               nightShift={nightShift}
+              dayTarget={dayTargets?.get(date)}
+              onSetTarget={onSetTarget}
+              onDeleteTarget={onDeleteTarget}
             >
               {tile}
             </DayContextMenu>

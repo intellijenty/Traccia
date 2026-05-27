@@ -14,7 +14,7 @@
  *   The registry in notifications.ts handles labels and message defaults.
  */
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { usePunchData } from "@/hooks/use-punch-data"
 import { resolveSeconds, type TimeSource } from "@/lib/time-source"
@@ -35,6 +35,10 @@ export interface EngineSettings {
   eodSource: TimeSource
   eodMinutes: number
   eodMessage: string
+  // Opaque key encoding the user's target choice (type+value).
+  // Changes only when user explicitly changes the target, not when portal data loads.
+  // Changing this clears the fired-once cache so notifications re-evaluate.
+  targetChangeKey: string
 }
 
 // ── Delivery layer ────────────────────────────────────────────────────────────
@@ -83,7 +87,9 @@ export function useNotificationEngine(settings: EngineSettings) {
   const settingsRef = useRef<EngineSettings>(settings)
   useEffect(() => { settingsRef.current = settings })
 
-  // Restore fired keys from previous session for today only
+  // Gate: don't evaluate until previous session's fired keys are restored.
+  // Prevents re-firing already-completed notifications on every app restart.
+  const [restored, setRestored] = useState(!isElectron) // browser: skip async restore
   useEffect(() => {
     if (!isElectron) return
     window.electronAPI.getSettings().then((s) => {
@@ -91,10 +97,34 @@ export function useNotificationEngine(settings: EngineSettings) {
       for (const key of s.notificationsFiredKeys.split(",")) {
         if (key.startsWith(today + ":")) firedRef.current.add(key)
       }
+      setRestored(true)
     })
   }, [])
 
+  // When user explicitly changes their target (type or value), clear fired keys
+  // so notifications re-evaluate against the new target.
+  // Keyed on targetChangeKey (encodes type+value) NOT dailyTargetSeconds —
+  // prevents spurious clears when portal data loads and shifts the computed minutes.
+  const prevTargetKeyRef = useRef<string>(settings.targetChangeKey)
   useEffect(() => {
+    if (settings.targetChangeKey === prevTargetKeyRef.current) return
+    prevTargetKeyRef.current = settings.targetChangeKey
+    const today = getLocalDate()
+    for (const key of [...firedRef.current]) {
+      if (key.startsWith(`${today}:target-complete:`) || key.startsWith(`${today}:eod-reminder:`)) {
+        firedRef.current.delete(key)
+      }
+    }
+    if (isElectron) {
+      window.electronAPI.updateSettings({
+        notificationsFiredKeys: [...firedRef.current].join(","),
+      } as Parameters<typeof window.electronAPI.updateSettings>[0])
+    }
+  }, [settings.targetChangeKey])
+
+  useEffect(() => {
+    if (!restored) return
+
     const today = getLocalDate()
 
     // Midnight rollover — new day, clear fired set
@@ -129,7 +159,8 @@ export function useNotificationEngine(settings: EngineSettings) {
       const targetSeconds = resolveSeconds(s.targetSource, localSeconds, s.portalSecondsToday)
       if (targetSeconds >= s.dailyTargetSeconds) {
         fireOnce("target-complete", () =>
-          deliver("system", "Traccia", s.targetMessage)
+          deliver("system", "Traccia", s.targetMessage),
+          String(s.dailyTargetSeconds)
         )
       }
     }
@@ -156,5 +187,5 @@ export function useNotificationEngine(settings: EngineSettings) {
     // Add future notification conditions here ↓
     // e.g. miss-punch-warning, weekly-summary, etc.
 
-  }, [localSeconds, settings.portalSecondsToday])
+  }, [restored, localSeconds, settings.portalSecondsToday, settings.dailyTargetSeconds])
 }

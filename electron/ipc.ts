@@ -29,6 +29,11 @@ import {
   setWorkWindow,
   deleteWorkWindow,
   getAllWorkWindows,
+  getDayTarget,
+  setDayTarget,
+  deleteDayTarget,
+  getAllDayTargets,
+  type DayTargetType,
 } from "./database"
 import {
   hrmsLogin,
@@ -667,6 +672,29 @@ export function registerIpcHandlers(
 
   ipcMain.handle("get-all-work-windows", () => {
     return getAllWorkWindows()
+  })
+
+  // ── Day target handlers ──
+
+  ipcMain.handle("get-all-day-targets", () => {
+    return getAllDayTargets()
+  })
+
+  ipcMain.handle("get-day-target", (_event, date: string) => {
+    return getDayTarget(date) ?? null
+  })
+
+  ipcMain.handle(
+    "set-day-target",
+    (_event, date: string, type: DayTargetType, value: string | null) => {
+      setDayTarget(date, type, value)
+      onDataChange()
+    }
+  )
+
+  ipcMain.handle("delete-day-target", (_event, date: string) => {
+    deleteDayTarget(date)
+    onDataChange()
   })
 
   // ── Portal cache handlers ──

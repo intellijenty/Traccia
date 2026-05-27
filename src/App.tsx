@@ -12,6 +12,7 @@ import { usePunchData } from "@/hooks/use-punch-data"
 import { useWindowSize } from "@/hooks/use-window-size"
 import { useDayMarks } from "@/hooks/use-day-marks"
 import { useWorkWindows } from "@/hooks/use-work-windows"
+import { useDayTargets } from "@/hooks/use-day-targets"
 import { useGeneralSettings } from "@/hooks/use-general-settings"
 import { useWeeklyTarget } from "@/hooks/use-weekly-target"
 import {
@@ -75,7 +76,14 @@ function AppNotifications() {
     ? todayPortal.totalMinutes * 60
     : 0
   const todayLiveMinutes = Math.floor(portalSecondsToday / 60)
-  const { adjustedTargetMinutes } = useWeeklyTarget(todayLiveMinutes)
+  const { dayTargets } = useDayTargets()
+  const todayCustomTarget = dayTargets.get(today) ?? null
+  const { workWindows } = useWorkWindows()
+  const todayWorkWindowStart = workWindows.get(today)?.start_time ?? null
+  const { adjustedTargetMinutes } = useWeeklyTarget(todayLiveMinutes, todayCustomTarget, todayWorkWindowStart)
+  const targetChangeKey = todayCustomTarget
+    ? `${todayCustomTarget.type}:${todayCustomTarget.value ?? ""}`
+    : ""
 
   useNotificationEngine({
     dailyTargetSeconds: adjustedTargetMinutes * 60,
@@ -87,6 +95,7 @@ function AppNotifications() {
     eodSource: prefs.eodSource,
     eodMinutes: prefs.eodMinutes,
     eodMessage: prefs.eodMessage,
+    targetChangeKey,
   })
 
   return null
@@ -97,11 +106,13 @@ function AppNotifications() {
 interface NarrowLayoutProps {
   selectedDate: string
   onSelectDate: (date: string) => void
+  todayCustomTarget?: import("@/lib/types").DayTarget | null
 }
 
 function NarrowLayout({
   selectedDate,
   onSelectDate: _onSelectDate,
+  todayCustomTarget,
 }: NarrowLayoutProps) {
   const today = getLocalDate()
   const isToday = selectedDate === today
@@ -116,6 +127,14 @@ function NarrowLayout({
     deleteEntry,
     deletePair,
   } = usePunchData(selectedDate)
+
+  const liveMinutes = isToday ? Math.floor((status?.workingSecondsToday ?? 0) / 60) : 0
+
+  const { adjustedTargetMinutes } = useWeeklyTarget(
+    liveMinutes,
+    todayCustomTarget,
+    isToday ? (status?.workWindow?.start ?? null) : null
+  )
 
   const headerDate = formatDateDisplay(selectedDate)
 
@@ -176,7 +195,11 @@ function NarrowLayout({
 
         <div className="flex flex-col gap-4 px-5 pt-2 pb-5">
           <div className="shrink-0">
-            <PortalSection date={selectedDate} />
+            <PortalSection
+              date={selectedDate}
+              todayCustomTarget={isToday ? todayCustomTarget : null}
+              workWindowStart={isToday ? (status?.workWindow?.start ?? null) : null}
+            />
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -199,6 +222,7 @@ function NarrowLayout({
                 status.workWindow,
                 status.workMode
               )}
+              targetMinutes={isToday ? adjustedTargetMinutes : 480}
             />
           </div>
 
@@ -241,6 +265,9 @@ interface WideLayoutProps {
   ) => void
   onDeleteWorkWindow: (date: string) => void
   nightShift: import("@/lib/types").NightShiftConfig
+  dayTargets: Map<string, import("@/lib/types").DayTarget>
+  onSetTarget: (date: string, type: import("@/lib/types").DayTargetType, value: string | null) => Promise<void>
+  onDeleteTarget: (date: string) => Promise<void>
 }
 
 function WideLayout({
@@ -253,11 +280,16 @@ function WideLayout({
   onSetWorkWindow,
   onDeleteWorkWindow,
   nightShift,
+  dayTargets,
+  onSetTarget,
+  onDeleteTarget,
 }: WideLayoutProps) {
   const weekRange = getWeekRange(selectedDate)
   const weekDays = getDaysOfWeek(weekRange.start)
   const { summaries } = usePortalRange(weekDays)
   const { connected: portalConnected } = usePortalStoreContext()
+  const today = getLocalDate()
+  const todayCustomTarget = dayTargets.get(today) ?? null
 
   return (
     <div className="flex h-full bg-background">
@@ -293,6 +325,9 @@ function WideLayout({
             onSetWorkWindow={onSetWorkWindow}
             onDeleteWorkWindow={onDeleteWorkWindow}
             nightShift={nightShift}
+            dayTargets={dayTargets}
+            onSetTarget={onSetTarget}
+            onDeleteTarget={onDeleteTarget}
           />
         </div>
 
@@ -331,7 +366,7 @@ function WideLayout({
 
       {/* Right panel — day view */}
       <main className="flex w-[480px] shrink-0 flex-col overflow-hidden">
-        <DayView date={selectedDate} showHeader />
+        <DayView date={selectedDate} showHeader todayCustomTarget={todayCustomTarget} />
       </main>
     </div>
   )
@@ -349,10 +384,14 @@ function UltraWideLayout({
   onSetWorkWindow,
   onDeleteWorkWindow,
   nightShift,
+  dayTargets,
+  onSetTarget,
+  onDeleteTarget,
 }: WideLayoutProps) {
   const yearMonth = getYearMonth(selectedDate)
   const weekRange = getWeekRange(selectedDate)
   const today = getLocalDate()
+  const todayCustomTarget = dayTargets.get(today) ?? null
   const monthDays = getWeekdaysInMonth(yearMonth, today)
   const weekDays = getDaysOfWeek(weekRange.start)
   const { summaries: monthSummaries } = usePortalRange(monthDays)
@@ -390,6 +429,9 @@ function UltraWideLayout({
             onSetWorkWindow={onSetWorkWindow}
             onDeleteWorkWindow={onDeleteWorkWindow}
             nightShift={nightShift}
+            dayTargets={dayTargets}
+            onSetTarget={onSetTarget}
+            onDeleteTarget={onDeleteTarget}
           />
         </div>
 
@@ -439,6 +481,9 @@ function UltraWideLayout({
             onSetWorkWindow={onSetWorkWindow}
             onDeleteWorkWindow={onDeleteWorkWindow}
             nightShift={nightShift}
+            dayTargets={dayTargets}
+            onSetTarget={onSetTarget}
+            onDeleteTarget={onDeleteTarget}
           />
         </div>
 
@@ -477,7 +522,7 @@ function UltraWideLayout({
 
       {/* Right — day view */}
       <main className="flex w-[480px] shrink-0 flex-col overflow-hidden">
-        <DayView date={selectedDate} showHeader />
+        <DayView date={selectedDate} showHeader todayCustomTarget={todayCustomTarget} />
       </main>
     </div>
   )
@@ -523,6 +568,9 @@ interface AppInnerProps {
   ) => void
   onDeleteWorkWindow: (date: string) => void
   nightShift: import("@/lib/types").NightShiftConfig
+  dayTargets: Map<string, import("@/lib/types").DayTarget>
+  onSetTarget: (date: string, type: import("@/lib/types").DayTargetType, value: string | null) => Promise<void>
+  onDeleteTarget: (date: string) => Promise<void>
 }
 
 function AppInner({
@@ -538,8 +586,17 @@ function AppInner({
   onSetWorkWindow,
   onDeleteWorkWindow,
   nightShift,
+  dayTargets,
+  onSetTarget,
+  onDeleteTarget,
 }: AppInnerProps) {
-  const { weeklyComplete } = useWeeklyTarget()
+  const today = getLocalDate()
+  const todayCustomTarget = dayTargets.get(today) ?? null
+  const { cache } = usePortalStoreContext()
+  const todayPortalData = cache[today]?.data
+  const todayLiveMinutes = todayPortalData?.success ? todayPortalData.totalMinutes : 0
+  const todayWorkWindowStart = workWindows.get(today)?.start_time ?? null
+  const { weeklyComplete } = useWeeklyTarget(todayLiveMinutes, todayCustomTarget, todayWorkWindowStart)
 
   const homeLayoutProps = {
     selectedDate,
@@ -551,6 +608,9 @@ function AppInner({
     onSetWorkWindow,
     onDeleteWorkWindow,
     nightShift,
+    dayTargets,
+    onSetTarget,
+    onDeleteTarget,
   }
 
   return (
@@ -569,7 +629,7 @@ function AppInner({
           <EodPage />
         )
       ) : (
-        <NarrowLayout selectedDate={selectedDate} onSelectDate={onSelectDate} />
+        <NarrowLayout selectedDate={selectedDate} onSelectDate={onSelectDate} todayCustomTarget={todayCustomTarget} />
       )}
     </>
   )
@@ -585,6 +645,7 @@ export default function App() {
   const [activePage, setActivePage] = useState<Page>("home")
   const { dayMarks, cycleMark, setMark } = useDayMarks()
   const { workWindows, setWorkWindow, deleteWorkWindow } = useWorkWindows()
+  const { dayTargets, setTarget, deleteTarget } = useDayTargets()
   const { settings: generalSettings } = useGeneralSettings()
   const nightShift = {
     enabled: generalSettings.nightShiftEnabled,
@@ -721,6 +782,9 @@ export default function App() {
               }
               onDeleteWorkWindow={deleteWorkWindow}
               nightShift={nightShift}
+              dayTargets={dayTargets}
+              onSetTarget={setTarget}
+              onDeleteTarget={deleteTarget}
             />
           </div>
         </div>

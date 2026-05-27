@@ -60,6 +60,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   dailySyncRun: (force?: boolean) =>
     ipcRenderer.invoke("daily-sync-run", force),
 
+  // ── Day targets ──
+  getAllDayTargets: () => ipcRenderer.invoke("get-all-day-targets"),
+  getDayTarget: (date: string) => ipcRenderer.invoke("get-day-target", date),
+  setDayTarget: (date: string, type: string, value: string | null) =>
+    ipcRenderer.invoke("set-day-target", date, type, value),
+  deleteDayTarget: (date: string) => ipcRenderer.invoke("delete-day-target", date),
+
   // ── Work windows ──
   getWorkWindow: (date: string) =>
     ipcRenderer.invoke("get-work-window", date),

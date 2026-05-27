@@ -60,7 +60,7 @@ export function TotalCard({
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>0h</span>
             <span>{percentage}%</span>
-            <span>{Math.floor(targetMinutes / 60)}h</span>
+            <span>{targetMinutes % 60 === 0 ? `${Math.floor(targetMinutes / 60)}h` : `${Math.floor(targetMinutes / 60)}h ${targetMinutes % 60}m`}</span>
           </div>
           <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div

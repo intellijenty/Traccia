@@ -96,6 +96,12 @@ export function initDatabase(): void {
       end_time TEXT,
       source TEXT NOT NULL CHECK(source IN ('default', 'nightshift', 'manual', 'disabled'))
     );
+
+    CREATE TABLE IF NOT EXISTS day_targets (
+      date  TEXT PRIMARY KEY,
+      type  TEXT NOT NULL CHECK(type IN ('fixed','end-time','flex-balance','weekly-distribute','relative-offset')),
+      value TEXT
+    );
   `)
 
   // Migration: upgrade old day_work_windows schema (NOT NULL + missing 'disabled')
@@ -113,6 +119,23 @@ export function initDatabase(): void {
         INSERT INTO day_work_windows_v2 SELECT * FROM day_work_windows;
         DROP TABLE day_work_windows;
         ALTER TABLE day_work_windows_v2 RENAME TO day_work_windows;
+      `)
+    }
+  }
+
+  // Migration: add relative-offset to day_targets type CHECK constraint
+  {
+    const sql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='day_targets'").get() as { sql: string } | undefined)?.sql ?? ""
+    if (!sql.includes("relative-offset")) {
+      db.exec(`
+        CREATE TABLE day_targets_v2 (
+          date  TEXT PRIMARY KEY,
+          type  TEXT NOT NULL CHECK(type IN ('fixed','end-time','flex-balance','weekly-distribute','relative-offset')),
+          value TEXT
+        );
+        INSERT INTO day_targets_v2 SELECT * FROM day_targets;
+        DROP TABLE day_targets;
+        ALTER TABLE day_targets_v2 RENAME TO day_targets;
       `)
     }
   }
@@ -495,6 +518,38 @@ export function getAllWorkWindows(): DBWorkWindow[] {
   return db
     .prepare("SELECT * FROM day_work_windows ORDER BY date ASC")
     .all() as DBWorkWindow[]
+}
+
+// ── Day targets ──────────────────────────────────────────────────────────────
+
+export type DayTargetType = "fixed" | "end-time" | "flex-balance" | "weekly-distribute" | "relative-offset"
+
+export interface DBDayTarget {
+  date: string
+  type: DayTargetType
+  value: string | null
+}
+
+export function getDayTarget(date: string): DBDayTarget | undefined {
+  return db
+    .prepare("SELECT * FROM day_targets WHERE date = ?")
+    .get(date) as DBDayTarget | undefined
+}
+
+export function setDayTarget(date: string, type: DayTargetType, value: string | null): void {
+  db.prepare(
+    "INSERT OR REPLACE INTO day_targets (date, type, value) VALUES (?, ?, ?)"
+  ).run(date, type, value ?? null)
+}
+
+export function deleteDayTarget(date: string): void {
+  db.prepare("DELETE FROM day_targets WHERE date = ?").run(date)
+}
+
+export function getAllDayTargets(): DBDayTarget[] {
+  return db
+    .prepare("SELECT * FROM day_targets ORDER BY date ASC")
+    .all() as DBDayTarget[]
 }
 
 // ── Effective day mode ────────────────────────────────────────────────────────

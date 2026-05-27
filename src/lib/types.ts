@@ -146,6 +146,22 @@ export interface LeaveSyncResult {
   message?: string
 }
 
+// ── Day target types ──
+
+export type DayTargetType = "fixed" | "end-time" | "flex-balance" | "weekly-distribute" | "relative-offset"
+
+export interface DayTarget {
+  date: string
+  type: DayTargetType
+  /** Encoded value per type:
+   *  fixed            → minutes as string e.g. "390"
+   *  end-time         → "HH:MM" e.g. "17:30"
+   *  flex-balance     → signed minutes as string e.g. "+120", "0", "-60"
+   *  weekly-distribute → null (no stored value, computed at runtime)
+   */
+  value: string | null
+}
+
 // ── Work window types ──
 
 export type WorkWindowSource = "default" | "nightshift" | "manual" | "disabled"
@@ -219,6 +235,12 @@ export interface ElectronAPI {
   getDayMarks: () => Promise<{ date: string; mark: string }[]>
   setDayMark: (date: string, mark: string) => Promise<void>
   deleteDayMark: (date: string) => Promise<void>
+
+  // Day targets
+  getAllDayTargets: () => Promise<DayTarget[]>
+  getDayTarget: (date: string) => Promise<DayTarget | null>
+  setDayTarget: (date: string, type: DayTargetType, value: string | null) => Promise<void>
+  deleteDayTarget: (date: string) => Promise<void>
 
   // Work windows
   getWorkWindow: (date: string) => Promise<DayWorkWindow | null>

@@ -4,16 +4,21 @@ import { ManualEntry } from "@/components/manual-entry"
 import { EventLog } from "@/components/event-log"
 import { PortalSection } from "@/components/portal-section"
 import { usePunchData } from "@/hooks/use-punch-data"
-import { formatDateDisplay } from "@/lib/week-utils"
+import { useWeeklyTarget } from "@/hooks/use-weekly-target"
+import { formatDateDisplay, getLocalDate } from "@/lib/week-utils"
 import { computeLocalBreakSeconds } from "@/lib/utils"
 import { Badge } from "./ui/badge"
 
 interface DayViewProps {
   date: string
   showHeader?: boolean
+  todayCustomTarget?: import("@/lib/types").DayTarget | null
 }
 
-export function DayView({ date, showHeader = false }: DayViewProps) {
+export function DayView({ date, showHeader = false, todayCustomTarget }: DayViewProps) {
+  const today = getLocalDate()
+  const isViewingToday = date === today
+
   const {
     status,
     events,
@@ -25,6 +30,14 @@ export function DayView({ date, showHeader = false }: DayViewProps) {
     deleteEntry,
     deletePair,
   } = usePunchData(date)
+
+  const liveMinutes = isViewingToday ? Math.floor((status?.workingSecondsToday ?? 0) / 60) : 0
+
+  const { adjustedTargetMinutes } = useWeeklyTarget(
+    liveMinutes,
+    isViewingToday ? todayCustomTarget : null,
+    isViewingToday ? (status?.workWindow?.start ?? null) : null
+  )
 
   if (loading || !status) {
     return (
@@ -52,7 +65,12 @@ export function DayView({ date, showHeader = false }: DayViewProps) {
       <div className="scrollbar-hide flex flex-1 flex-col gap-4 overflow-y-auto px-5 pt-3 pb-5">
         {/* Portal */}
         <div className="shrink-0" data-tour="portal-section">
-          <PortalSection date={date} variant="wide" />
+          <PortalSection
+            date={date}
+            variant="wide"
+            todayCustomTarget={isViewingToday ? todayCustomTarget : null}
+            workWindowStart={isViewingToday ? (status.workWindow?.start ?? null) : null}
+          />
         </div>
 
         {/* Local divider */}
@@ -71,6 +89,7 @@ export function DayView({ date, showHeader = false }: DayViewProps) {
             workingSeconds={status.workMode !== "all" ? status.workingSecondsToday : undefined}
             isIn={status.isIn}
             breakSeconds={computeLocalBreakSeconds(events, status.workWindow, status.workMode)}
+            targetMinutes={isViewingToday ? adjustedTargetMinutes : 480}
           />
         </div>
 

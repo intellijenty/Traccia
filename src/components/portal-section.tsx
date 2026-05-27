@@ -49,11 +49,15 @@ export function PortalCardsSkeleton() {
 interface PortalSectionProps {
   date?: string
   variant?: "default" | "wide"
+  todayCustomTarget?: import("@/lib/types").DayTarget | null
+  workWindowStart?: string | null
 }
 
 export function PortalSection({
   date,
   variant = "default",
+  todayCustomTarget,
+  workWindowStart,
 }: PortalSectionProps) {
   const {
     hrmsStatus,
@@ -71,9 +75,13 @@ export function PortalSection({
   const showSkeleton = loading && !portalData && showControls
 
   // Adjusted daily target — only meaningful when viewing today
-  const isToday = (date ?? getLocalDate()) === getLocalDate()
+  const today = getLocalDate()
+  const isToday = (date ?? today) === today
+
   const { adjustedTargetMinutes, tooltipText: targetTooltip } = useWeeklyTarget(
-    isToday ? (portalData?.totalMinutes ?? 0) : 0
+    isToday ? (portalData?.totalMinutes ?? 0) : 0,
+    todayCustomTarget,
+    workWindowStart
   )
 
   return (
