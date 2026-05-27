@@ -1,7 +1,10 @@
-import { execSync } from "child_process"
-import fs from "fs"
+import { execFile } from "child_process"
+import fs from "fs/promises"
 import os from "os"
 import path from "path"
+import { promisify } from "util"
+
+const execFileAsync = promisify(execFile)
 
 export interface OutlookMeeting {
   title: string
@@ -67,21 +70,19 @@ export async function getOutlookMeetings(
   end.setDate(end.getDate() + days)
 
   const tmpScript = path.join(os.tmpdir(), `outlook-meetings-${Date.now()}.ps1`)
-  fs.writeFileSync(tmpScript, buildScript(start, end), "utf8")
+  await fs.writeFile(tmpScript, buildScript(start, end), "utf8")
 
   try {
-    const raw = execSync(
-      `powershell -NoProfile -ExecutionPolicy Bypass -File "${tmpScript}"`,
-      {
-        encoding: "utf8",
-        windowsHide: true,
-      }
+    const { stdout } = await execFileAsync(
+      "powershell",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", tmpScript],
+      { encoding: "utf8", windowsHide: true }
     )
 
-    const parsed = JSON.parse(raw.trim())
+    const parsed = JSON.parse(stdout.trim())
     return (Array.isArray(parsed) ? parsed : parsed ? [parsed] : []) as OutlookMeeting[]
   } finally {
-    fs.unlinkSync(tmpScript)
+    await fs.unlink(tmpScript).catch(() => { /* ignore if already gone */ })
   }
 }
 

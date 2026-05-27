@@ -52,7 +52,20 @@ const KEYS = {
   history: "traccia:eod-history",
   lastSent: "traccia:eod-last-sent", // legacy
   formMode: "traccia:eod-form-mode",
+  meetingsSyncDate: "traccia:eod-meetings-sync-date",
 } as const
+
+function todayDateString(): string {
+  return new Date().toISOString().slice(0, 10) // "YYYY-MM-DD"
+}
+
+function hasSyncedToday(): boolean {
+  return localStorage.getItem(KEYS.meetingsSyncDate) === todayDateString()
+}
+
+function markSyncedToday(): void {
+  localStorage.setItem(KEYS.meetingsSyncDate, todayDateString())
+}
 
 // ── Migration ────────────────────────────────────────────────────────────────
 // Handles old single-project shape: { project, projectStatus, tasksCompleted, ... }
@@ -161,7 +174,7 @@ export function EodPage() {
   const [isOpening, setIsOpening] = useState(false)
   const [isPrewarming, setIsPrewarming] = useState(false)
   const [isSyncingMeetings, setIsSyncingMeetings] = useState(false)
-  const syncedThisSession = useRef(false)
+  const syncingInProgress = useRef(false)
   const [history, setHistory] = useState<Record<string, EodHistoryEntry>>(loadHistory)
   const [viewingEntry, setViewingEntry] = useState<EodHistoryEntry | null>(null)
 
@@ -244,24 +257,27 @@ export function EodPage() {
 
   // ── Meeting sync ────────────────────────────────────────────────────────────
 
-  async function runMeetingSync() {
+  async function runMeetingSync({ force = false } = {}) {
     if (!isElectron) return
     const settings = loadMeetingsSettings()
     if (!settings.enabled) return
+    if (!force && hasSyncedToday()) return
+    if (syncingInProgress.current) return
+    syncingInProgress.current = true
     setIsSyncingMeetings(true)
     try {
       const result = await window.electronAPI.eodGetMeetingsToday()
       if (result.ok) {
         updateFormState(s => applyMeetingSync(s, result.meetings, settings))
+        markSyncedToday()
       }
     } finally {
       setIsSyncingMeetings(false)
+      syncingInProgress.current = false
     }
   }
 
   useEffect(() => {
-    if (syncedThisSession.current) return
-    syncedThisSession.current = true
     void runMeetingSync()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -665,7 +681,7 @@ export function EodPage() {
                         variant="ghost"
                         size="icon-sm"
                         tabIndex={-1}
-                        onClick={() => void runMeetingSync()}
+                        onClick={() => void runMeetingSync({ force: true })}
                         disabled={isSyncingMeetings}
                         aria-label="Sync meetings from Outlook"
                       >
