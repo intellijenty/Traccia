@@ -396,8 +396,8 @@ export function EodPage() {
       }
 
       await window.electronAPI.eodOpenInOutlook({
-        to: emailSettings.to,
-        cc: emailSettings.cc.join(";"),
+        to: emailSettings.to.join("; "),
+        cc: emailSettings.cc.join("; "),
         subject: snapshotSubject,
         htmlBody,
         plainText,
@@ -502,13 +502,17 @@ export function EodPage() {
               </div>
 
               {/* TO */}
-              {emailSettings.to && (
+              {emailSettings.to.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 text-xs font-medium tracking-wider text-muted-foreground uppercase">
                     <Mail className="h-3.5 w-3.5" aria-hidden="true" />
                     To
                   </div>
-                  <p className="truncate text-foreground pl-5.5 text-sm">{emailSettings.to}</p>
+                  <div className="space-y-0.5 pl-5.5 text-foreground">
+                    {emailSettings.to.map(email => (
+                      <p key={email} className="truncate text-sm">{email}</p>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -576,7 +580,7 @@ export function EodPage() {
                       type="button"
                       tabIndex={-1}
                       onClick={handleOpenInOutlook}
-                      disabled={isOpening || !isElectron || !emailSettings.to}
+                      disabled={isOpening || !isElectron || emailSettings.to.length === 0}
                       className="w-full gap-2"
                     >
                       {isOpening ? (
@@ -594,7 +598,7 @@ export function EodPage() {
                     </Button>
                   </span>
                 </TooltipTrigger>
-                {!emailSettings.to && (
+                {emailSettings.to.length === 0 && (
                   <TooltipContent side="top">
                     Add a recipient in Settings first
                   </TooltipContent>

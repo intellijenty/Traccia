@@ -42,7 +42,7 @@ export interface EodFormState {
 }
 
 export interface EodEmailSettings {
-  to: string
+  to: string[]
   cc: string[]
   signature: string      // stores HTML
   embedSignature: boolean

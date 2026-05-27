@@ -1,3 +1,8 @@
+## v0.3.1 - May 2026
+
+### Improved
+- Added support for multiple emails in To field 🙂
+
 ## v0.3.0 - May 2026
 
 ### Release Notes are not AI Generated; they’re handwritten. So always read them 🙂

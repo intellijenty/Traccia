@@ -42,7 +42,11 @@ export function loadEodSettings(): EodEmailSettings {
     if (raw) {
       const p = JSON.parse(raw) as Record<string, unknown>
       return {
-        to: (p.to as string) || '',
+        to: Array.isArray(p.to)
+          ? (p.to as string[])
+          : typeof p.to === 'string' && p.to
+          ? [p.to]
+          : [],
         cc: Array.isArray(p.cc)
           ? (p.cc as string[])
           : typeof p.cc === 'string' && p.cc
@@ -53,7 +57,7 @@ export function loadEodSettings(): EodEmailSettings {
       }
     }
   } catch { /* ignore */ }
-  return { to: '', cc: [], signature: '', embedSignature: true }
+  return { to: [], cc: [], signature: '', embedSignature: true }
 }
 
 export function saveEodSettings(s: EodEmailSettings): void {
@@ -147,13 +151,15 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
   const [activeTab, setActiveTab] = useState<DialogTab>('email')
 
   // ── Email tab state ─────────────────────────────────────────────────────────
-  const [toInput, setToInput] = useState(settings.to)
+  const [toChips, setToChips] = useState<string[]>(settings.to)
+  const [toInput, setToInput] = useState('')
+  const [toError, setToError] = useState('')
   const [ccChips, setCcChips] = useState<string[]>(settings.cc)
   const [ccInput, setCcInput] = useState('')
   const [ccError, setCcError] = useState('')
-  const [toError, setToError] = useState('')
   const [signature, setSignature] = useState(settings.signature)
   const [embedSignature, setEmbedSignature] = useState(settings.embedSignature ?? true)
+  const toRef = useRef<HTMLInputElement>(null)
   const ccRef = useRef<HTMLInputElement>(null)
 
   // ── Meetings tab state ──────────────────────────────────────────────────────
@@ -164,17 +170,42 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
 
   useEffect(() => {
     if (open) {
-      setToInput(settings.to)
+      setToChips(settings.to)
+      setToInput('')
+      setToError('')
       setCcChips(settings.cc)
       setCcInput('')
       setCcError('')
-      setToError('')
       setSignature(settings.signature)
       setEmbedSignature(settings.embedSignature ?? true)
       setMeetingsSettings(loadMeetingsSettings())
       setHolidaysSettings(loadHolidaysSettings())
     }
   }, [open, settings])
+
+  function tryAddTo(raw: string): boolean {
+    setToError('')
+    const parts = raw.split(/[,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean)
+    if (!parts.length) return false
+    const invalid = parts.filter(e => !isValidEmail(e))
+    if (invalid.length) { setToError(`Invalid: ${invalid.join(', ')}`); return false }
+    const fresh = parts.filter(e => !toChips.some(c => c.toLowerCase() === e.toLowerCase()))
+    if (!fresh.length) { setToError('Already added'); return false }
+    setToChips(prev => [...prev, ...fresh])
+    setToInput('')
+    setTimeout(() => toRef.current?.focus(), 0)
+    return true
+  }
+
+  function handleToKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',' || e.key === ';') {
+      e.preventDefault()
+      tryAddTo(toInput)
+    }
+    if (e.key === 'Backspace' && toInput === '' && toChips.length > 0) {
+      setToChips(prev => prev.slice(0, -1))
+    }
+  }
 
   function tryAddCc(raw: string): boolean {
     setCcError('')
@@ -201,17 +232,15 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
   }
 
   function handleSave() {
+    if (toInput.trim()) {
+      const ok = tryAddTo(toInput)
+      if (!ok) return
+    }
     if (ccInput.trim()) {
       const ok = tryAddCc(ccInput)
       if (!ok) return
     }
-    const resolvedTo = toInput.trim().toLowerCase()
-    if (resolvedTo && !isValidEmail(resolvedTo)) {
-      setToError('Invalid email address')
-      return
-    }
-    setToError('')
-    const emailS: EodEmailSettings = { to: resolvedTo, cc: ccChips, signature, embedSignature }
+    const emailS: EodEmailSettings = { to: toChips, cc: ccChips, signature, embedSignature }
     onSave(emailS)
     saveEodSettings(emailS)
     saveMeetingsSettings(meetingsSettings)
@@ -306,18 +335,46 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label htmlFor="eod-to" className="block text-sm font-medium">To</label>
-                  <Input
-                    id="eod-to"
-                    type="email"
-                    name="toEmail"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={toInput}
-                    onChange={e => { setToInput(e.target.value); setToError('') }}
-                    placeholder="manager@company.com"
-                    aria-invalid={toError ? true : undefined}
-                  />
-                  {toError && <p className="text-xs text-destructive" aria-live="polite">{toError}</p>}
+                  {toChips.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {toChips.map(email => (
+                        <span key={email} className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                          <span className="max-w-48 truncate">{email}</span>
+                          <button
+                            type="button"
+                            onClick={() => setToChips(prev => prev.filter(e => e !== email))}
+                            aria-label={`Remove ${email}`}
+                            className="rounded p-0.5 hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring outline-none"
+                          >
+                            <X className="h-3 w-3" aria-hidden="true" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      ref={toRef}
+                      id="eod-to"
+                      type="email"
+                      name="toEmail"
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="flex-1"
+                      value={toInput}
+                      onChange={e => { setToInput(e.target.value); setToError('') }}
+                      onKeyDown={handleToKeyDown}
+                      placeholder="manager@company.com"
+                      aria-invalid={toError ? true : undefined}
+                    />
+                    <Button type="button" variant="outline" size="icon" onClick={() => tryAddTo(toInput)} disabled={!toInput.trim()} aria-label="Add To email">
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                  {toError
+                    ? <p className="text-xs text-destructive" aria-live="polite">{toError}</p>
+                    : <p className="text-xs text-muted-foreground">Press Enter or comma to add multiple</p>
+                  }
                 </div>
 
                 <div className="space-y-1.5">
