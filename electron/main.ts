@@ -24,6 +24,7 @@ import {
 import { startMonitoring } from "./monitor"
 import { createTray, updateTrayStatus, destroyTray } from "./tray"
 import { registerIpcHandlers } from "./ipc"
+import { claude } from "./claude-service"
 import { registerHotkey, unregisterHotkey } from "./hotkey"
 import { scheduleDailySync } from "./daily-sync"
 import { initAutoUpdater, checkForUpdates } from "./updater"
@@ -316,6 +317,7 @@ app.on("before-quit", () => {
     insertEntry("LOGOUT", "auto", trigger)
   }
 
+  claude.cleanup()
   stopHeartbeat()
   clearHeartbeat()
   closeDatabase()

@@ -54,6 +54,8 @@ import { syncNonPermanentDays } from "./portal-sync"
 import { runDailySync } from "./daily-sync"
 import { getOutlookMeetingsSafe } from '../src/lib/outlook-meetings'
 import type { OutlookMeeting } from '../src/lib/outlook-meetings'
+import { claude } from './claude-service'
+import type { GenerateOptions } from './claude-service'
 import ElectronStore from 'electron-store';
 import { LicenseEngine } from './license-engine';
 
@@ -895,6 +897,42 @@ export function registerIpcHandlers(
     } catch (err) {
       return { ok: false, error: String(err) }
     }
+  })
+
+  // ── AI / Claude ──────────────────────────────────────────────────────────────
+
+  // Buffered: resolves with the complete result when generation finishes
+  ipcMain.handle('ai:generate', async (_event, options: GenerateOptions) => {
+    return claude.generate(options)
+  })
+
+  // Streaming: starts generation and returns requestId immediately.
+  // Text arrives via 'ai:chunk' push events; completion via 'ai:done' or 'ai:error'.
+  ipcMain.handle('ai:stream', (event, options: GenerateOptions) => {
+    const { randomUUID } = require('crypto') as typeof import('crypto')
+    const requestId: string = options.requestId ?? randomUUID()
+
+    void claude.stream({ ...options, requestId }, {
+      onChunk: (chunk) => event.sender.send('ai:chunk', { requestId, chunk }),
+    }).then((result) => {
+      if (result.ok) {
+        event.sender.send('ai:done', { requestId, text: result.text, durationMs: result.durationMs })
+      } else {
+        event.sender.send('ai:error', { requestId, error: result.error, code: result.code })
+      }
+    })
+
+    return { requestId }
+  })
+
+  // Cancel an in-flight generate or stream request by requestId
+  ipcMain.handle('ai:cancel', (_event, requestId: string) => {
+    claude.cancel(requestId)
+  })
+
+  // Check if Claude Code is installed and accessible
+  ipcMain.handle('ai:available', () => {
+    return claude.available()
   })
 
   // ── Daily sync ──

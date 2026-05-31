@@ -170,6 +170,62 @@ contextBridge.exposeInMainWorld("electronAPI", {
   eodGetUpcomingLeaves: (windowDays: number): Promise<
     { ok: true; dates: string[] } | { ok: false; error: string }
   > => ipcRenderer.invoke('eod:get-upcoming-leaves', windowDays),
+
+  // ── AI / Claude ──────────────────────────────────────────────────────────────
+
+  // Buffered generation — resolves with full text when complete
+  aiGenerate: (options: {
+    prompt: string
+    systemPrompt?: string
+    model?: string
+    timeoutMs?: number
+    requestId?: string
+  }): Promise<
+    | { ok: true; text: string; durationMs: number }
+    | { ok: false; error: string; code: string }
+  > => ipcRenderer.invoke('ai:generate', options),
+
+  // Streaming generation — call once, then listen for ai:chunk / ai:done / ai:error
+  aiStream: (options: {
+    prompt: string
+    systemPrompt?: string
+    model?: string
+    timeoutMs?: number
+    requestId?: string
+  }): Promise<{ requestId: string }> => ipcRenderer.invoke('ai:stream', options),
+
+  // Cancel an in-flight request (buffered or streaming)
+  aiCancel: (requestId: string): void => {
+    void ipcRenderer.invoke('ai:cancel', requestId)
+  },
+
+  // Check if Claude Code is installed on this machine
+  aiAvailable: (): Promise<{
+    available: boolean
+    version?: string
+    error?: string
+  }> => ipcRenderer.invoke('ai:available'),
+
+  // Push event: streaming text chunk — returns a cleanup function
+  onAiChunk: (cb: (data: { requestId: string; chunk: string }) => void) => {
+    const fn = (_: unknown, data: { requestId: string; chunk: string }) => cb(data)
+    ipcRenderer.on('ai:chunk', fn)
+    return () => ipcRenderer.removeListener('ai:chunk', fn)
+  },
+
+  // Push event: streaming complete — returns a cleanup function
+  onAiDone: (cb: (data: { requestId: string; text: string; durationMs: number }) => void) => {
+    const fn = (_: unknown, data: { requestId: string; text: string; durationMs: number }) => cb(data)
+    ipcRenderer.on('ai:done', fn)
+    return () => ipcRenderer.removeListener('ai:done', fn)
+  },
+
+  // Push event: streaming or buffered error — returns a cleanup function
+  onAiError: (cb: (data: { requestId: string; error: string; code: string }) => void) => {
+    const fn = (_: unknown, data: { requestId: string; error: string; code: string }) => cb(data)
+    ipcRenderer.on('ai:error', fn)
+    return () => ipcRenderer.removeListener('ai:error', fn)
+  },
 })
 
 contextBridge.exposeInMainWorld('licenseAPI', {
