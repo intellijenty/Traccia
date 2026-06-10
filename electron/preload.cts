@@ -147,6 +147,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener("update:error", fn)
   },
 
+  // ── Claude usage ──
+  getClaudeUsage: (): Promise<
+    | { ok: true; data: { session: { utilization: number; resetsAt: string }; weekly: { utilization: number; resetsAt: string }; fetchedAt: number } }
+    | { ok: false; error: string }
+  > => ipcRenderer.invoke('usage:claude-get'),
+
   // ── EOD Draft ──
   eodOpenInOutlook: (payload: {
     to: string

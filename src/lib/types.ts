@@ -313,6 +313,12 @@ export interface ElectronAPI {
   onUpdateDownloaded: (cb: (info: { version: string }) => void) => () => void
   onUpdateError: (cb: (msg: string) => void) => () => void
 
+  // Claude usage
+  getClaudeUsage: () => Promise<
+    | { ok: true; data: { session: { utilization: number; resetsAt: string }; weekly: { utilization: number; resetsAt: string }; fetchedAt: number } }
+    | { ok: false; error: string }
+  >
+
   // EOD Draft
   eodOpenInOutlook: (payload: {
     to: string

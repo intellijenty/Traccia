@@ -56,6 +56,7 @@ import { getOutlookMeetingsSafe } from '../src/lib/outlook-meetings'
 import type { OutlookMeeting } from '../src/lib/outlook-meetings'
 import { claude } from './claude-service'
 import type { GenerateOptions } from './claude-service'
+import { claudeUsage } from './claude-usage-service'
 import ElectronStore from 'electron-store';
 import { LicenseEngine } from './license-engine';
 
@@ -933,6 +934,18 @@ export function registerIpcHandlers(
   // Check if Claude Code is installed and accessible
   ipcMain.handle('ai:available', () => {
     return claude.available()
+  })
+
+  // ── Claude usage ──
+
+  ipcMain.handle('usage:claude-get', async () => {
+    const result = await claudeUsage.fetch()
+    if (result.ok) {
+      console.log(`[claude-usage] Response: session=${result.data.session.utilization}% weekly=${result.data.weekly.utilization}%`)
+    } else {
+      console.log(`[claude-usage] Error: ${result.error}`)
+    }
+    return result
   })
 
   // ── Daily sync ──

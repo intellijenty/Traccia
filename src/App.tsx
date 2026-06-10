@@ -50,6 +50,7 @@ import { ReleaseNotesController } from "@/components/release-notes-controller"
 import LicenseMonitor from "./components/LicenseMonitor"
 import { Badge } from "./components/ui/badge"
 import { TitleBar } from "./components/ui/title-bar"
+import { StatusBar } from "./components/ui/status-bar"
 import type { Page } from "@/lib/navigation"
 import { EodPage } from "@/pages/eod-page"
 
@@ -787,6 +788,7 @@ export default function App() {
               onDeleteTarget={deleteTarget}
             />
           </div>
+          <StatusBar />
         </div>
         <LicenseMonitor />
       </PortalStoreProvider>
