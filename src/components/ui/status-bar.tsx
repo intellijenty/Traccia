@@ -199,8 +199,12 @@ function ClaudeUsageChip({ data, error, loading }: UsageProps) {
 
 // ── Status bar shell ───────────────────────────────────────────────────────────
 
+const SHOW_CLAUDE_USAGE = import.meta.env.DEV
+
 export function StatusBar({ className }: { className?: string }) {
   const { data, error, loading } = useClaudeUsage()
+
+  if (!SHOW_CLAUDE_USAGE) return null
 
   return (
     <div

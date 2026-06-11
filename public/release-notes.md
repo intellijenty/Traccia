@@ -1,3 +1,10 @@
+## v0.3.2 - June 2026
+### Improved
+- Improved final draft formattings to match original template design format.
+
+### FIXED
+- Fixed Meeting sync feature malfunctioning for some users (root cause en-IN device culture).
+
 ## v0.3.1 - May 2026
 
 ### Improved
