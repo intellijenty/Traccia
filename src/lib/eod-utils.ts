@@ -59,25 +59,55 @@ const STATUS_BG: Record<ProjectStatus, string | null> = {
   none: null,
 }
 
+// Outlook's Word renderer often drops list-style-type set on <ul> only —
+// it must also be set on each <li>. The ul-level rule keeps non-Outlook
+// clients happy; the per-li rule covers Outlook.
+// margin:0 kills consecutive-bullet gap; line-height tightens row height
+// (overrides body's 1.6). mso-* hints suppress Word renderer's auto-spacing.
+const LI_BASE = 'margin:0;line-height:1.35;mso-margin-top-alt:0;mso-margin-bottom-alt:0'
+
+function subsHtml(subs: { id: string; text: string }[]): string {
+  const filled = subs.filter(s => s.text.trim())
+  if (!filled.length) return ''
+  const items = filled.map(s =>
+    `<li style="${LI_BASE};list-style-type:square">${esc(s.text)}</li>`
+  ).join('')
+  return `<ul style="margin:0;padding-left:40px;list-style-type:square">${items}</ul>`
+}
+
 function tasksHtml(tasks: EodTask[]): string {
   const filled = tasks.filter(t => t.text.trim())
-  if (!filled.length) return `<ul style="margin:0 0 8px;padding-left:24px"><li>N/A</li></ul>`
-  const items = filled.map(t => {
-    const filledSubs = t.subBullets.filter(s => s.text.trim())
-    const subs = filledSubs.length
-      ? `<ul style="margin:2px 0 0;padding-left:20px;list-style-type:circle">${filledSubs.map(s => `<li>${esc(s.text)}</li>`).join('')}</ul>`
-      : ''
-    return `<li style="margin-bottom:4px">${esc(t.text)}${subs}</li>`
-  }).join('')
-  return `<ul style="margin:0 0 8px;padding-left:24px">${items}</ul>`
+  const inner = !filled.length
+    ? `<li style="${LI_BASE};list-style-type:disc">N/A</li>`
+    : filled.map(t =>
+        `<li style="${LI_BASE};list-style-type:disc">${esc(t.text)}${subsHtml(t.subBullets)}</li>`
+      ).join('')
+  return `<ul style="margin:0;padding-left:40px;list-style-type:disc">${inner}</ul>`
+}
+
+// Wraps the "Tasks Completed:" heading itself as a bulleted item (level 1),
+// with the task list nested beneath as level 2. Matches template nesting.
+function tasksCompletedBlock(tasks: EodTask[]): string {
+  return [
+    `<ul style="margin:0 0 4px;padding-left:40px;list-style-type:disc">`,
+    `<li style="${LI_BASE};list-style-type:disc"><strong>Tasks Completed:</strong>`,
+    tasksHtml(tasks),
+    `</li>`,
+    `</ul>`,
+  ].join('')
 }
 
 function sectionHtml(title: string, s: EodSimpleSection): string {
   const filled = s.items.filter(i => i.text.trim())
-  const body = (s.isNA || !filled.length)
-    ? `<ul style="margin:0 0 8px;padding-left:24px"><li>N/A</li></ul>`
-    : `<ul style="margin:0 0 8px;padding-left:24px">${filled.map(i => `<li style="margin-bottom:4px">${esc(i.text)}</li>`).join('')}</ul>`
-  return `<p style="margin:12px 0 4px"><strong>${title}:</strong></p>${body}`
+  const items = (s.isNA || !filled.length)
+    ? `<li style="${LI_BASE};list-style-type:disc">N/A</li>`
+    : filled.map(i =>
+        `<li style="${LI_BASE};list-style-type:disc">${esc(i.text)}</li>`
+      ).join('')
+  return [
+    `<p style="margin:14px 0 0"><strong>${title}:</strong></p>`,
+    `<ul style="margin:0 0 4px;padding-left:40px;list-style-type:disc">${items}</ul>`,
+  ].join('')
 }
 
 export function buildEodHtml(form: EodFormState, settings: EodEmailSettings): string {
@@ -94,20 +124,19 @@ export function buildEodHtml(form: EodFormState, settings: EodEmailSettings): st
       ? `<span style="background-color:${bgColor}">${projectDisplay}</span>`
       : projectDisplay
     const statusNoteLine = project.statusNote?.trim()
-      ? `<p style="margin:0 0 8px">${esc(project.statusNote.trim())}</p>`
+      ? `<p style="margin:0 0 4px">${esc(project.statusNote.trim())}</p>`
       : ''
     return [
-      `<p style="margin:0 0 8px"><strong>Project:</strong> ${projectSpan}</p>`,
+      `<p style="margin:14px 0 0"><strong>Project:</strong> ${projectSpan}</p>`,
       statusNoteLine,
-      `<p style="margin:12px 0 4px"><strong>Tasks Completed:</strong></p>`,
-      tasksHtml(project.tasksCompleted),
+      tasksCompletedBlock(project.tasksCompleted),
     ].join('')
   }).join('')
 
   return [
     `<!DOCTYPE html><html><head><meta charset="utf-8"></head>`,
     `<body style="margin:0;padding:20px;background:#fff">`,
-    `<div style="${font};max-width:600px">`,
+    `<div style="${font}">`,
     `<p style="margin:0 0 16px">Hello All,<br>Please find my EOD below.</p>`,
     projectsHtml,
     sectionHtml('Other (non-project related) Tasks', form.otherTasks),
@@ -164,16 +193,24 @@ export function buildEodPlainText(form: EodFormState, settings: EodEmailSettings
 }
 
 export function buildEditorHtml(form: EodFormState): string {
+  // Mirrors buildEodHtml nesting so editor-mode sends match template formatting
+  // when the user switches form → editor or restores from history. TipTap
+  // preserves the ul/li tree on round-trip; inline styles may be stripped, so
+  // structure carries the formatting, not CSS.
+  function subsList(subs: { id: string; text: string }[]): string {
+    const filled = subs.filter(s => s.text.trim())
+    if (!filled.length) return ''
+    return `<ul>${filled.map(s => `<li>${esc(s.text)}</li>`).join('')}</ul>`
+  }
   function tasksList(tasks: EodTask[]): string {
     const filled = tasks.filter(t => t.text.trim())
-    if (!filled.length) return '<ul><li>N/A</li></ul>'
-    return `<ul>${filled.map(t => {
-      const filledSubs = t.subBullets.filter(s => s.text.trim())
-      const subs = filledSubs.length
-        ? `<ul>${filledSubs.map(s => `<li>${esc(s.text)}</li>`).join('')}</ul>`
-        : ''
-      return `<li>${esc(t.text)}${subs}</li>`
-    }).join('')}</ul>`
+    const items = !filled.length
+      ? '<li>N/A</li>'
+      : filled.map(t => `<li>${esc(t.text)}${subsList(t.subBullets)}</li>`).join('')
+    return `<ul>${items}</ul>`
+  }
+  function tasksCompletedBlock(tasks: EodTask[]): string {
+    return `<ul><li><strong>Tasks Completed:</strong>${tasksList(tasks)}</li></ul>`
   }
   function simpleSection(title: string, s: EodSimpleSection): string {
     const filled = s.items.filter(i => i.text.trim())
@@ -185,13 +222,12 @@ export function buildEditorHtml(form: EodFormState): string {
 
   const projectBlocks = form.projects.map(project => {
     const statusNoteLine = project.statusNote?.trim()
-      ? `<p><strong>Status:</strong> ${esc(project.statusNote.trim())}</p>`
+      ? `<p>${esc(project.statusNote.trim())}</p>`
       : ''
     return [
       `<p><strong>Project:</strong> ${esc(project.name) || 'N/A'}</p>`,
       statusNoteLine,
-      '<p><strong>Tasks Completed:</strong></p>',
-      tasksList(project.tasksCompleted),
+      tasksCompletedBlock(project.tasksCompleted),
     ].join('')
   }).join('')
 
