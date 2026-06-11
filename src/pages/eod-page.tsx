@@ -177,7 +177,15 @@ export function EodPage() {
   const [isPrewarming, setIsPrewarming] = useState(false)
   const [isSyncingMeetings, setIsSyncingMeetings] = useState(false)
   const syncingInProgress = useRef(false)
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
   const [history, setHistory] = useState<Record<string, EodHistoryEntry>>(loadHistory)
+  // Latest formState snapshot for sync handler. Avoids stale-localStorage reads
+  // when the autosave debounce hasn't fired yet.
+  const formStateRef = useRef<EodFormState | null>(null)
   const [viewingEntry, setViewingEntry] = useState<EodHistoryEntry | null>(null)
 
   // Subject — persisted separately.
@@ -221,8 +229,9 @@ export function EodPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Auto-save form state (debounced 500ms)
+  // Auto-save form state (debounced 500ms) + keep latest snapshot in ref for sync handler
   useEffect(() => {
+    formStateRef.current = formState
     const t = setTimeout(() => {
       localStorage.setItem(KEYS.formState, JSON.stringify(formState))
     }, 500)
@@ -265,28 +274,56 @@ export function EodPage() {
     if (syncingInProgress.current) return
     syncingInProgress.current = true
     setIsSyncingMeetings(true)
+
+    // Race-safety: read latest React state via ref when mounted (avoids
+    // stale-localStorage reads while autosave debounce is pending); fall back
+    // to localStorage if the component has unmounted mid-IPC.
+    const readCurrent = (): EodFormState => {
+      if (mountedRef.current && formStateRef.current) return formStateRef.current
+      try {
+        const raw = localStorage.getItem(KEYS.formState)
+        if (raw) return migrateFormState(JSON.parse(raw))
+      } catch { /* ignore */ }
+      return makeDefaultFormState()
+    }
+    const persist = (merged: EodFormState) => {
+      // Always write to localStorage so the merge survives unmount races.
+      try { localStorage.setItem(KEYS.formState, JSON.stringify(merged)) } catch { /* ignore */ }
+      // Keep ref in sync so a subsequent sync step (leaves after meetings)
+      // sees the merged state immediately, before React commits.
+      formStateRef.current = merged
+      if (mountedRef.current) updateFormState(merged)
+    }
+
+    // Treat disabled section as "satisfied" so the gate latches when only
+    // the other one is enabled.
+    let meetingsOk = true
+    let leavesOk = true
+
     try {
-      // Meetings sync
       const meetingsSettings = loadMeetingsSettings()
       if (meetingsSettings.enabled) {
+        meetingsOk = false
         const result = await window.electronAPI.eodGetMeetingsToday()
         if (result.ok) {
-          updateFormState(s => applyMeetingSync(s, result.meetings, meetingsSettings))
+          persist(applyMeetingSync(readCurrent(), result.meetings, meetingsSettings))
+          meetingsOk = true
         }
       }
 
-      // Leaves / holidays sync
       const holidaysSettings = loadHolidaysSettings()
       if (holidaysSettings.enabled) {
+        leavesOk = false
         const result = await window.electronAPI.eodGetUpcomingLeaves(holidaysSettings.windowDays)
         if (result.ok) {
-          updateFormState(s => applyLeavesSync(s, result.dates))
+          persist(applyLeavesSync(readCurrent(), result.dates))
+          leavesOk = true
         }
       }
 
-      markSyncedToday()
+      if (meetingsOk && leavesOk) markSyncedToday()
     } finally {
-      setIsSyncingMeetings(false)
+      if (mountedRef.current) setIsSyncingMeetings(false)
       syncingInProgress.current = false
     }
   }

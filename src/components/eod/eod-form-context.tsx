@@ -3,7 +3,7 @@ import {
   type ReactNode,
 } from 'react'
 import { makeId, makeEmptyTask, makeEmptyProject } from '@/lib/eod-types'
-import type { EodFormState, EodTask, ProjectStatus } from '@/lib/eod-types'
+import type { EodFormState, EodTask, EodSectionItem, ProjectStatus } from '@/lib/eod-types'
 import { arrayMove } from '@dnd-kit/sortable'
 import { SECTION_KEYS, type FormLayoutMode, type MoveTarget, type SectionKey } from './eod-dnd'
 
@@ -357,22 +357,31 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
             pendingFocus.current = `section:${target.sk}:${target.itemId}`
           } else {
             const skIdx = SECTION_KEYS.indexOf(target.sk)
-            const text = section.items[idx].text
+            const srcItem = section.items[idx]
+            const text = srcItem.text
+            const meetingKey = srcItem.meetingKey
+            const leaveKey = srcItem.leaveKey
             const newId = makeId()
             const newItems = section.items.filter(i => i.id !== target.itemId)
             let next: EodFormState = { ...v(), [target.sk]: { items: newItems, isNA: newItems.length === 0 } }
             if (skIdx > 0) {
               const prevSk = SECTION_KEYS[skIdx - 1]
               const prevSection = next[prevSk]
-              next = { ...next, [prevSk]: { isNA: false, items: [...prevSection.items, { id: newId, text }] } }
+              const movedItem: EodSectionItem = { id: newId, text }
+              if (meetingKey) movedItem.meetingKey = meetingKey
+              if (leaveKey) movedItem.leaveKey = leaveKey
+              next = { ...next, [prevSk]: { isNA: false, items: [...prevSection.items, movedItem] } }
               commit(next)
               pendingFocus.current = `section:${prevSk}:${newId}`
             } else {
               // Cross into last project's tasks
               const lastProject = next.projects[next.projects.length - 1]
+              const movedTask: EodTask = meetingKey
+                ? { id: newId, text, subBullets: [], meetingKey }
+                : { id: newId, text, subBullets: [] }
               next = { ...next, projects: next.projects.map(p =>
                 p.id === lastProject.id
-                  ? { ...p, tasksCompleted: [...p.tasksCompleted, { id: newId, text, subBullets: [] }] }
+                  ? { ...p, tasksCompleted: [...p.tasksCompleted, movedTask] }
                   : p
               )}
               commit(next)
@@ -423,10 +432,12 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
               const newId = makeId()
               const filtered = tasks.filter(t => t.id !== target.taskId)
               const prevSection = v()[firstSk]
+              const movedItem: EodSectionItem = { id: newId, text: task.text }
+              if (task.meetingKey) movedItem.meetingKey = task.meetingKey
               commit({
                 ...v(),
                 projects: v().projects.map((p, i) => i === projectIdx ? { ...p, tasksCompleted: filtered } : p),
-                [firstSk]: { isNA: false, items: [{ id: newId, text: task.text }, ...prevSection.items] },
+                [firstSk]: { isNA: false, items: [movedItem, ...prevSection.items] },
               })
               pendingFocus.current = `section:${firstSk}:${newId}`
             }
@@ -461,13 +472,19 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
           } else {
             const skIdx = SECTION_KEYS.indexOf(target.sk)
             if (skIdx === SECTION_KEYS.length - 1) return
-            const text = section.items[idx].text
+            const srcItem = section.items[idx]
+            const text = srcItem.text
+            const meetingKey = srcItem.meetingKey
+            const leaveKey = srcItem.leaveKey
             const newId = makeId()
             const newItems = section.items.filter(i => i.id !== target.itemId)
             let next: EodFormState = { ...v(), [target.sk]: { items: newItems, isNA: newItems.length === 0 } }
             const nextSk = SECTION_KEYS[skIdx + 1]
             const nextSection = next[nextSk]
-            next = { ...next, [nextSk]: { isNA: false, items: [{ id: newId, text }, ...nextSection.items] } }
+            const movedItem: EodSectionItem = { id: newId, text }
+            if (meetingKey) movedItem.meetingKey = meetingKey
+            if (leaveKey) movedItem.leaveKey = leaveKey
+            next = { ...next, [nextSk]: { isNA: false, items: [movedItem, ...nextSection.items] } }
             commit(next)
             pendingFocus.current = `section:${nextSk}:${newId}`
           }

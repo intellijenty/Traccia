@@ -1,7 +1,7 @@
 import { arrayMove } from '@dnd-kit/sortable'
 import { closestCenter, type CollisionDetection } from '@dnd-kit/core'
 import { makeId } from '@/lib/eod-types'
-import type { EodFormState, EodProject, EodTask, EodSubBullet } from '@/lib/eod-types'
+import type { EodFormState, EodProject, EodTask, EodSubBullet, EodSectionItem } from '@/lib/eod-types'
 
 // ── Shared UI type ────────────────────────────────────────────────────────────
 
@@ -58,12 +58,19 @@ export function removeFromSource(src: ItemMeta, state: EodFormState): EodFormSta
   return { ...state, [src.sk]: { items, isNA: items.length === 0 } }
 }
 
-export function insertIntoDest(dstContainer: string, overId: string, text: string, state: EodFormState): EodFormState {
+export interface DragSrcMeta {
+  text: string
+  meetingKey?: string
+  leaveKey?: string
+}
+
+export function insertIntoDest(dstContainer: string, overId: string, srcMeta: DragSrcMeta, state: EodFormState): EodFormState {
   const id = makeId()
+  const { text, meetingKey, leaveKey } = srcMeta
 
   if (dstContainer.startsWith('tasks:')) {
     const projectId = dstContainer.slice(6)
-    const newTask: EodTask = { id, text, subBullets: [] }
+    const newTask: EodTask = meetingKey ? { id, text, subBullets: [], meetingKey } : { id, text, subBullets: [] }
     return mapProject(state, projectId, p => {
       if (overId === dstContainer) return { ...p, tasksCompleted: [...p.tasksCompleted, newTask] }
       const idx = p.tasksCompleted.findIndex(t => t.id === overId)
@@ -94,7 +101,9 @@ export function insertIntoDest(dstContainer: string, overId: string, text: strin
 
   if (dstContainer.startsWith('section:')) {
     const sk = dstContainer.slice(8) as SectionKey
-    const newItem = { id, text }
+    const newItem: EodSectionItem = { id, text }
+    if (meetingKey) newItem.meetingKey = meetingKey
+    if (leaveKey) newItem.leaveKey = leaveKey
     const section = state[sk]
     if (overId === dstContainer || section.isNA) {
       return { ...state, [sk]: { isNA: false, items: [...section.items, newItem] } }

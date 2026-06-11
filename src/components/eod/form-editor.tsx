@@ -205,7 +205,18 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
       if (overId === dstContainer) return
       historyCommit(reorderWithinContainer(src, overId, value))
     } else {
-      historyCommit(insertIntoDest(dstContainer, overId, src.text, removeFromSource(src, value)))
+      // Preserve system-import flags (meetingKey/leaveKey) when crossing containers
+      let meetingKey: string | undefined
+      let leaveKey: string | undefined
+      if (src.type === 'task') {
+        const t = value.projects.find(p => p.id === src.projectId)?.tasksCompleted.find(t => t.id === src.taskId)
+        meetingKey = t?.meetingKey
+      } else if (src.type === 'section-item') {
+        const item = value[src.sk].items.find(i => i.id === src.itemId)
+        meetingKey = item?.meetingKey
+        leaveKey = item?.leaveKey
+      }
+      historyCommit(insertIntoDest(dstContainer, overId, { text: src.text, meetingKey, leaveKey }, removeFromSource(src, value)))
     }
   }
 
