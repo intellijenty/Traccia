@@ -10,58 +10,87 @@ export interface OutlookMeeting {
   title: string
   /** Duration in minutes */
   duration: number
-  /** ISO 8601 start datetime */
+  /** ISO 8601 start datetime (with offset) */
   start: string
   /** Outlook ResponseStatus: 0=None, 1=Organized, 2=Tentative, 3=Accepted, 4=Declined, 5=NotResponded */
   responseStatus: number
+  isRecurring: boolean
+  isAllDay: boolean
+  location: string
 }
 
 export interface OutlookMeetingsOptions {
-  /** How many days ahead to fetch (default: 7) */
+  /** How many days ahead to fetch (default: 1) */
   days?: number
-  /** Start date — defaults to today */
+  /** Start date — defaults to today (local midnight) */
   from?: Date
 }
 
-function buildScript(from: Date, to: Date): string {
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-US", {
-      month: "numeric",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    })
+function buildScript(fromIso: string, toIso: string): string {
+  // Format dates inside PS using *current culture* so Outlook's Restrict
+  // parser (same culture) round-trips correctly. Parse the inbound ISO with
+  // InvariantCulture + RoundtripKind so PS doesn't misread it locally.
+  return `$ErrorActionPreference = "Stop"
+try {
+  $iv = [System.Globalization.CultureInfo]::InvariantCulture
+  $rk = [System.Globalization.DateTimeStyles]::RoundtripKind
+  $from = [DateTime]::Parse('${fromIso}', $iv, $rk)
+  $to   = [DateTime]::Parse('${toIso}', $iv, $rk)
+  $fromStr = $from.ToString("g")
+  $toStr   = $to.ToString("g")
 
-  return `
-$outlook = New-Object -ComObject Outlook.Application
-$ns = $outlook.GetNamespace("MAPI")
-$cal = $ns.GetDefaultFolder(9)
-$items = $cal.Items
-$items.IncludeRecurrences = $true
-$items.Sort("[Start]")
-$filter = "[Start] >= '${fmt(from)}' AND [Start] <= '${fmt(to)}'"
-$results = $items.Restrict($filter) | ForEach-Object {
-    [PSCustomObject]@{
-        title          = $_.Subject
-        duration       = $_.Duration
-        start          = $_.Start.ToString("o")
-        responseStatus = $_.ResponseStatus
-    }
+  $outlook = New-Object -ComObject Outlook.Application
+  $ns = $outlook.GetNamespace("MAPI")
+  $cal = $ns.GetDefaultFolder(9)
+
+  $items = $cal.Items
+  $items.Sort("[Start]")
+  $items.IncludeRecurrences = $true
+
+  $filter = "[Start] >= '$fromStr' AND [Start] < '$toStr'"
+  $restricted = $items.Restrict($filter)
+
+  $results = [System.Collections.Generic.List[object]]::new()
+  foreach ($i in $restricted) {
+    $results.Add([PSCustomObject]@{
+      title          = [string]$i.Subject
+      duration       = [int]$i.Duration
+      start          = $i.Start.ToString("o", $iv)
+      responseStatus = [int]$i.ResponseStatus
+      isRecurring    = [bool]$i.IsRecurring
+      isAllDay       = [bool]$i.AllDayEvent
+      location       = [string]$i.Location
+    })
+  }
+
+  $arr = @($results.ToArray())
+  if ($arr.Count -eq 0) {
+    Write-Output '[]'
+  } elseif ($arr.Count -eq 1) {
+    Write-Output ('[' + ($arr[0] | ConvertTo-Json -Compress -Depth 3) + ']')
+  } else {
+    $arr | ConvertTo-Json -Compress -Depth 3 | Write-Output
+  }
+} catch {
+  [Console]::Error.WriteLine("OUTLOOK_SYNC_ERROR " + $_.Exception.Message)
+  exit 1
 }
-if ($results) { @($results) | ConvertTo-Json } else { "[]" }
 `
 }
 
 /**
- * Fetches upcoming meetings from Outlook calendar via COM automation.
- * Requires Outlook to be installed and a profile configured on this machine.
- * Only works on Windows (Electron main process or Node.js).
+ * Fetches meetings from Outlook calendar via COM automation.
+ * Requires classic Outlook installed and a MAPI profile configured.
+ * Only works on Windows.
+ *
+ * Defense-in-depth: results are post-filtered in JS on the actual `start`
+ * timestamp so any Outlook Restrict locale/recurrence edge cases cannot
+ * leak out-of-window items.
  */
 export async function getOutlookMeetings(
   options: OutlookMeetingsOptions = {}
 ): Promise<OutlookMeeting[]> {
-  const { days = 7, from = new Date() } = options
+  const { days = 1, from = new Date() } = options
 
   const start = new Date(from)
   start.setHours(0, 0, 0, 0)
@@ -69,20 +98,30 @@ export async function getOutlookMeetings(
   const end = new Date(start)
   end.setDate(end.getDate() + days)
 
-  const tmpScript = path.join(os.tmpdir(), `outlook-meetings-${Date.now()}.ps1`)
-  await fs.writeFile(tmpScript, buildScript(start, end), "utf8")
+  const suffix = Math.random().toString(36).slice(2, 8)
+  const tmpScript = path.join(os.tmpdir(), `outlook-meetings-${Date.now()}-${process.pid}-${suffix}.ps1`)
+  await fs.writeFile(tmpScript, buildScript(start.toISOString(), end.toISOString()), "utf8")
 
   try {
     const { stdout } = await execFileAsync(
       "powershell",
-      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", tmpScript],
-      { encoding: "utf8", windowsHide: true }
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", tmpScript],
+      { encoding: "utf8", windowsHide: true, maxBuffer: 16 * 1024 * 1024 }
     )
 
-    const parsed = JSON.parse(stdout.trim())
-    return (Array.isArray(parsed) ? parsed : parsed ? [parsed] : []) as OutlookMeeting[]
+    const raw = stdout.trim()
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    const arr = (Array.isArray(parsed) ? parsed : parsed ? [parsed] : []) as OutlookMeeting[]
+
+    const fromMs = start.getTime()
+    const toMs = end.getTime()
+    return arr.filter(m => {
+      const t = Date.parse(m.start)
+      return Number.isFinite(t) && t >= fromMs && t < toMs
+    })
   } finally {
-    await fs.unlink(tmpScript).catch(() => { /* ignore if already gone */ })
+    await fs.unlink(tmpScript).catch(() => { /* ignore */ })
   }
 }
 

@@ -22,14 +22,20 @@ export function deriveMeetingKey(m: OutlookMeeting): string {
 
 // ── Pre-filter ────────────────────────────────────────────────────────────────
 
+const CANCELED_PREFIX_RX = /^canceled\s*:\s*/i
+
 export function filterMeetings(meetings: OutlookMeeting[]): OutlookMeeting[] {
   if (!Array.isArray(meetings)) return []
-  return meetings.filter(m =>
-    m.responseStatus !== 4 &&   // exclude Declined
-    m.duration >= 5 &&           // exclude sub-5-min calendar artifacts
-    m.duration < 480 &&          // exclude all-day events (≥ 8 hours)
-    m.title.trim().length > 0    // exclude blank titles
-  )
+  return meetings.filter(m => {
+    if (m.responseStatus === 4) return false
+    if (m.isAllDay) return false
+    if (m.duration < 5) return false
+    if (m.duration >= 480) return false
+    const title = m.title?.trim() ?? ''
+    if (!title) return false
+    if (CANCELED_PREFIX_RX.test(title)) return false
+    return true
+  })
 }
 
 // ── Formatting ────────────────────────────────────────────────────────────────

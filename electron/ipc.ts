@@ -52,7 +52,7 @@ import {
 } from "./portal-cache"
 import { syncNonPermanentDays } from "./portal-sync"
 import { runDailySync } from "./daily-sync"
-import { getOutlookMeetingsSafe } from '../src/lib/outlook-meetings'
+import { getOutlookMeetings } from '../src/lib/outlook-meetings'
 import type { OutlookMeeting } from '../src/lib/outlook-meetings'
 import { claude } from './claude-service'
 import type { GenerateOptions } from './claude-service'
@@ -850,13 +850,30 @@ export function registerIpcHandlers(
   ipcMain.handle('eod:get-meetings-today', async (): Promise<
     { ok: true; meetings: OutlookMeeting[] } | { ok: false; error: string }
   > => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
     try {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const meetings = await getOutlookMeetingsSafe({ from: today, days: 1 })
+      const meetings = await getOutlookMeetings({ from: today, days: 1 })
+      if (process.env.TRACCIA_OUTLOOK_DEBUG === '1') {
+        try {
+          const dump = path.join(app.getPath('userData'), 'last-meetings.json')
+          fs.writeFileSync(dump, JSON.stringify({
+            at: new Date().toISOString(),
+            from: today.toISOString(),
+            days: 1,
+            count: meetings.length,
+            meetings,
+          }, null, 2))
+        } catch { /* ignore */ }
+      }
       return { ok: true, meetings }
     } catch (err) {
-      return { ok: false, error: String(err) }
+      const msg = String(err)
+      try {
+        const logPath = path.join(app.getPath('userData'), 'meeting-sync-errors.log')
+        fs.appendFileSync(logPath, `${new Date().toISOString()}  ${msg}\n`)
+      } catch { /* ignore */ }
+      return { ok: false, error: msg }
     }
   })
 
