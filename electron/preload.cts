@@ -232,6 +232,33 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on('ai:error', fn)
     return () => ipcRenderer.removeListener('ai:error', fn)
   },
+
+  // ── EOD AI generation ──────────────────────────────────────────────────────
+
+  // Starts a full EOD generation run; progress/result arrive via the
+  // eod:ai-phase / eod:ai-done / eod:ai-error push events. Cancel with aiCancel(requestId).
+  eodAiGenerate: (payload: {
+    pastEods: Array<{ date: string; plainText: string }>
+    meetings: Array<{ title: string; durationMin: number }>
+  }): Promise<{ requestId: string }> => ipcRenderer.invoke('eod:ai-generate', payload),
+
+  onEodAiPhase: (cb: (data: { requestId: string; phase: string; label: string }) => void) => {
+    const fn = (_: unknown, data: { requestId: string; phase: string; label: string }) => cb(data)
+    ipcRenderer.on('eod:ai-phase', fn)
+    return () => ipcRenderer.removeListener('eod:ai-phase', fn)
+  },
+
+  onEodAiDone: (cb: (data: { requestId: string; draft: unknown; dropped: string[]; durationMs: number }) => void) => {
+    const fn = (_: unknown, data: { requestId: string; draft: unknown; dropped: string[]; durationMs: number }) => cb(data)
+    ipcRenderer.on('eod:ai-done', fn)
+    return () => ipcRenderer.removeListener('eod:ai-done', fn)
+  },
+
+  onEodAiError: (cb: (data: { requestId: string; error: string; code: string; raw?: string }) => void) => {
+    const fn = (_: unknown, data: { requestId: string; error: string; code: string; raw?: string }) => cb(data)
+    ipcRenderer.on('eod:ai-error', fn)
+    return () => ipcRenderer.removeListener('eod:ai-error', fn)
+  },
 })
 
 contextBridge.exposeInMainWorld('licenseAPI', {

@@ -57,6 +57,11 @@ import type { OutlookMeeting } from '../src/lib/outlook-meetings'
 import { claude } from './claude-service'
 import type { GenerateOptions } from './claude-service'
 import { claudeUsage } from './claude-usage-service'
+import { digestTodaySessions } from './eod-session-digest'
+import { gatherGitEvidence } from './eod-git-evidence'
+import { buildGatherPrompt, buildWritePrompt, extractTicketIndex } from './eod-ai-prompt'
+import { extractJson, coerceFactSheet, verifyDraft } from './eod-ai-verify'
+import type { EodAiGeneratePayload, EodAiPhaseId } from '../src/lib/eod-ai-types'
 import ElectronStore from 'electron-store';
 import { LicenseEngine } from './license-engine';
 
@@ -951,6 +956,133 @@ export function registerIpcHandlers(
   // Check if Claude Code is installed and accessible
   ipcMain.handle('ai:available', () => {
     return claude.available()
+  })
+
+  // ── EOD AI generation ────────────────────────────────────────────────────────
+  // Orchestrates: digest sessions → git evidence → gather facts (agentic) →
+  // write in user's style (plain) → deterministic verification.
+  // Progress via 'eod:ai-phase'; completion via 'eod:ai-done' / 'eod:ai-error'.
+  // Cancellation reuses the generic 'ai:cancel' channel (same requestId for
+  // both phases).
+
+  let activeEodAiRequestId: string | null = null
+
+  ipcMain.handle('eod:ai-generate', (event, payload: EodAiGeneratePayload) => {
+    // Only one generation at a time — a new run supersedes the previous one
+    if (activeEodAiRequestId) claude.cancel(activeEodAiRequestId)
+    const requestId = randomUUID()
+    activeEodAiRequestId = requestId
+
+    const send = (channel: string, data: Record<string, unknown>): void => {
+      try {
+        if (!event.sender.isDestroyed()) event.sender.send(channel, { requestId, ...data })
+      } catch { /* window closed mid-generation */ }
+    }
+    const fail = (error: string, code: string, raw?: string): void => {
+      if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
+      send('eod:ai-error', raw ? { error, code, raw } : { error, code })
+    }
+
+    let currentPhase: EodAiPhaseId = 'sessions'
+    const setPhase = (phase: EodAiPhaseId, label: string): void => {
+      if (phase === currentPhase) return
+      currentPhase = phase
+      send('eod:ai-phase', { phase, label })
+    }
+    const phaseForTool = (tool: string): void => {
+      const t = tool.toLowerCase()
+      if (t.includes('jira') || t.includes('atlassian') || t.includes('confluence')) {
+        setPhase('jira', 'Querying Jira...')
+      } else if (t === 'bash' || t === 'powershell' || t.includes('bitbucket')) {
+        setPhase('bitbucket', 'Checking Bitbucket...')
+      }
+    }
+
+    // Sanitize renderer-supplied payload before it reaches any prompt
+    const pastEods = (Array.isArray(payload?.pastEods) ? payload.pastEods : [])
+      .filter(e => e && typeof e.plainText === 'string' && typeof e.date === 'string')
+      .slice(0, 5)
+      .map(e => ({ date: e.date, plainText: e.plainText }))
+    const meetings = (Array.isArray(payload?.meetings) ? payload.meetings : [])
+      .filter(m => m && typeof m.title === 'string' && m.title.trim().length > 0)
+      .slice(0, 20)
+      .map(m => ({ title: m.title.trim(), durationMin: Math.max(0, Math.round(Number(m.durationMin) || 0)) }))
+
+    const startedAt = Date.now()
+
+    void (async () => {
+      // 1. Deterministic evidence (fast, no AI)
+      send('eod:ai-phase', { phase: 'sessions', label: 'Reading your Claude sessions...' })
+      const { digests, repoPaths } = await digestTodaySessions()
+
+      // Union today's repos with previously seen ones so manual work in a repo
+      // not touched via Claude today still gets git-scanned.
+      const knownRepos: string[] = (() => {
+        const stored = electronStore.get('eodAiKnownRepos')
+        return Array.isArray(stored) ? (stored as string[]).filter(p => typeof p === 'string') : []
+      })()
+      const allRepos = Array.from(new Set([...repoPaths, ...knownRepos]))
+      const git = await gatherGitEvidence(allRepos)
+      try {
+        // Persist only repos that proved to be real git repos, newest first, capped
+        const merged = Array.from(new Set([...repoPaths, ...git.map(g => g.repoPath), ...knownRepos])).slice(0, 30)
+        electronStore.set('eodAiKnownRepos', merged)
+      } catch { /* non-fatal */ }
+
+      const todayDate = getLocalDate()
+
+      if (digests.length === 0 && git.length === 0 && meetings.length === 0) {
+        return fail('No work evidence found for today (no Claude sessions, git activity, or meetings).', 'no-evidence')
+      }
+
+      // 2. Gather facts (agentic: Jira MCP + Bitbucket)
+      setPhase('gather', 'Cross-referencing Jira & Bitbucket...')
+      const gatherPrompt = buildGatherPrompt({
+        todayDate,
+        digests,
+        git,
+        meetings,
+        ticketIndex: extractTicketIndex(pastEods),
+      })
+      const gatherResult = await claude.stream(
+        { prompt: gatherPrompt, requestId, timeoutMs: 240_000 },
+        { onChunk: () => {}, onToolUse: phaseForTool },
+      )
+      if (activeEodAiRequestId !== requestId) return // superseded by a newer run
+      if (!gatherResult.ok) return fail(gatherResult.error, gatherResult.code)
+
+      const factSheet = coerceFactSheet(extractJson(gatherResult.text))
+      if (!factSheet) {
+        return fail('Could not extract a usable fact sheet from the analysis step.', 'parse', gatherResult.text.slice(0, 4000))
+      }
+
+      // 3. Write in the user's voice (plain call, no tool use expected)
+      setPhase('write', 'Writing your EOD...')
+      const writeResult = await claude.generate({
+        prompt: buildWritePrompt({ todayDate, factSheet, pastEods }),
+        requestId,
+        timeoutMs: 120_000,
+      })
+      if (activeEodAiRequestId !== requestId) return
+      if (!writeResult.ok) return fail(writeResult.error, writeResult.code)
+
+      // 4. Deterministic verification (anti-hallucination + shape coercion)
+      const verified = verifyDraft(extractJson(writeResult.text), factSheet)
+      if (!verified) {
+        return fail('Could not parse the generated EOD draft.', 'parse', writeResult.text.slice(0, 4000))
+      }
+
+      if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
+      send('eod:ai-done', {
+        draft: verified.draft,
+        dropped: verified.dropped,
+        durationMs: Date.now() - startedAt,
+      })
+    })().catch(err => {
+      fail(String(err instanceof Error ? err.message : err), 'unknown')
+    })
+
+    return { requestId }
   })
 
   // ── Claude usage ──

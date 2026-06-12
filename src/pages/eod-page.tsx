@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import { Mail, Users, Settings, RotateCcw, Send, Keyboard } from "lucide-react"
+import { Mail, Users, Settings, RotateCcw, Send, Keyboard, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -34,6 +34,7 @@ import {
 } from "@/components/eod/eod-settings-dialog"
 import { EodHistoryPanel } from "@/components/eod/eod-history-panel"
 import { EodHistoryViewDialog } from "@/components/eod/eod-history-view-dialog"
+import { EodAiDialog } from "@/components/eod/eod-ai-dialog"
 import { EodKeyboardDialog } from "@/components/eod/eod-keyboard-dialog"
 import { EodThemeProvider, EodThemeToggleButton } from "@/components/eod/eod-theme-toggle"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -170,6 +171,7 @@ export function EodPage() {
   const [emailSettings, setEmailSettings] = useState(loadEodSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [keyboardDialogOpen, setKeyboardDialogOpen] = useState(false)
+  const [aiDialogOpen, setAiDialogOpen] = useState(false)
   const [formMode, setFormMode] = useState<FormLayoutMode>(
     () => (localStorage.getItem(KEYS.formMode) as FormLayoutMode | null) ?? 'comfortable'
   )
@@ -586,6 +588,21 @@ export function EodPage() {
                 {/* <KbdGroup><Kbd className="opacity-50">Ctrl</Kbd><Kbd className="opacity-50">⇧</Kbd><Kbd className="opacity-50">S</Kbd></KbdGroup> */}
               </Button>
 
+              {/* AI Generate EOD */}
+              {isElectron && (
+                <Button
+                  type="button"
+                  tabIndex={-1}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAiDialogOpen(true)}
+                  className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="flex-1 text-left">AI Generate</span>
+                </Button>
+              )}
+
               {/* Restore Last Sent (previous day) */}
               {Object.values(history).some(e => e.date !== new Date().toLocaleDateString("en-CA")) && (
                 <Button
@@ -821,6 +838,15 @@ export function EodPage() {
             open={keyboardDialogOpen}
             onOpenChange={setKeyboardDialogOpen}
           />
+
+          {isElectron && (
+            <EodAiDialog
+              open={aiDialogOpen}
+              onOpenChange={setAiDialogOpen}
+              history={history}
+              emailSettings={emailSettings}
+            />
+          )}
         </div>
         </EodThemeProvider>
       </div>

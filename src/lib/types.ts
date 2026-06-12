@@ -335,6 +335,18 @@ export interface ElectronAPI {
   eodGetUpcomingLeaves: (windowDays: number) => Promise<
     { ok: true; dates: string[] } | { ok: false; error: string }
   >
+
+  // AI / Claude
+  aiAvailable: () => Promise<{ available: boolean; version?: string; error?: string }>
+  aiCancel: (requestId: string) => void
+
+  // EOD AI generation
+  eodAiGenerate: (
+    payload: import('./eod-ai-types').EodAiGeneratePayload
+  ) => Promise<{ requestId: string }>
+  onEodAiPhase: (cb: (data: import('./eod-ai-types').EodAiPhaseEvent) => void) => () => void
+  onEodAiDone: (cb: (data: import('./eod-ai-types').EodAiDoneEvent) => void) => () => void
+  onEodAiError: (cb: (data: import('./eod-ai-types').EodAiErrorEvent) => void) => () => void
 }
 
 declare global {

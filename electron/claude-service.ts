@@ -35,6 +35,9 @@ export type AvailabilityResult = {
 
 type StreamCallbacks = {
   onChunk: (chunk: string) => void
+  /** Fired once per tool invocation the agent makes (tool name, e.g. "Read",
+   *  "mcp__atlassian__searchJiraIssuesUsingJql"). Used for progress UI. */
+  onToolUse?: (toolName: string) => void
 }
 
 // ── Internal: stream-json message shapes from claude -p ───────────────────────
@@ -45,6 +48,7 @@ type AssistantMessage = {
     content: Array<
       | { type: 'text'; text: string }
       | { type: 'thinking'; thinking: string }
+      | { type: 'tool_use'; name: string; input?: unknown }
     >
   }
 }
@@ -76,10 +80,12 @@ function killProcessTree(pid: number): void {
 }
 
 function buildArgs(options: GenerateOptions): string[] {
+  // NOTE: no '--no-color' — removed from the CLI (rejected as unknown option
+  // since at least v2.1.x). '--verbose' is required for stream-json in -p mode.
   const args = [
     '-p',
+    '--verbose',
     '--output-format', 'stream-json',
-    '--no-color',
     '--permission-mode', 'dontAsk',
   ]
 
@@ -241,6 +247,15 @@ class ClaudeService {
           // Text chunks from assistant messages — compute delta to emit true increments
           if (msg.type === 'assistant') {
             const am = msg as AssistantMessage
+
+            if (callbacks?.onToolUse) {
+              for (const block of am.message.content) {
+                if (block.type === 'tool_use' && typeof block.name === 'string') {
+                  callbacks.onToolUse(block.name)
+                }
+              }
+            }
+
             const fullText = am.message.content
               .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
               .map(b => b.text)
