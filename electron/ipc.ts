@@ -57,11 +57,23 @@ import type { OutlookMeeting } from '../src/lib/outlook-meetings'
 import { claude } from './claude-service'
 import type { GenerateOptions } from './claude-service'
 import { claudeUsage } from './claude-usage-service'
-import { digestTodaySessions } from './eod-session-digest'
+import { digestTodaySessions, effectiveDayStart } from './eod-session-digest'
 import { gatherGitEvidence } from './eod-git-evidence'
-import { buildGatherPrompt, buildWritePrompt, extractTicketIndex } from './eod-ai-prompt'
+import {
+  buildGatherPrompt,
+  buildWritePrompt,
+  buildRefinePrompt,
+  extractTicketIndex,
+  extractDeclaredKeys,
+} from './eod-ai-prompt'
 import { extractJson, coerceFactSheet, verifyDraft } from './eod-ai-verify'
-import type { EodAiGeneratePayload, EodAiPhaseId } from '../src/lib/eod-ai-types'
+import { makeProjectFilter } from './eod-ai-filter'
+import type {
+  EodAiGeneratePayload,
+  EodAiPhaseId,
+  EodAiProjectInfo,
+  EodAiRefinePayload,
+} from '../src/lib/eod-ai-types'
 import ElectronStore from 'electron-store';
 import { LicenseEngine } from './license-engine';
 
@@ -967,6 +979,11 @@ export function registerIpcHandlers(
 
   let activeEodAiRequestId: string | null = null
 
+  const readKnownRepos = (): string[] => {
+    const stored = electronStore.get('eodAiKnownRepos')
+    return Array.isArray(stored) ? (stored as string[]).filter(p => typeof p === 'string') : []
+  }
+
   ipcMain.handle('eod:ai-generate', (event, payload: EodAiGeneratePayload) => {
     // Only one generation at a time — a new run supersedes the previous one
     if (activeEodAiRequestId) claude.cancel(activeEodAiRequestId)
@@ -1007,32 +1024,48 @@ export function registerIpcHandlers(
       .filter(m => m && typeof m.title === 'string' && m.title.trim().length > 0)
       .slice(0, 20)
       .map(m => ({ title: m.title.trim(), durationMin: Math.max(0, Math.round(Number(m.durationMin) || 0)) }))
+    const notes = (typeof payload?.notes === 'string' ? payload.notes : '').slice(0, 2_000)
+    const instructions = (typeof payload?.instructions === 'string' ? payload.instructions : '').slice(0, 4_000)
+    const filterMode = payload?.filterMode === 'allowlist' ? 'allowlist' : 'blocklist'
+    const filterPaths = (Array.isArray(payload?.filterPaths) ? payload.filterPaths : [])
+      .filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+      .slice(0, 100)
 
     const startedAt = Date.now()
 
     void (async () => {
       // 1. Deterministic evidence (fast, no AI)
       send('eod:ai-phase', { phase: 'sessions', label: 'Reading your Claude sessions...' })
-      const { digests, repoPaths } = await digestTodaySessions()
+      const { digests: allDigests, repoPaths } = await digestTodaySessions()
+
+      // Project discovery happens BEFORE filtering so the settings checklist
+      // can show everything; the filter itself is a hard code-side guarantee —
+      // excluded projects never reach any prompt.
+      const seenProjects = Array.from(new Set(allDigests.map(d => d.cwd).filter(Boolean)))
+      const keepPath = makeProjectFilter(filterMode, filterPaths)
+      const digests = allDigests.filter(d => keepPath(d.cwd))
 
       // Union today's repos with previously seen ones so manual work in a repo
-      // not touched via Claude today still gets git-scanned.
-      const knownRepos: string[] = (() => {
-        const stored = electronStore.get('eodAiKnownRepos')
-        return Array.isArray(stored) ? (stored as string[]).filter(p => typeof p === 'string') : []
-      })()
-      const allRepos = Array.from(new Set([...repoPaths, ...knownRepos]))
-      const git = await gatherGitEvidence(allRepos)
+      // not touched via Claude today still gets git-scanned. Same filter applies.
+      const knownRepos = readKnownRepos()
+      const allRepos = Array.from(new Set([...repoPaths, ...knownRepos])).filter(keepPath)
+      const dayStart = effectiveDayStart()
+      const git = await gatherGitEvidence(allRepos, dayStart.toISOString())
       try {
-        // Persist only repos that proved to be real git repos, newest first, capped
-        const merged = Array.from(new Set([...repoPaths, ...git.map(g => g.repoPath), ...knownRepos])).slice(0, 30)
+        // Persist all repos ever seen (unfiltered) so the checklist stays complete
+        const merged = Array.from(new Set([...repoPaths, ...knownRepos])).slice(0, 30)
         electronStore.set('eodAiKnownRepos', merged)
       } catch { /* non-fatal */ }
 
       const todayDate = getLocalDate()
+      const declaredKeys = extractDeclaredKeys(instructions + '\n' + notes)
 
-      if (digests.length === 0 && git.length === 0 && meetings.length === 0) {
-        return fail('No work evidence found for today (no Claude sessions, git activity, or meetings).', 'no-evidence')
+      if (digests.length === 0 && git.length === 0 && meetings.length === 0 &&
+          notes.trim().length === 0 && declaredKeys.length === 0) {
+        const hint = filterMode === 'allowlist' && seenProjects.length > 0
+          ? ` Your project filter (only report selected projects) excluded all ${seenProjects.length} project(s) seen today — check Personalize settings.`
+          : ''
+        return fail(`No work evidence found for today (no Claude sessions, git activity, or meetings).${hint}`, 'no-evidence')
       }
 
       // 2. Gather facts (agentic: Jira MCP + Bitbucket)
@@ -1043,6 +1076,8 @@ export function registerIpcHandlers(
         git,
         meetings,
         ticketIndex: extractTicketIndex(pastEods),
+        notes,
+        instructions,
       })
       const gatherResult = await claude.stream(
         { prompt: gatherPrompt, requestId, timeoutMs: 240_000 },
@@ -1059,15 +1094,16 @@ export function registerIpcHandlers(
       // 3. Write in the user's voice (plain call, no tool use expected)
       setPhase('write', 'Writing your EOD...')
       const writeResult = await claude.generate({
-        prompt: buildWritePrompt({ todayDate, factSheet, pastEods }),
+        prompt: buildWritePrompt({ todayDate, factSheet, pastEods, instructions, notes }),
         requestId,
         timeoutMs: 120_000,
       })
       if (activeEodAiRequestId !== requestId) return
       if (!writeResult.ok) return fail(writeResult.error, writeResult.code)
 
-      // 4. Deterministic verification (anti-hallucination + shape coercion)
-      const verified = verifyDraft(extractJson(writeResult.text), factSheet)
+      // 4. Deterministic verification (anti-hallucination + shape coercion).
+      // User-declared keys count as evidence and can never be dropped.
+      const verified = verifyDraft(extractJson(writeResult.text), factSheet, declaredKeys)
       if (!verified) {
         return fail('Could not parse the generated EOD draft.', 'parse', writeResult.text.slice(0, 4000))
       }
@@ -1077,12 +1113,99 @@ export function registerIpcHandlers(
         draft: verified.draft,
         dropped: verified.dropped,
         durationMs: Date.now() - startedAt,
+        factSheet,
+        seenProjects,
       })
     })().catch(err => {
       fail(String(err instanceof Error ? err.message : err), 'unknown')
     })
 
     return { requestId }
+  })
+
+  // Write-phase-only rerun: revise the existing draft per one instruction.
+  // No digest, no gather — ~25s instead of minutes.
+  ipcMain.handle('eod:ai-refine', (event, payload: EodAiRefinePayload) => {
+    if (activeEodAiRequestId) claude.cancel(activeEodAiRequestId)
+    const requestId = randomUUID()
+    activeEodAiRequestId = requestId
+
+    const send = (channel: string, data: Record<string, unknown>): void => {
+      try {
+        if (!event.sender.isDestroyed()) event.sender.send(channel, { requestId, ...data })
+      } catch { /* window closed mid-generation */ }
+    }
+    const fail = (error: string, code: string, raw?: string): void => {
+      if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
+      send('eod:ai-error', raw ? { error, code, raw } : { error, code })
+    }
+
+    const instruction = (typeof payload?.instruction === 'string' ? payload.instruction : '').slice(0, 500)
+    const instructions = (typeof payload?.instructions === 'string' ? payload.instructions : '').slice(0, 4_000)
+    // Re-coerce the round-tripped fact sheet — renderer data is untrusted
+    const factSheet = coerceFactSheet(payload?.factSheet)
+    if (!factSheet || !instruction.trim() || !payload?.previousDraft) {
+      fail('Refine request is missing the draft, fact sheet or instruction.', 'bad-request')
+      return { requestId }
+    }
+    const declaredKeys = extractDeclaredKeys(instructions + '\n' + instruction)
+    const startedAt = Date.now()
+
+    send('eod:ai-phase', { phase: 'write', label: 'Rewriting your EOD...' })
+
+    void (async () => {
+      const result = await claude.generate({
+        prompt: buildRefinePrompt({
+          todayDate: getLocalDate(),
+          factSheet,
+          previousDraft: payload.previousDraft,
+          instruction,
+          instructions,
+        }),
+        requestId,
+        timeoutMs: 120_000,
+      })
+      if (activeEodAiRequestId !== requestId) return
+      if (!result.ok) return fail(result.error, result.code)
+
+      const verified = verifyDraft(extractJson(result.text), factSheet, declaredKeys)
+      if (!verified) {
+        return fail('Could not parse the refined EOD draft.', 'parse', result.text.slice(0, 4000))
+      }
+
+      if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
+      send('eod:ai-done', {
+        draft: verified.draft,
+        dropped: verified.dropped,
+        durationMs: Date.now() - startedAt,
+        factSheet,
+        seenProjects: [],
+      })
+    })().catch(err => {
+      fail(String(err instanceof Error ? err.message : err), 'unknown')
+    })
+
+    return { requestId }
+  })
+
+  // Fast project discovery for the Personalize checklist (~200ms): today's
+  // session cwds merged with every repo previously seen.
+  ipcMain.handle('eod:ai-list-projects', async (): Promise<EodAiProjectInfo[]> => {
+    try {
+      const { digests } = await digestTodaySessions()
+      const counts = new Map<string, number>()
+      for (const d of digests) {
+        if (d.cwd) counts.set(d.cwd, (counts.get(d.cwd) ?? 0) + 1)
+      }
+      const known = readKnownRepos()
+      const merged = Array.from(new Set([...counts.keys(), ...known])).slice(0, 30)
+      try { electronStore.set('eodAiKnownRepos', merged) } catch { /* non-fatal */ }
+      return merged
+        .map(path => ({ path, sessionsToday: counts.get(path) ?? 0 }))
+        .sort((a, b) => b.sessionsToday - a.sessionsToday || a.path.localeCompare(b.path))
+    } catch {
+      return []
+    }
   })
 
   // ── Claude usage ──

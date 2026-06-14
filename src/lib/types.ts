@@ -344,6 +344,10 @@ export interface ElectronAPI {
   eodAiGenerate: (
     payload: import('./eod-ai-types').EodAiGeneratePayload
   ) => Promise<{ requestId: string }>
+  eodAiRefine: (
+    payload: import('./eod-ai-types').EodAiRefinePayload
+  ) => Promise<{ requestId: string }>
+  eodAiListProjects: () => Promise<import('./eod-ai-types').EodAiProjectInfo[]>
   onEodAiPhase: (cb: (data: import('./eod-ai-types').EodAiPhaseEvent) => void) => () => void
   onEodAiDone: (cb: (data: import('./eod-ai-types').EodAiDoneEvent) => void) => () => void
   onEodAiError: (cb: (data: import('./eod-ai-types').EodAiErrorEvent) => void) => () => void

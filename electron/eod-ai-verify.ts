@@ -135,13 +135,22 @@ export interface VerifyResult {
 /**
  * Coerce the write phase's output into a valid draft and enforce the
  * anti-hallucination rule: any task line starting with a ticket key that is
- * absent from the fact sheet is dropped (and reported).
+ * absent from the fact sheet is dropped (and reported). Keys the user declared
+ * themselves (instructions/notes) are passed as extraAllowedKeys — a user
+ * declaration counts as evidence, so those can never be dropped.
  */
-export function verifyDraft(parsed: unknown, factSheet: EodFactSheet): VerifyResult | null {
+export function verifyDraft(
+  parsed: unknown,
+  factSheet: EodFactSheet,
+  extraAllowedKeys: string[] = [],
+): VerifyResult | null {
   if (!parsed || typeof parsed !== 'object') return null
   const obj = parsed as Record<string, unknown>
 
-  const allowedKeys = new Set(factSheet.tickets.map(t => t.key.toUpperCase()))
+  const allowedKeys = new Set([
+    ...factSheet.tickets.map(t => t.key.toUpperCase()),
+    ...extraAllowedKeys.map(k => k.toUpperCase()),
+  ])
   const dropped: string[] = []
   const seenTaskTexts = new Set<string>()
 

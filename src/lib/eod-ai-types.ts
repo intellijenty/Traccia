@@ -33,6 +33,10 @@ export interface EodAiDoneEvent {
   /** Task lines removed by verification (ticket key absent from evidence). */
   dropped: string[]
   durationMs: number
+  /** Evidence behind the draft — drives the evidence view and refine reruns. */
+  factSheet: EodFactSheet
+  /** Project cwds digested this run before filtering (empty for refine runs). */
+  seenProjects: string[]
 }
 
 export interface EodAiErrorEvent {
@@ -48,6 +52,28 @@ export interface EodAiGeneratePayload {
   pastEods: Array<{ date: string; plainText: string }>
   /** Today's meetings, already filtered (no canceled/declined/all-day). */
   meetings: Array<{ title: string; durationMin: number }>
+  /** Per-run user notes — authoritative facts/corrections for today. May be ''. */
+  notes: string
+  /** Project filter applied code-side before any prompt is built. */
+  filterMode: 'blocklist' | 'allowlist'
+  /** Paths for the active mode (excluded in blocklist, included in allowlist). */
+  filterPaths: string[]
+  /** Standing instructions doc — style rules + declared recurring work. */
+  instructions: string
+}
+
+export interface EodAiRefinePayload {
+  factSheet: EodFactSheet
+  previousDraft: EodAiDraft
+  /** e.g. "make the second bullet vaguer" */
+  instruction: string
+  instructions: string
+}
+
+export interface EodAiProjectInfo {
+  path: string
+  /** Sessions seen today in this project (0 for historically-known repos). */
+  sessionsToday: number
 }
 
 /** Evidence-tagged fact sheet produced by the gather phase. */

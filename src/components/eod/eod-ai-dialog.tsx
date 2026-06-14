@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, RotateCcw, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Plus, RotateCcw, Settings2, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,13 @@ import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import { makeId } from '@/lib/eod-types'
 import type { EodEmailSettings, EodFormState, EodHistoryEntry } from '@/lib/eod-types'
-import type { EodAiDraft } from '@/lib/eod-ai-types'
+import type { EodAiDraft, EodAiProjectInfo, EodFactSheet } from '@/lib/eod-ai-types'
+import {
+  activeFilterPaths,
+  loadEodAiSettings,
+  saveEodAiSettings,
+} from '@/lib/eod-ai-settings'
+import type { EodAiSettings } from '@/lib/eod-ai-settings'
 import { buildEodHtml, buildEodPlainText } from '@/lib/eod-utils'
 import { filterMeetings } from '@/lib/eod-meeting-sync'
 
@@ -19,6 +25,8 @@ interface EodAiDialogProps {
 }
 
 type Status = 'idle' | 'running' | 'done' | 'error'
+type View = 'main' | 'settings'
+type RunMode = 'generate' | 'refine'
 
 const STEPS = [
   { key: 'sessions', label: 'Reading your Claude sessions' },
@@ -36,6 +44,10 @@ function stepIndexForPhase(phase: string): number {
     case 'write': return 3
     default: return 0
   }
+}
+
+function basename(p: string): string {
+  return p.split(/[\\/]/).filter(Boolean).pop() ?? p
 }
 
 function sectionToState(s: EodAiDraft['otherTasks']): EodFormState['otherTasks'] {
@@ -65,31 +77,53 @@ function draftToFormState(draft: EodAiDraft): EodFormState {
 
 export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodAiDialogProps) {
   const [status, setStatus] = useState<Status>('idle')
+  const [view, setView] = useState<View>('main')
+  const [runMode, setRunMode] = useState<RunMode>('generate')
   const [stepIdx, setStepIdx] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const [result, setResult] = useState<EodFormState | null>(null)
+  const [rawDraft, setRawDraft] = useState<EodAiDraft | null>(null)
+  const [factSheet, setFactSheet] = useState<EodFactSheet | null>(null)
   const [dropped, setDropped] = useState<string[]>([])
   const [error, setError] = useState<{ message: string; code: string; raw?: string } | null>(null)
   const [availability, setAvailability] = useState<{ checked: boolean; available: boolean; error?: string }>({
     checked: false,
     available: false,
   })
+  const [notes, setNotes] = useState('')
+  const [aiSettings, setAiSettings] = useState<EodAiSettings>(loadEodAiSettings)
+  const [projects, setProjects] = useState<EodAiProjectInfo[]>([])
+  const [showEvidence, setShowEvidence] = useState(false)
+  const [refineText, setRefineText] = useState('')
+  const [lastRefine, setLastRefine] = useState<string | null>(null)
 
   const requestIdRef = useRef<string | null>(null)
   const cancelledRef = useRef(false)
   const statusRef = useRef<Status>('idle')
   statusRef.current = status
 
-  // Availability check when the dialog opens
+  function updateAiSettings(next: EodAiSettings) {
+    setAiSettings(next)
+    saveEodAiSettings(next)
+  }
+
+  // Availability check + project discovery when the dialog opens
   useEffect(() => {
-    if (!open || availability.checked) return
+    if (!open) return
     let stale = false
+    if (!availability.checked) {
+      window.electronAPI
+        .aiAvailable()
+        .then(res => { if (!stale) setAvailability({ checked: true, available: res.available, error: res.error }) })
+        .catch(err => { if (!stale) setAvailability({ checked: true, available: false, error: String(err) }) })
+    }
     window.electronAPI
-      .aiAvailable()
-      .then(res => { if (!stale) setAvailability({ checked: true, available: res.available, error: res.error }) })
-      .catch(err => { if (!stale) setAvailability({ checked: true, available: false, error: String(err) }) })
+      .eodAiListProjects()
+      .then(list => { if (!stale) setProjects(list) })
+      .catch(() => { /* checklist stays empty */ })
     return () => { stale = true }
-  }, [open, availability.checked])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   // Push-event subscriptions — registered once, filtered by current requestId
   useEffect(() => {
@@ -101,7 +135,9 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
     const offDone = window.electronAPI.onEodAiDone(data => {
       if (!isCurrent(data.requestId)) return
       requestIdRef.current = null
-      setResult(draftToFormState(data.draft as EodAiDraft))
+      setRawDraft(data.draft)
+      setResult(draftToFormState(data.draft))
+      setFactSheet(data.factSheet)
       setDropped(Array.isArray(data.dropped) ? data.dropped : [])
       setStatus('done')
     })
@@ -114,7 +150,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
     return () => { offPhase(); offDone(); offError() }
   }, [])
 
-  // Elapsed timer while running (elapsed is reset in startGeneration)
+  // Elapsed timer while running (elapsed is reset when a run starts)
   useEffect(() => {
     if (status !== 'running') return
     const start = Date.now()
@@ -133,13 +169,22 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
     }
   }
 
-  async function startGeneration() {
+  function beginRun(mode: RunMode) {
     cancelledRef.current = false
+    setRunMode(mode)
     setStatus('running')
-    setStepIdx(0)
+    setStepIdx(mode === 'refine' ? 3 : 0)
     setElapsed(0)
     setError(null)
+    setShowEvidence(false)
+    setLastRefine(null)
+  }
+
+  async function startGeneration() {
+    beginRun('generate')
     setResult(null)
+    setRawDraft(null)
+    setFactSheet(null)
     setDropped([])
 
     let meetings: Array<{ title: string; durationMin: number }> = []
@@ -157,9 +202,15 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
       .map(e => ({ date: e.date, plainText: e.plainText }))
 
     try {
-      const { requestId } = await window.electronAPI.eodAiGenerate({ pastEods, meetings })
+      const { requestId } = await window.electronAPI.eodAiGenerate({
+        pastEods,
+        meetings,
+        notes,
+        filterMode: aiSettings.filterMode,
+        filterPaths: activeFilterPaths(aiSettings),
+        instructions: aiSettings.instructions,
+      })
       if (cancelledRef.current) {
-        // user closed/cancelled while the invoke was in flight
         window.electronAPI.aiCancel(requestId)
         return
       }
@@ -170,13 +221,58 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
     }
   }
 
+  async function startRefine() {
+    const instruction = refineText.trim()
+    if (!instruction || !factSheet || !rawDraft) return
+    beginRun('refine')
+    try {
+      const { requestId } = await window.electronAPI.eodAiRefine({
+        factSheet,
+        previousDraft: rawDraft,
+        instruction,
+        instructions: aiSettings.instructions,
+      })
+      if (cancelledRef.current) {
+        window.electronAPI.aiCancel(requestId)
+        return
+      }
+      requestIdRef.current = requestId
+      setLastRefine(instruction)
+      setRefineText('')
+    } catch (err) {
+      setError({ message: String(err instanceof Error ? err.message : err), code: 'unknown' })
+      setStatus('error')
+    }
+  }
+
+  function promoteLastRefine() {
+    if (!lastRefine) return
+    const next = {
+      ...aiSettings,
+      instructions: (aiSettings.instructions.trimEnd() + `\n- ${lastRefine}`).trim(),
+    }
+    updateAiSettings(next)
+    setLastRefine(null)
+    toast.success('Added to your standing EOD instructions')
+  }
+
+  function toggleProject(path: string) {
+    const key = aiSettings.filterMode === 'allowlist' ? 'includedPaths' : 'excludedPaths'
+    const list = aiSettings[key]
+    const next = list.includes(path) ? list.filter(p => p !== path) : [...list, path]
+    updateAiSettings({ ...aiSettings, [key]: next })
+  }
+
   function handleCancel() {
     cancelCurrentRun()
-    setStatus('idle')
+    setLastRefine(null) // a cancelled refine was not applied
+    // Fall back to the previous draft if one exists
+    setStatus(result ? 'done' : 'idle')
   }
 
   function handleClose() {
     cancelCurrentRun()
+    setView('main')
     onOpenChange(false)
   }
 
@@ -194,6 +290,8 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
     e => typeof e.plainText === 'string' && e.plainText.trim().length > 0,
   ).length
 
+  const activePaths = activeFilterPaths(aiSettings)
+
   return (
     <Dialog open={open} onOpenChange={isOpen => { if (!isOpen) handleClose() }}>
       <DialogContent
@@ -205,35 +303,147 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
         <div className="flex items-start justify-between border-b border-border px-6 py-4">
           <div className="space-y-1 min-w-0 pr-4">
             <DialogTitle className="flex items-center gap-2 text-base font-medium leading-tight">
-              <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              AI Generated EOD
+              {view === 'settings' ? (
+                <>
+                  <Settings2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  Personalize AI EOD
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  AI Generated EOD
+                </>
+              )}
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              {status === 'running'
-                ? `Generating… ${elapsed}s`
-                : status === 'done'
-                  ? 'Review the draft below, then copy it where you need it.'
-                  : 'Reconstructs your day from Claude sessions, git, Jira and Bitbucket.'}
+              {view === 'settings'
+                ? 'Project filter and standing instructions — saved automatically.'
+                : status === 'running'
+                  ? `${runMode === 'refine' ? 'Refining' : 'Generating'}… ${elapsed}s`
+                  : status === 'done'
+                    ? 'Review the draft, tweak it below, or copy it where you need it.'
+                    : 'Reconstructs your day from Claude sessions, git, Jira and Bitbucket.'}
             </p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={handleClose}
-            aria-label="Close"
-            className="shrink-0 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            {status !== 'running' && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setView(v => (v === 'main' ? 'settings' : 'main'))}
+                aria-label={view === 'settings' ? 'Back' : 'Personalize'}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {view === 'settings'
+                  ? <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  : <Settings2 className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleClose}
+              aria-label="Close"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-hidden bg-muted/40 p-3">
-          {status === 'idle' && (
-            <div className="flex h-full flex-col items-center justify-center gap-5 rounded-md border border-border bg-background p-8 text-center">
+          {view === 'settings' ? (
+            <div className="no-scrollbar h-full space-y-5 overflow-y-auto rounded-md border border-border bg-background p-5">
+              {/* Filter mode */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">Project filter</p>
+                <div className="flex gap-2">
+                  {([
+                    { mode: 'blocklist', label: 'Report all, except…' },
+                    { mode: 'allowlist', label: 'Only report selected' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.mode}
+                      type="button"
+                      onClick={() => updateAiSettings({ ...aiSettings, filterMode: opt.mode })}
+                      className={cn(
+                        'rounded-md border px-3 py-1.5 text-sm transition-colors',
+                        aiSettings.filterMode === opt.mode
+                          ? 'border-foreground/30 bg-muted font-medium text-foreground'
+                          : 'border-border text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {aiSettings.filterMode === 'blocklist'
+                    ? 'Checked projects are hidden from your EOD. New projects are included by default.'
+                    : 'Only checked projects appear in your EOD. New projects stay hidden until you check them (fail-safe).'}
+                </p>
+              </div>
+
+              {/* Project checklist */}
+              <div className="space-y-1.5">
+                {projects.length === 0 ? (
+                  <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                    Projects appear here once Traccia sees your Claude sessions.
+                  </p>
+                ) : (
+                  <div className="max-h-56 space-y-0.5 overflow-y-auto rounded-md border border-border p-1.5">
+                    {projects.map(p => {
+                      const checked = activePaths.includes(p.path)
+                      return (
+                        <label
+                          key={p.path}
+                          className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-muted/60"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleProject(p.path)}
+                            className="h-3.5 w-3.5 accent-foreground"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-foreground">{basename(p.path)}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{p.path}</span>
+                          </span>
+                          {p.sessionsToday > 0 && (
+                            <span className="shrink-0 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                              today
+                            </span>
+                          )}
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Instructions doc */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">EOD instructions</p>
+                <textarea
+                  value={aiSettings.instructions}
+                  onChange={e => updateAiSettings({ ...aiSettings, instructions: e.target.value })}
+                  rows={7}
+                  spellCheck={false}
+                  placeholder={'Standing rules, in your own words. Examples:\n- Keep sub-bullets short and non-technical\n- Always include ATON-5555 - regression testing as WIP with one simple bullet\n- Never say Done unless the PR is merged'}
+                  className="w-full resize-none rounded-md border border-border bg-transparent px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Applied every day. Ticket keys you declare here are trusted as real work.
+                </p>
+              </div>
+            </div>
+          ) : status === 'idle' ? (
+            <div className="flex h-full flex-col items-center justify-center gap-5 rounded-md border border-border bg-background p-8">
               <Sparkles className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
-              <div className="max-w-md space-y-2">
+              <div className="max-w-md space-y-2 text-center">
                 <p className="text-sm text-foreground">
                   One click. Claude reads today&apos;s work evidence and writes your EOD in your own style.
                 </p>
@@ -244,6 +454,14 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                     : ' · No past EODs found — a default style will be used'}
                 </p>
               </div>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={2}
+                spellCheck={false}
+                placeholder={'Anything to add about today? (optional)\ne.g. "Also tested payment flow with Ramesh — include as Done" or "Skip the 1:1 meeting"'}
+                className="w-full max-w-md resize-none rounded-md border border-border bg-transparent px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+              />
               {availability.checked && !availability.available && (
                 <p className="max-w-md text-xs text-destructive">
                   Claude Code is not available: {availability.error ?? 'unknown error'}
@@ -259,42 +477,45 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                 Generate
               </Button>
             </div>
-          )}
-
-          {status === 'running' && (
+          ) : status === 'running' ? (
             <div className="flex h-full flex-col items-center justify-center gap-6 rounded-md border border-border bg-background p-8">
-              <div className="w-full max-w-sm space-y-3">
-                {STEPS.map((step, i) => (
-                  <div key={step.key} className="flex items-center gap-3">
-                    <span className="flex h-5 w-5 items-center justify-center">
-                      {i < stepIdx ? (
-                        <Check className="h-4 w-4 text-green-500" aria-hidden="true" />
-                      ) : i === stepIdx ? (
-                        <Spinner className="size-4" />
-                      ) : (
-                        <span className="h-1.5 w-1.5 rounded-full bg-border" />
-                      )}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-sm',
-                        i < stepIdx ? 'text-muted-foreground line-through decoration-border'
-                          : i === stepIdx ? 'text-foreground font-medium'
-                            : 'text-muted-foreground',
-                      )}
-                    >
-                      {step.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {runMode === 'refine' ? (
+                <div className="flex items-center gap-3">
+                  <Spinner className="size-4" />
+                  <span className="text-sm font-medium text-foreground">Rewriting your EOD</span>
+                </div>
+              ) : (
+                <div className="w-full max-w-sm space-y-3">
+                  {STEPS.map((step, i) => (
+                    <div key={step.key} className="flex items-center gap-3">
+                      <span className="flex h-5 w-5 items-center justify-center">
+                        {i < stepIdx ? (
+                          <Check className="h-4 w-4 text-green-500" aria-hidden="true" />
+                        ) : i === stepIdx ? (
+                          <Spinner className="size-4" />
+                        ) : (
+                          <span className="h-1.5 w-1.5 rounded-full bg-border" />
+                        )}
+                      </span>
+                      <span
+                        className={cn(
+                          'text-sm',
+                          i < stepIdx ? 'text-muted-foreground line-through decoration-border'
+                            : i === stepIdx ? 'text-foreground font-medium'
+                              : 'text-muted-foreground',
+                        )}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                Usually takes 1–3 minutes · {elapsed}s elapsed
+                {runMode === 'refine' ? 'Usually under 40 seconds' : 'Usually takes 1–3 minutes'} · {elapsed}s elapsed
               </p>
             </div>
-          )}
-
-          {status === 'done' && result && (
+          ) : status === 'done' && result ? (
             <div className="flex h-full flex-col gap-2">
               {dropped.length > 0 && (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
@@ -302,18 +523,105 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                   {dropped.join(' · ')}
                 </div>
               )}
+              {lastRefine && (
+                <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2">
+                  <p className="min-w-0 truncate text-xs text-muted-foreground">
+                    Applied: &ldquo;{lastRefine}&rdquo;
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={promoteLastRefine}
+                    className="shrink-0 gap-1"
+                  >
+                    <Plus className="h-3 w-3" aria-hidden="true" />
+                    Make this a standing rule
+                  </Button>
+                </div>
+              )}
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowEvidence(s => !s)}
+                  className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  {showEvidence ? 'Show draft' : 'Show evidence'}
+                </button>
+              </div>
               <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-border bg-white shadow-sm">
-                <iframe
-                  srcDoc={buildEodHtml(result, emailSettings)}
-                  className="h-full w-full border-0"
-                  sandbox="allow-same-origin"
-                  title="Generated EOD preview"
+                {showEvidence && factSheet ? (
+                  <div className="no-scrollbar h-full space-y-4 overflow-y-auto bg-background p-4">
+                    {factSheet.tickets.map(t => (
+                      <div key={t.key} className="space-y-1.5">
+                        <p className="text-sm font-medium text-foreground">
+                          {t.key} - {t.title}{' '}
+                          <span className={cn(
+                            'ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase',
+                            t.statusSignal === 'done'
+                              ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                          )}>
+                            {t.statusSignal}
+                          </span>
+                        </p>
+                        {t.statusEvidence && (
+                          <p className="text-xs text-muted-foreground">Status: {t.statusEvidence}</p>
+                        )}
+                        <ul className="space-y-1 pl-4">
+                          {t.actions.map((a, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                              <span className="mt-0.5 shrink-0 rounded border border-border px-1 py-px text-[9px] uppercase text-muted-foreground">
+                                {a.source}
+                              </span>
+                              <span>{a.text}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    {factSheet.meetings.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Meetings: {factSheet.meetings.join(' · ')}
+                      </p>
+                    )}
+                    {factSheet.unmatchedWork.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Unmatched work: {factSheet.unmatchedWork.join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <iframe
+                    srcDoc={buildEodHtml(result, emailSettings)}
+                    className="h-full w-full border-0"
+                    sandbox="allow-same-origin"
+                    title="Generated EOD preview"
+                  />
+                )}
+              </div>
+              {/* Refine bar */}
+              <div className="flex items-center gap-2">
+                <input
+                  value={refineText}
+                  onChange={e => setRefineText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') void startRefine() }}
+                  spellCheck={false}
+                  placeholder='Tweak it: e.g. "make the second bullet vaguer" or "drop the meeting"'
+                  className="h-9 flex-1 rounded-md border border-border bg-background px-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!refineText.trim()}
+                  onClick={() => void startRefine()}
+                >
+                  Apply
+                </Button>
               </div>
             </div>
-          )}
-
-          {status === 'error' && error && (
+          ) : status === 'error' && error ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 rounded-md border border-border bg-background p-8">
               <div className="max-w-lg space-y-2 text-center">
                 <p className="text-sm font-medium text-foreground">Generation failed</p>
@@ -326,12 +634,16 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                 </pre>
               )}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-3">
-          {status === 'running' ? (
+          {view === 'settings' ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setView('main')}>
+              Done
+            </Button>
+          ) : status === 'running' ? (
             <Button type="button" variant="outline" size="sm" onClick={handleCancel}>
               Cancel
             </Button>
@@ -340,13 +652,13 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
               Close
             </Button>
           )}
-          {(status === 'done' || status === 'error') && (
+          {view === 'main' && (status === 'done' || status === 'error') && (
             <Button type="button" variant="outline" size="sm" onClick={() => void startGeneration()} className="gap-1.5">
               <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
               {status === 'error' ? 'Retry' : 'Regenerate'}
             </Button>
           )}
-          {status === 'done' && result && (
+          {view === 'main' && status === 'done' && result && (
             <Button type="button" size="sm" onClick={() => void handleCopy()} className="gap-1.5">
               <Copy className="h-3.5 w-3.5" aria-hidden="true" />
               Copy

@@ -240,7 +240,23 @@ contextBridge.exposeInMainWorld("electronAPI", {
   eodAiGenerate: (payload: {
     pastEods: Array<{ date: string; plainText: string }>
     meetings: Array<{ title: string; durationMin: number }>
+    notes: string
+    filterMode: 'blocklist' | 'allowlist'
+    filterPaths: string[]
+    instructions: string
   }): Promise<{ requestId: string }> => ipcRenderer.invoke('eod:ai-generate', payload),
+
+  // Write-phase-only rerun of an existing draft with one refinement instruction
+  eodAiRefine: (payload: {
+    factSheet: unknown
+    previousDraft: unknown
+    instruction: string
+    instructions: string
+  }): Promise<{ requestId: string }> => ipcRenderer.invoke('eod:ai-refine', payload),
+
+  // Projects seen in Claude sessions (today + historical) for the filter checklist
+  eodAiListProjects: (): Promise<Array<{ path: string; sessionsToday: number }>> =>
+    ipcRenderer.invoke('eod:ai-list-projects'),
 
   onEodAiPhase: (cb: (data: { requestId: string; phase: string; label: string }) => void) => {
     const fn = (_: unknown, data: { requestId: string; phase: string; label: string }) => cb(data)

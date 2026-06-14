@@ -19,6 +19,20 @@ const MAX_SESSION_BUDGET = 8_000
 const PAST_EOD_BUDGET = 6_000
 const TICKET_INDEX_MAX = 60
 
+// ── User-declared ticket keys ─────────────────────────────────────────────────
+
+/** Ticket keys mentioned anywhere in user-authored text (instructions/notes).
+ *  A user declaration counts as evidence, so these join the verifier's allowed
+ *  set. Case-insensitive: people type "aton-5555". */
+export function extractDeclaredKeys(text: string): string[] {
+  if (typeof text !== 'string' || !text) return []
+  const keys = new Set<string>()
+  for (const m of text.matchAll(/\b([A-Za-z][A-Za-z0-9]{1,9}-\d{1,6})\b/g)) {
+    keys.add(m[1].toUpperCase())
+  }
+  return Array.from(keys)
+}
+
 // ── Ticket-title index from past EODs ─────────────────────────────────────────
 
 export interface TicketIndexEntry {
@@ -119,6 +133,10 @@ export interface GatherContext {
   git: RepoEvidence[]
   meetings: Array<{ title: string; durationMin: number }>
   ticketIndex: TicketIndexEntry[]
+  /** Per-run user notes — authoritative facts/corrections for today. */
+  notes: string
+  /** Standing instructions doc (style rules + declared recurring work). */
+  instructions: string
 }
 
 export function buildGatherPrompt(ctx: GatherContext): string {
@@ -141,6 +159,24 @@ export function buildGatherPrompt(ctx: GatherContext): string {
       ? ctx.ticketIndex.map(t => `- ${t.key} - ${t.title}`).join('\n')
       : '(none)'
 
+  const notesBlock = ctx.notes.trim()
+    ? `━━━ EVIDENCE E — USER-DECLARED FACTS FOR TODAY (authoritative, highest priority) ━━━
+${ctx.notes.trim()}
+
+Rules for evidence E: anything the user states here is true evidence with source "user" — include it in the fact sheet even with no other trace. If the user says to skip/remove/ignore something (a meeting, a topic, a ticket), OMIT it from the fact sheet entirely.
+
+`
+    : ''
+
+  const instructionsBlock = ctx.instructions.trim()
+    ? `━━━ USER STANDING INSTRUCTIONS ━━━
+${ctx.instructions.trim()}
+
+Rules for standing instructions: declarations of recurring work (e.g. "always include KEY-123 as WIP regression testing") become fact-sheet tickets with source "user". Statements that something must never be reported mean: omit it from the fact sheet. Pure style/phrasing rules are for a later writing step — ignore them here.
+
+`
+    : ''
+
   return `${TRACCIA_EOD_SENTINEL} Automated work-evidence analysis for an End-of-Day status report. Today is ${ctx.todayDate}.
 
 You are a meticulous analyst reconstructing exactly what this engineer worked on TODAY from hard evidence. Be precise; never speculate.
@@ -157,7 +193,7 @@ ${meetingsBlock}
 ━━━ EVIDENCE D — Ticket-title index from this user's past EODs ━━━
 ${ticketIndexBlock}
 
-━━━ YOUR TASKS ━━━
+${notesBlock}${instructionsBlock}━━━ YOUR TASKS ━━━
 1. From evidence A and B, identify every distinct piece of work done today and the ticket keys involved (branch names like "ATON-7632-fix-quota" and prompts/commits usually contain them).
 2. If Atlassian/Jira MCP tools are available, cross-reference:
    - Search: JQL \`assignee = currentUser() AND updated >= -1d ORDER BY updated DESC\`
@@ -195,6 +231,22 @@ export interface WriteContext {
   todayDate: string
   factSheet: EodFactSheet
   pastEods: Array<{ date: string; plainText: string }>
+  /** Standing instructions doc — style rules win over the default format rules. */
+  instructions: string
+  /** Per-run user notes (already absorbed into the fact sheet by the gather
+   *  phase, repeated here so phrasing/tone wishes also reach the writer). */
+  notes: string
+}
+
+function userRulesBlock(instructions: string, notes: string): string {
+  const parts: string[] = []
+  if (instructions.trim()) parts.push(instructions.trim())
+  if (notes.trim()) parts.push(`Today's notes from the user:\n${notes.trim()}`)
+  if (parts.length === 0) return ''
+  return `━━━ USER RULES — these override ALL default rules below whenever they conflict ━━━
+${parts.join('\n\n')}
+
+`
 }
 
 export function buildWritePrompt(ctx: WriteContext): string {
@@ -206,7 +258,7 @@ ${JSON.stringify(ctx.factSheet, null, 2)}
 ━━━ PAST EODs — style fingerprint. Mimic the structure, tone, granularity, vocabulary and section conventions of these exactly ━━━
 ${formatPastEods(ctx.pastEods)}
 
-━━━ FORMAT RULES ━━━
+${userRulesBlock(ctx.instructions, ctx.notes)}━━━ FORMAT RULES ━━━
 - Task line: "KEY - exact ticket title → WIP" or "→ Done" (use the fact sheet's statusSignal).
 - Sub-bullets: past tense, 3–10 words each, management-friendly (no code-level jargon), 2–5 per ticket, derived only from the fact sheet's actions.
 - Meetings: "Attended meeting: <name>" — placed where this user's past EODs place them (project tasks vs other tasks).
@@ -232,4 +284,37 @@ ${formatPastEods(ctx.pastEods)}
 }
 
 Final response: ONLY the JSON object. No markdown fences, no commentary.`
+}
+
+// ── REFINE prompt ─────────────────────────────────────────────────────────────
+// Write-phase-only rerun: revise an existing draft per one user instruction.
+// No past EODs needed — the previous draft already carries the style.
+
+export interface RefineContext {
+  todayDate: string
+  factSheet: EodFactSheet
+  previousDraft: unknown
+  instruction: string
+  instructions: string
+}
+
+export function buildRefinePrompt(ctx: RefineContext): string {
+  return `${TRACCIA_EOD_SENTINEL} Revise an existing End-of-Day draft (${ctx.todayDate}) for this engineer. No tools are needed — revise directly.
+
+━━━ PREVIOUS DRAFT (JSON) ━━━
+${JSON.stringify(ctx.previousDraft, null, 2)}
+
+━━━ REFINEMENT REQUEST — apply EXACTLY this change and keep everything else identical ━━━
+${ctx.instruction.trim()}
+
+━━━ FACT SHEET (the only source of truth — never add content beyond it) ━━━
+${JSON.stringify(ctx.factSheet, null, 2)}
+
+${userRulesBlock(ctx.instructions, '')}━━━ RULES ━━━
+- Apply the refinement request faithfully; do not "improve" unrelated parts.
+- Never invent ticket keys, titles or work that is not in the fact sheet or the refinement request.
+- Keep the exact same output JSON shape as the previous draft (projects / otherTasks / concerns / nextDayPlan / upcomingHolidays).
+- Empty sections: isNA true with empty items.
+
+Final response: ONLY the revised JSON object. No markdown fences, no commentary.`
 }

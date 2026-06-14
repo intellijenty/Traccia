@@ -42,14 +42,14 @@ function isGitRepo(repoPath: string): boolean {
   }
 }
 
-async function gatherRepo(repoPath: string): Promise<RepoEvidence | null> {
+async function gatherRepo(repoPath: string, sinceIso: string): Promise<RepoEvidence | null> {
   const branch = await git(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])
   if (branch === null) return null // not a usable repo
 
   const email = await git(repoPath, ['config', 'user.email'])
 
   const logArgs = [
-    'log', '--all', '--since=midnight',
+    'log', '--all', `--since=${sinceIso}`,
     `-n${MAX_COMMITS_PER_REPO}`,
     '--date=format:%H:%M', '--pretty=format:%h [%ad] %s',
   ]
@@ -76,9 +76,9 @@ async function gatherRepo(repoPath: string): Promise<RepoEvidence | null> {
  * repos are silently skipped. Only repos with actual signal today (commits,
  * uncommitted changes, or a ticket-looking branch) are returned.
  */
-export async function gatherGitEvidence(repoPaths: string[]): Promise<RepoEvidence[]> {
+export async function gatherGitEvidence(repoPaths: string[], sinceIso: string): Promise<RepoEvidence[]> {
   const unique = Array.from(new Set(repoPaths.filter(p => p && isGitRepo(p)))).slice(0, MAX_REPOS)
-  const settled = await Promise.all(unique.map(p => gatherRepo(p).catch(() => null)))
+  const settled = await Promise.all(unique.map(p => gatherRepo(p, sinceIso).catch(() => null)))
   return settled.filter((r): r is RepoEvidence => {
     if (!r) return false
     return r.commitsToday.length > 0 || r.uncommitted !== null || /[A-Z][A-Z0-9]+-\d+/.test(r.branch)
