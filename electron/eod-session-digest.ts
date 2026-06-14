@@ -56,6 +56,15 @@ const MAX_FILES_TOUCHED = 25
 const MAX_COMMANDS = 15
 const COMMAND_CAP = 120
 
+// When a session overflows a cap, keep this many items from the start (enough
+// to establish what the session was about) and fill the rest of the budget
+// with the MOST RECENT items (the outcome — what an EOD actually reports).
+// A plain FIFO cap would silently drop all afternoon/evening work.
+const USER_PROMPT_HEAD = 8
+const ASSISTANT_SUMMARY_HEAD = 10
+const FILES_HEAD = 8
+const COMMANDS_HEAD = 5
+
 type ContentBlock = {
   type?: string
   text?: string
@@ -81,6 +90,26 @@ function truncate(text: string, cap: number): string {
   return t.length <= cap ? t : t.slice(0, cap) + '…'
 }
 
+/**
+ * Keep the first `head` items and as many of the most recent as fit within
+ * `max`, dropping the middle. Preserves chronological order; reports how many
+ * were omitted so the caller can mark the gap. `head` is clamped to leave room
+ * for at least one tail item.
+ */
+export function splitHeadTail<T>(
+  items: T[],
+  max: number,
+  head: number,
+): { head: T[]; tail: T[]; omitted: number } {
+  if (items.length <= max) return { head: items, tail: [], omitted: 0 }
+  const h = Math.max(0, Math.min(head, max - 1))
+  return {
+    head: items.slice(0, h),
+    tail: items.slice(items.length - (max - h)),
+    omitted: items.length - max,
+  }
+}
+
 /** Injected wrappers, command transcripts and reminders — not real user prompts. */
 function isNoisePrompt(text: string): boolean {
   const t = text.trimStart()
@@ -92,7 +121,7 @@ function isNoisePrompt(text: string): boolean {
   )
 }
 
-function digestFile(content: string, dayStartMs: number): SessionDigest | null {
+export function digestFile(content: string, dayStartMs: number): SessionDigest | null {
   const digest: SessionDigest = {
     cwd: '',
     gitBranch: null,
@@ -103,6 +132,10 @@ function digestFile(content: string, dayStartMs: number): SessionDigest | null {
     filesTouched: [],
     commands: [],
   }
+  // Collected uncapped, then head+tail sampled after the loop so recent work
+  // survives (a FIFO cap during collection would drop it).
+  const userPrompts: string[] = []
+  const assistantSummaries: string[] = []
   const files = new Set<string>()
   const commands = new Set<string>()
 
@@ -144,9 +177,7 @@ function digestFile(content: string, dayStartMs: number): SessionDigest | null {
       if (text && !isNoisePrompt(text)) {
         // Whole session is one of our own generation runs — discard it entirely.
         if (text.trimStart().startsWith(TRACCIA_EOD_SENTINEL)) return null
-        if (digest.userPrompts.length < MAX_USER_PROMPTS) {
-          digest.userPrompts.push(truncate(text, USER_PROMPT_CAP))
-        }
+        userPrompts.push(truncate(text, USER_PROMPT_CAP))
       }
       continue
     }
@@ -156,9 +187,7 @@ function digestFile(content: string, dayStartMs: number): SessionDigest | null {
     for (const block of content) {
       if (!block || typeof block !== 'object') continue
       if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
-        if (digest.assistantSummaries.length < MAX_ASSISTANT_SUMMARIES) {
-          digest.assistantSummaries.push(truncate(block.text, ASSISTANT_TEXT_CAP))
-        }
+        assistantSummaries.push(truncate(block.text, ASSISTANT_TEXT_CAP))
       } else if (block.type === 'tool_use') {
         const input = block.input
         const filePath = input?.file_path ?? input?.notebook_path
@@ -170,12 +199,29 @@ function digestFile(content: string, dayStartMs: number): SessionDigest | null {
     }
   }
 
-  if (digest.userPrompts.length === 0 && digest.assistantSummaries.length === 0) {
+  if (userPrompts.length === 0 && assistantSummaries.length === 0) {
     return null // nothing from today in this file
   }
 
-  digest.filesTouched = Array.from(files).slice(0, MAX_FILES_TOUCHED)
-  digest.commands = Array.from(commands).slice(0, MAX_COMMANDS)
+  // Head + recency-weighted tail, with an explicit gap marker on the prose
+  // arrays so the model knows it didn't see every message.
+  const up = splitHeadTail(userPrompts, MAX_USER_PROMPTS, USER_PROMPT_HEAD)
+  digest.userPrompts = [
+    ...up.head,
+    ...(up.omitted ? [`…(${up.omitted} earlier prompt${up.omitted > 1 ? 's' : ''} omitted)…`] : []),
+    ...up.tail,
+  ]
+  const as = splitHeadTail(assistantSummaries, MAX_ASSISTANT_SUMMARIES, ASSISTANT_SUMMARY_HEAD)
+  digest.assistantSummaries = [
+    ...as.head,
+    ...(as.omitted ? [`…(${as.omitted} earlier update${as.omitted > 1 ? 's' : ''} omitted)…`] : []),
+    ...as.tail,
+  ]
+  // Files/commands are an unordered context list — head+tail without a marker.
+  const ft = splitHeadTail(Array.from(files), MAX_FILES_TOUCHED, FILES_HEAD)
+  digest.filesTouched = [...ft.head, ...ft.tail]
+  const cm = splitHeadTail(Array.from(commands), MAX_COMMANDS, COMMANDS_HEAD)
+  digest.commands = [...cm.head, ...cm.tail]
   return digest
 }
 
