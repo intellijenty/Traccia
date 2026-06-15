@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
-import { app } from 'electron'
+import { isAlphaUser } from './alpha-service'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,8 +43,8 @@ class ClaudeUsageService {
 
   // Returns cached result within TTL, coalesces concurrent in-flight callers.
   fetch(): Promise<ClaudeUsageResult> {
-    if (app.isPackaged) {
-      return Promise.resolve({ ok: false, error: 'Disabled in release build' })
+    if (!isAlphaUser()) {
+      return Promise.resolve({ ok: false, error: 'Feature not available' })
     }
     if (this.cache && Date.now() - this.cachedAt < CACHE_TTL_MS) {
       return Promise.resolve(this.cache)

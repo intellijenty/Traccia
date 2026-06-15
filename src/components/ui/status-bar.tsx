@@ -12,6 +12,14 @@ import {
   formatRelativeTime,
   type ClaudeUsageData,
 } from '@/hooks/use-claude-usage'
+import { useAlphaUser } from '@/hooks/use-alpha-user'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { TestTube01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 
 type UsageProps = { data: ClaudeUsageData | null; error: string | null; loading: boolean }
 
@@ -199,12 +207,11 @@ function ClaudeUsageChip({ data, error, loading }: UsageProps) {
 
 // ── Status bar shell ───────────────────────────────────────────────────────────
 
-const SHOW_CLAUDE_USAGE = import.meta.env.DEV
-
 export function StatusBar({ className }: { className?: string }) {
+  const isAlpha = useAlphaUser()
   const { data, error, loading } = useClaudeUsage()
 
-  if (!SHOW_CLAUDE_USAGE) return null
+  if (!isAlpha) return null
 
   return (
     <div
@@ -219,8 +226,19 @@ export function StatusBar({ className }: { className?: string }) {
         <ClaudeUsageChip data={data} error={error} loading={loading} />
       </div>
 
-      {/* Right slot — reserved */}
-      <div className="flex items-center" />
+      {/* Right slot */}
+      <div className="flex items-center px-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex items-center">
+              <HugeiconsIcon icon={TestTube01Icon} size={17} />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            You are alpha user of this release.
+          </TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   )
 }
