@@ -1,3 +1,10 @@
+## v0.3.3 - June 2026
+
+### Traccia Alpha Program
+- Selected users now get early access to experimental features before they’re shipped to everyone.
+- **Don’t see any change?** You’re not in the alpha yet. It’s rolling out gradually.
+- Stay tuned; we’re working on something really cool.
+
 ## v0.3.2 - June 2026
 ### Improved
 - Improved final draft formattings to match original template design format.

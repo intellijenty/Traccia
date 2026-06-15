@@ -8,6 +8,7 @@ import { registerHotkey } from "./hotkey"
 import { syncLeaves } from "./leave-sync"
 import { getUpcomingApprovedLeaves } from "./leave-database"
 import { checkForUpdates, downloadUpdate, quitAndInstall } from "./updater"
+import { isAlphaUser } from "./alpha-service"
 import {
   getEntriesByDate,
   getLastEntry,
@@ -395,6 +396,9 @@ export function registerIpcHandlers(
   onDataChange: () => void,
   getWindow: () => BrowserWindow | null
 ): void {
+  // Alpha feature flag
+  ipcMain.handle('alpha:is-user', () => isAlphaUser())
+
   // License handlers
   ipcMain.handle('license:get-hwid', () => licenseEngine.getHardwareId());
   

@@ -209,6 +209,8 @@ export interface ILicenseAPI {
 }
 
 export interface ElectronAPI {
+  isAlphaUser: () => Promise<boolean>
+
   getEvents: (date: string) => Promise<PunchEntry[]>
   getStatus: (date?: string) => Promise<PunchStatus>
   getWeekSummaries: (startDate: string, endDate: string) => Promise<WeekDaySummary[]>

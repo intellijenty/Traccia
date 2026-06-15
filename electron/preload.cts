@@ -205,6 +205,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     void ipcRenderer.invoke('ai:cancel', requestId)
   },
 
+  // Alpha feature flag
+  isAlphaUser: (): Promise<boolean> => ipcRenderer.invoke('alpha:is-user'),
+
   // Check if Claude Code is installed on this machine
   aiAvailable: (): Promise<{
     available: boolean

@@ -42,6 +42,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Refresh03Icon, Target02Icon } from "@hugeicons/core-free-icons"
 import { Toggle } from "@/components/ui/toggle"
 import { Spinner } from "@/components/ui/spinner"
+import { useAlphaUser } from "@/hooks/use-alpha-user"
 
 type EodTab = "form" | "editor"
 
@@ -175,6 +176,7 @@ export function EodPage() {
   const [aiDialogOpen, setAiDialogOpen] = useState(false)
   const aiState = useEodAiState()
   const aiRunning = aiState.status === "running"
+  const isAlpha = useAlphaUser()
   const [formMode, setFormMode] = useState<FormLayoutMode>(
     () => (localStorage.getItem(KEYS.formMode) as FormLayoutMode | null) ?? 'comfortable'
   )
@@ -254,7 +256,7 @@ export function EodPage() {
       // Ctrl+G — open the AI Generate panel (no Shift)
       if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === "KeyG") {
         e.preventDefault()
-        if (isElectron) setAiDialogOpen(true)
+        if (isElectron && isAlpha) setAiDialogOpen(true)
         return
       }
       if (!e.ctrlKey || !e.shiftKey) return
@@ -598,7 +600,7 @@ export function EodPage() {
               </Button>
 
               {/* AI Generate EOD */}
-              {isElectron && (
+              {isElectron && isAlpha && (
                 <Button
                   type="button"
                   tabIndex={-1}

@@ -28,6 +28,7 @@ import { claude } from "./claude-service"
 import { registerHotkey, unregisterHotkey } from "./hotkey"
 import { scheduleDailySync } from "./daily-sync"
 import { initAutoUpdater, checkForUpdates } from "./updater"
+import { initAlphaService } from "./alpha-service"
 
 let mainWindow: BrowserWindow | null = null
 let isQuitting = false
@@ -258,6 +259,9 @@ app.whenReady().then(() => {
   if (!lastAfterRecovery || lastAfterRecovery.type === "LOGOUT") {
     insertEntry("LOGIN", "auto", "via boot")
   }
+
+  // Alpha user flag (fire-and-forget — resolves before renderer mounts)
+  initAlphaService()
 
   // Start services
   startHeartbeat(60)
