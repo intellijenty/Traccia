@@ -199,10 +199,6 @@ export function verifyDraft(
 
   // Drop projects left with neither tasks nor a meaningful note
   const cleanedProjects = projects.filter(p => p.tasksCompleted.length > 0 || p.statusNote !== null)
-  if (cleanedProjects.length === 0 && dropped.length === 0) {
-    // Model produced no usable project content at all
-    return null
-  }
 
   const draft: EodAiDraft = {
     projects: cleanedProjects,
@@ -211,6 +207,16 @@ export function verifyDraft(
     nextDayPlan: asSection(obj.nextDayPlan, false),
     upcomingHolidays: asSection(obj.upcomingHolidays, true),
   }
+
+  // Usable if it carries ANY content. A day of only non-ticket work (everything
+  // in otherTasks, no project tickets) is a perfectly valid EOD — don't reject it.
+  const hasContent =
+    cleanedProjects.length > 0 ||
+    draft.otherTasks.items.length > 0 ||
+    draft.concerns.items.length > 0 ||
+    draft.nextDayPlan.items.length > 0 ||
+    draft.upcomingHolidays.items.length > 0
+  if (!hasContent && dropped.length === 0) return null
 
   return { draft, dropped }
 }
