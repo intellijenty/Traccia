@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import { Mail, Users, Settings, RotateCcw, Send, Keyboard, Sparkles } from "lucide-react"
+import { Mail, Users, Settings, RotateCcw, Send, Keyboard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -42,7 +42,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Refresh03Icon, Target02Icon } from "@hugeicons/core-free-icons"
 import { Toggle } from "@/components/ui/toggle"
 import { Spinner } from "@/components/ui/spinner"
-import { useAlphaUser } from "@/hooks/use-alpha-user"
+import { TiGlyph } from "@/components/ui/ti-glyph"
 
 type EodTab = "form" | "editor"
 
@@ -176,7 +176,6 @@ export function EodPage() {
   const [aiDialogOpen, setAiDialogOpen] = useState(false)
   const aiState = useEodAiState()
   const aiRunning = aiState.status === "running"
-  const isAlpha = useAlphaUser()
   const [formMode, setFormMode] = useState<FormLayoutMode>(
     () => (localStorage.getItem(KEYS.formMode) as FormLayoutMode | null) ?? 'comfortable'
   )
@@ -256,7 +255,7 @@ export function EodPage() {
       // Ctrl+G — open the AI Generate panel (no Shift)
       if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === "KeyG") {
         e.preventDefault()
-        if (isElectron && isAlpha) setAiDialogOpen(true)
+        if (isElectron) setAiDialogOpen(true)
         return
       }
       if (!e.ctrlKey || !e.shiftKey) return
@@ -600,7 +599,7 @@ export function EodPage() {
               </Button>
 
               {/* AI Generate EOD */}
-              {isElectron && isAlpha && (
+              {isElectron && (
                 <Button
                   type="button"
                   tabIndex={-1}
@@ -609,14 +608,10 @@ export function EodPage() {
                   onClick={() => setAiDialogOpen(true)}
                   className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
                 >
-                  {aiRunning ? (
-                    <Spinner className="size-3.5" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  )}
-                  <span className="flex-1 text-left">{aiRunning ? "Generating EOD…" : "AI Generate"}</span>
+                  <TiGlyph size={14} running={aiRunning} />
+                  <span className="flex-1 text-left">{aiRunning ? "Generating…" : "Traccia Intelligence"}</span>
                   {aiState.status === "done" && !aiDialogOpen && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-label="Draft ready" />
+                    <span className="h-1.5 w-1.5 rounded-full animate-pulse bg-gradient-to-br from-violet-500 to-cyan-500" aria-label="Draft ready" />
                   )}
                 </Button>
               )}

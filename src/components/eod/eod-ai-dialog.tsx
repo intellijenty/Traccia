@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Check, Copy, Plus, RotateCcw, Settings2, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Plus, RotateCcw, Settings2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
+import { TiGlyph } from '@/components/ui/ti-glyph'
 import type { EodEmailSettings, EodHistoryEntry } from '@/lib/eod-types'
 import type { EodAiProjectInfo } from '@/lib/eod-ai-types'
 import {
@@ -199,9 +200,9 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
         <div className="min-w-0 space-y-0.5 pr-4">
           <h2 className="flex items-center gap-2 text-base font-medium leading-tight">
             {view === 'settings' ? (
-              <><Settings2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Personalize AI EOD</>
+              <><Settings2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Personalize</>
             ) : (
-              <><Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> AI Generated EOD</>
+              <><TiGlyph size={16} running={running} /> Traccia Intelligence</>
             )}
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -211,7 +212,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                 ? `${s.runMode === 'refine' ? 'Refining' : 'Generating'}… ${elapsed}s`
                 : showDone
                   ? 'Review the draft, tweak it below, or copy it where you need it.'
-                  : 'Reconstructs your day from Claude sessions, git, Jira & Bitbucket.'}
+                  : 'Generate your EOD with AI'}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -248,13 +249,13 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                   onValueChange={v => { if (v) updateAiSettings({ ...aiSettings, filterMode: v as EodAiSettings['filterMode'] }) }}
                   className="inline-flex gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
                 >
-                  <ToggleGroupItem value="blocklist">Report all, except…</ToggleGroupItem>
-                  <ToggleGroupItem value="allowlist">Only report selected</ToggleGroupItem>
+                  <ToggleGroupItem value="blocklist">Only exclude selected</ToggleGroupItem>
+                  <ToggleGroupItem value="allowlist">Only include selected</ToggleGroupItem>
                 </ToggleGroup>
                 <p className="text-xs text-muted-foreground">
                   {aiSettings.filterMode === 'blocklist'
                     ? 'Checked projects are hidden from your EOD. New projects are included by default.'
-                    : 'Only checked projects appear in your EOD. New projects stay hidden until checked (fail-safe).'}
+                    : 'Only checked projects appear in your EOD. New projects stay hidden until checked.'}
                 </p>
               </div>
 
@@ -265,7 +266,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                 </p>
               ) : (
                 <div className="overflow-hidden rounded-lg border border-border">
-                  <ScrollArea className="max-h-56">
+                  <ScrollArea className="[&>[data-radix-scroll-area-viewport]]:max-h-56">
                     <div className="space-y-0.5 p-1.5">
                       {projects.map(p => {
                         const checked = activePaths.includes(p.path)
@@ -302,7 +303,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                   placeholder={'Standing rules, in your own words. Examples:\n- Keep sub-bullets short and non-technical\n- Always include ATON-5555 - regression testing as WIP\n- Never say Done unless the PR is merged'}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Applied every day. Ticket keys you declare here are trusted as real work.
+                  Instructions you declare here are applied every day.
                 </p>
               </div>
             </div>
@@ -443,15 +444,13 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
           /* Idle / cold start */
           <div className="flex h-full items-center justify-center rounded-lg border border-border bg-background p-8">
             <div className="flex w-full max-w-md flex-col items-center gap-5 text-center">
-              <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-                <Sparkles className="h-5 w-5 text-foreground" aria-hidden="true" />
-              </span>
+              <TiGlyph size={44} />
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">
-                  Reconstruct today&apos;s EOD with AI
+                  Reconstruct today&apos;s EOD with Traccia Intelligence
                 </p>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Claude reads your work evidence and writes the draft in your own style.
+                  Traccia reads your work evidence and writes the draft in your own style.
                   <br />
                   Claude sessions · Git · Jira · Bitbucket · Meetings
                   {pastEodCount > 0 ? ` · style from your last ${pastEodCount} EOD${pastEodCount > 1 ? 's' : ''}` : ''}
@@ -463,7 +462,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                 rows={3}
                 spellCheck={false}
                 className="resize-none text-sm leading-relaxed"
-                placeholder={'Anything to add about today? (optional)\ne.g. "Also tested payment flow with Ramesh — include as Done"'}
+                placeholder={'Anything to add about today? (optional)\ne.g. "Also updated services on remote server", "Guided Interns"...'}
               />
               {availability.checked && !availability.available && (
                 <p className="text-xs text-destructive">Claude Code is not available: {availability.error ?? 'unknown error'}</p>
@@ -473,10 +472,9 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
                 size="lg"
                 onClick={handleGenerate}
                 disabled={!availability.checked || !availability.available}
-                className="gap-2"
+                className="min-w-32"
               >
-                {!availability.checked ? <Spinner className="size-4" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
-                Generate
+                {!availability.checked ? <Spinner className="size-4" /> : 'Generate'}
               </Button>
             </div>
           </div>

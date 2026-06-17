@@ -1,3 +1,39 @@
+## v0.4.0 - June 2026
+
+### ✦  Introducing Traccia Intelligence (Beta)
+
+#### Your EOD used to be a stale draft from past day. Now it writes itself.
+<br/>
+
+#### Traccia Intelligence reads your actual work - Claude sessions, Git commits, Jira tickets, Bitbucket PRs, Outlook meetings - and produces a complete EOD draft in the format you already use. No prompt engineering. No copy-pasting from Jira. No trying to remember what you did at 9am.
+
+<br/>
+
+- **Note**: This is still experimental feature in beta, it might produce some inaccurate results but custom instructions will lead to more accuracy on style. its also required to have atleast 5 drafts in power composer history to catch up your tone.
+
+### **How it works**
+
+- Press `Ctrl` `G` from anywhere in Power Composer to open the Intelligence panel
+- Traccia gathers evidence from every source it can find, cross-references them, then writes the draft in your established EOD style
+
+### **What makes it accurate**
+- More claude code sessions context
+- More activity across git and jira 
+- And the most important 5 recent EOD drafts in Power Composer History
+
+
+### **Personalize the generation**
+
+- **Project filter** - blocklist projects you never report on, or allowlist only the ones that matter
+- **Standing instructions** - write rules once applied every day to match your style and workflow.
+
+### **Also in this release**
+
+Traccia tells you exactly how much of your Claude quota is left, right in the status bar, always in view.
+- **Session** - your 5-hour rolling window, shown as `42% · 3h 12m`
+- **Hover** for the full breakdown - session and weekly (7-day) utilization, both with progress bars
+- Color shifts as you approach limits - subtle at 50%, red at 80%+
+
 ## v0.3.3 - June 2026
 
 ### Traccia Alpha Program
