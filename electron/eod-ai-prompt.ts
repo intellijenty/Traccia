@@ -217,6 +217,7 @@ ${notesBlock}${instructionsBlock}━━━ YOUR TASKS ━━━
 }
 
 ━━━ HARD RULES ━━━
+- Meetings are recorded here only as work context. Do not treat them as deliverables; a later step lists attended meetings automatically.
 - This is a READ-ONLY analysis. Never create, modify or delete files, never run state-changing commands, never write to Jira/Bitbucket — only read/search/query.
 - NEVER invent a ticket key or title. Every key must literally appear in evidence A/B/D or in Jira results. Work you cannot map to a real key goes in "unmatchedWork".
 - Each action text must be concrete and traceable to evidence (what was analysed/fixed/added/tested), 5–20 words.
@@ -261,12 +262,13 @@ ${formatPastEods(ctx.pastEods)}
 ${userRulesBlock(ctx.instructions, ctx.notes)}━━━ FORMAT RULES ━━━
 - Task line: "KEY - exact ticket title → WIP" or "→ Done" (use the fact sheet's statusSignal).
 - Sub-bullets: past tense, 3–10 words each, management-friendly (no code-level jargon), 2–5 per ticket, derived only from the fact sheet's actions.
-- Meetings: "Attended meeting: <name>" — placed where this user's past EODs place them (project tasks vs other tasks).
+- Meetings: do NOT output any meeting lines (no "Attended meeting: ..." entries). The app inserts attended meetings automatically after you finish. Ignore the fact sheet's "meetings" array and any meeting lines in the past-EOD style examples — they are not yours to write.
 - Group tickets under the correct project name (derive from the ticket key prefix and past EODs).
 - Project status: "green" unless evidence clearly says otherwise.
 - "unmatchedWork" items go under otherTasks, phrased like the user would.
 - nextDayPlan: continue WIP tickets, phrased like in past EODs (e.g. "Working on ticket KEY"). If nothing is WIP, use a sensible short plan.
-- concerns and upcomingHolidays: leave as N/A (isNA: true, empty items) unless past EODs show a recurring concern pattern that clearly still applies.
+- concerns: leave as N/A (isNA: true, empty items) unless past EODs show a recurring concern pattern that clearly still applies.
+- upcomingHolidays: ALWAYS isNA true with empty items. The app injects approved leave automatically — never write holiday or leave entries yourself.
 - Empty sections: isNA true with empty items — never invent content to fill space.
 
 ━━━ OUTPUT JSON SCHEMA (exact shape, nothing more) ━━━

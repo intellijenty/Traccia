@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Check, Copy, Plus, RotateCcw, Settings2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import {
 } from '@/lib/eod-ai-settings'
 import type { EodAiSettings } from '@/lib/eod-ai-settings'
 import { buildEodHtml, buildEodPlainText } from '@/lib/eod-utils'
+import { injectSystemItems } from '@/lib/eod-ai-inject'
 import {
   useEodAiState,
   startGeneration,
@@ -33,6 +34,9 @@ interface EodAiDialogProps {
   onOpenChange: (open: boolean) => void
   history: Record<string, EodHistoryEntry>
   emailSettings: EodEmailSettings
+  /** Current form — its synced meetings/leaves are composed into the preview
+   *  so what's shown matches what Use draft will produce. */
+  currentFormState: EodFormState
   /** Push the finished draft into the Power Composer form. */
   onUseDraft: (draft: EodFormState) => void
 }
@@ -50,8 +54,15 @@ function basename(p: string): string {
   return p.split(/[\\/]/).filter(Boolean).pop() ?? p
 }
 
-export function EodAiDialog({ open, onOpenChange, history, emailSettings, onUseDraft }: EodAiDialogProps) {
+export function EodAiDialog({ open, onOpenChange, history, emailSettings, currentFormState, onUseDraft }: EodAiDialogProps) {
   const s = useEodAiState()
+
+  // The draft composed with the form's synced meetings/leaves — the single
+  // source for preview, copy and Use draft, so all three agree.
+  const composed = useMemo(
+    () => (s.result ? injectSystemItems(s.result, currentFormState) : null),
+    [s.result, currentFormState],
+  )
 
   const [view, setView] = useState<View>('main')
   const [notes, setNotes] = useState('')
@@ -192,9 +203,9 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, onUseD
   }, [open, view, canUseDraft, handleUseDraft])
 
   async function handleCopy() {
-    if (!s.result) return
+    if (!composed) return
     try {
-      await navigator.clipboard.writeText(buildEodPlainText(s.result, emailSettings))
+      await navigator.clipboard.writeText(buildEodPlainText(composed, emailSettings))
       toast.success('EOD copied to clipboard')
     } catch {
       toast.error('Could not copy to clipboard')
@@ -426,7 +437,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, onUseD
                 </ScrollArea>
               ) : (
                 <iframe
-                  srcDoc={buildEodHtml(s.result!, emailSettings)}
+                  srcDoc={buildEodHtml(composed!, emailSettings)}
                   className="h-full w-full border-0"
                   sandbox="allow-same-origin"
                   title="Generated EOD preview"

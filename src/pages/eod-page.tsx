@@ -13,6 +13,7 @@ import {
 import { makeDefaultFormState, makeId } from "@/lib/eod-types"
 import type { EodFormState, EodHistoryEntry } from "@/lib/eod-types"
 import { applyMeetingSync } from "@/lib/eod-meeting-sync"
+import { injectSystemItems } from "@/lib/eod-ai-inject"
 import { loadMeetingsSettings } from "@/lib/eod-meetings-settings"
 import { applyLeavesSync } from "@/lib/eod-leave-sync"
 import { loadHolidaysSettings } from "@/lib/eod-holidays-settings"
@@ -362,7 +363,9 @@ export function EodPage() {
   function applyAiDraft(draft: EodFormState) {
     const snapshot = formState
     const today = new Date().toLocaleDateString("en-CA")
-    updateFormState({ ...draft, date: today })
+    // AI draft is keyless; carry the form's synced meetings/leaves back onto it.
+    const merged = injectSystemItems({ ...draft, date: today }, formState)
+    updateFormState(merged)
     setActiveTab("form")
     localStorage.setItem(KEYS.activeTab, "form")
     toast.success("Draft applied to Form", {
@@ -700,6 +703,7 @@ export function EodPage() {
                 onOpenChange={setAiDialogOpen}
                 history={history}
                 emailSettings={emailSettings}
+                currentFormState={formState}
                 onUseDraft={applyAiDraft}
               />
             )}
