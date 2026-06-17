@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { TiGlyph } from '@/components/ui/ti-glyph'
-import type { EodEmailSettings, EodHistoryEntry } from '@/lib/eod-types'
+import type { EodEmailSettings, EodFormState, EodHistoryEntry } from '@/lib/eod-types'
 import type { EodAiProjectInfo } from '@/lib/eod-ai-types'
 import {
   activeFilterPaths,
@@ -33,6 +33,8 @@ interface EodAiDialogProps {
   onOpenChange: (open: boolean) => void
   history: Record<string, EodHistoryEntry>
   emailSettings: EodEmailSettings
+  /** Push the finished draft into the Power Composer form. */
+  onUseDraft: (draft: EodFormState) => void
 }
 
 type View = 'main' | 'settings'
@@ -48,7 +50,7 @@ function basename(p: string): string {
   return p.split(/[\\/]/).filter(Boolean).pop() ?? p
 }
 
-export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodAiDialogProps) {
+export function EodAiDialog({ open, onOpenChange, history, emailSettings, onUseDraft }: EodAiDialogProps) {
   const s = useEodAiState()
 
   const [view, setView] = useState<View>('main')
@@ -169,6 +171,25 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
     return () => window.removeEventListener('keydown', onEsc, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  const handleUseDraft = useCallback(() => {
+    if (!s.result) return
+    onUseDraft(s.result)
+    onOpenChange(false)
+  }, [s.result, onUseDraft, onOpenChange])
+
+  // Cmd/Ctrl+Enter applies the finished draft to the form (the primary action).
+  const canUseDraft = s.status === 'done' && !!s.result
+  useEffect(() => {
+    if (!open || view !== 'main' || !canUseDraft) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return
+      e.preventDefault()
+      handleUseDraft()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, view, canUseDraft, handleUseDraft])
 
   async function handleCopy() {
     if (!s.result) return
@@ -497,9 +518,14 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings }: EodA
           </Button>
         )}
         {view === 'main' && showDone && (
-          <Button type="button" size="sm" onClick={() => void handleCopy()} className="gap-1.5">
-            <Copy className="h-3.5 w-3.5" aria-hidden="true" /> Copy
-          </Button>
+          <>
+            <Button type="button" variant="outline" size="sm" onClick={() => void handleCopy()} className="gap-1.5">
+              <Copy className="h-3.5 w-3.5" aria-hidden="true" /> Copy
+            </Button>
+            <Button type="button" size="sm" onClick={handleUseDraft} className="gap-1.5">
+              <Check className="h-3.5 w-3.5" aria-hidden="true" /> Use draft
+            </Button>
+          </>
         )}
       </div>
     </div>

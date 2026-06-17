@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react"
+import { toast } from "sonner"
 import { Mail, Users, Settings, RotateCcw, Send, Keyboard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -354,6 +355,23 @@ export function EodPage() {
     if (editorInitialized) setFormChangedAfterEditorInit(true)
   }
 
+  // ── AI draft → form ───────────────────────────────────────────────────────
+  // Replace the form with the AI-generated draft (fast-ship "Use draft").
+  // The form's own undo history resets on an external state swap, so we keep the
+  // pre-apply snapshot here and expose one-tap Undo via the toast.
+  function applyAiDraft(draft: EodFormState) {
+    const snapshot = formState
+    const today = new Date().toLocaleDateString("en-CA")
+    updateFormState({ ...draft, date: today })
+    setActiveTab("form")
+    localStorage.setItem(KEYS.activeTab, "form")
+    toast.success("Draft applied to Form", {
+      description: "Review and tweak before sending.",
+      action: { label: "Undo", onClick: () => updateFormState(snapshot) },
+      duration: 8000,
+    })
+  }
+
   // ── Editor sync ─────────────────────────────────────────────────────────────
 
   function switchToEditor() {
@@ -682,6 +700,7 @@ export function EodPage() {
                 onOpenChange={setAiDialogOpen}
                 history={history}
                 emailSettings={emailSettings}
+                onUseDraft={applyAiDraft}
               />
             )}
             {/* Tab bar */}
