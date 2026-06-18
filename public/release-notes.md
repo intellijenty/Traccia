@@ -1,3 +1,12 @@
+## v0.4.1 - June 2026
+
+### New
+
+### Improved
+
+### Fixed
+
+
 ## v0.4.0 - June 2026
 
 ### ✦  Introducing Traccia Intelligence (Beta)

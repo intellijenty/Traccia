@@ -48,6 +48,25 @@ export function detectDateSeparator(subject: string): '/' | '-' {
   return m?.[1] === '/' ? '/' : '-'
 }
 
+// Roll an auto-generated subject ("EOD: DD-MM-YYYY", '/' or '-') forward to
+// `today` (YYYY-MM-DD) when its encoded date is stale.
+//
+// The decision is made PURELY from the subject's own encoded date — never from
+// formState.date. formState.date is force-advanced to today by several paths
+// (draft load on remount, AI inject, open-in-Outlook midnight correction) that
+// don't touch the subject; keying the regen off it lets the two desync, which
+// freezes the subject at yesterday while the heading shows today.
+// A subject that isn't in the exact auto format is treated as a manual edit and
+// left untouched.
+export function refreshAutoSubject(subject: string, today: string): string {
+  const m = subject.match(/^EOD:\s*(\d{2})([/-])(\d{2})\2(\d{4})$/)
+  if (!m) return subject
+  const [, dd, sep, mm, yyyy] = m
+  const encoded = `${yyyy}-${mm}-${dd}`
+  if (encoded === today) return subject
+  return buildEodSubject(today, sep as '/' | '-')
+}
+
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }

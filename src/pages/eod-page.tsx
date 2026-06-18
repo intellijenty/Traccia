@@ -23,7 +23,7 @@ import {
   buildEodSubject,
   buildEditorHtml,
   flattenSignatureToBreaks,
-  detectDateSeparator,
+  refreshAutoSubject,
 } from "@/lib/eod-utils"
 import { FormEditor } from "@/components/eod/form-editor"
 import type { FormLayoutMode } from "@/components/eod/form-editor"
@@ -197,24 +197,13 @@ export function EodPage() {
   const [viewingEntry, setViewingEntry] = useState<EodHistoryEntry | null>(null)
 
   // Subject — persisted separately.
-  // If the day changed and the saved subject was auto-generated for the old date, regenerate it.
+  // If the day changed and the saved subject is still an auto-generated one for
+  // an old date, roll it forward. Decided from the subject's own encoded date
+  // (see refreshAutoSubject) so it can't desync from formState.date.
   const [subject, setSubject] = useState(() => {
     const today = new Date().toLocaleDateString("en-CA")
     const savedSubject = localStorage.getItem(KEYS.subject)
-    if (!savedSubject) return buildEodSubject(today)
-    try {
-      const raw = localStorage.getItem(KEYS.formState)
-      if (raw) {
-        const savedDate = (JSON.parse(raw) as EodFormState).date
-        if (savedDate !== today && (
-          savedSubject === buildEodSubject(savedDate, '-') ||
-          savedSubject === buildEodSubject(savedDate, '/')
-        )) {
-          return buildEodSubject(today, detectDateSeparator(savedSubject))
-        }
-      }
-    } catch { /* ignore */ }
-    return savedSubject
+    return savedSubject ? refreshAutoSubject(savedSubject, today) : buildEodSubject(today)
   })
   const [editingSubject, setEditingSubject] = useState(false)
 
@@ -250,6 +239,29 @@ export function EodPage() {
   useEffect(() => {
     localStorage.setItem(KEYS.subject, subject)
   }, [subject])
+
+  // Day rollover for a long-open window: useState initializers only run at
+  // mount, so an app left open past midnight keeps yesterday's date+subject.
+  // On focus / tab-visible, if the local day actually changed since the last
+  // sync, re-sync the draft date and the auto-subject together so heading and
+  // subject never drift apart. Gated on a real day change (not every focus) so
+  // a deliberately restored past-dated subject isn't clobbered mid-day.
+  const lastSyncedDay = useRef(new Date().toLocaleDateString("en-CA"))
+  useEffect(() => {
+    function syncToday() {
+      const today = new Date().toLocaleDateString("en-CA")
+      if (today === lastSyncedDay.current) return
+      lastSyncedDay.current = today
+      setFormState(s => (s.date !== today ? { ...s, date: today } : s))
+      setSubject(s => refreshAutoSubject(s, today))
+    }
+    window.addEventListener("focus", syncToday)
+    document.addEventListener("visibilitychange", syncToday)
+    return () => {
+      window.removeEventListener("focus", syncToday)
+      document.removeEventListener("visibilitychange", syncToday)
+    }
+  }, [])
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -366,6 +378,9 @@ export function EodPage() {
     const today = new Date().toLocaleDateString("en-CA")
     const merged = mergeSelected({ ...formState, date: today }, subset, { replace })
     updateFormState(merged)
+    // Advancing the draft to today must roll the auto-subject forward too, or
+    // the subject freezes at yesterday while the heading shows today.
+    setSubject(s => refreshAutoSubject(s, today))
     setActiveTab("form")
     localStorage.setItem(KEYS.activeTab, "form")
     const n =
@@ -441,9 +456,12 @@ export function EodPage() {
 
   async function handleOpenInOutlook() {
     if (!isElectron) return
-    // Snapshot mutable values before the async IPC call to prevent stale-capture bugs
+    // Snapshot mutable values before the async IPC call to prevent stale-capture bugs.
+    // Roll the auto-subject to the current local date first: if the app sat open
+    // across midnight the in-memory subject may still encode yesterday.
     const snapshotFormState = formState
-    const snapshotSubject = subject
+    const snapshotSubject = refreshAutoSubject(subject, new Date().toLocaleDateString("en-CA"))
+    if (snapshotSubject !== subject) setSubject(snapshotSubject)
     const snapshotActiveTab = activeTab
     setIsOpening(true)
     // Subscribe to phase events for this open. Main emits 'prewarming' while
