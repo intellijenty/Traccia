@@ -266,8 +266,11 @@ export function EodPage() {
   // Global keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      // Ctrl+G — open the AI Generate panel (no Shift)
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === "KeyG") {
+      // G — open the AI Generate panel. Plain key, so ignore while the user is
+      // typing in a field (input / textarea / select / rich-text editor).
+      if (e.key.toLowerCase() === "g" && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+        const t = e.target as HTMLElement
+        if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable) return
         e.preventDefault()
         if (isElectron) setAiDialogOpen(true)
         return
@@ -424,10 +427,19 @@ export function EodPage() {
   // ── History actions ─────────────────────────────────────────────────────────
 
   function handleRestoreFromHistory(entry: EodHistoryEntry) {
+    // Restore brings a past EOD forward as a template for *today*, so stamp
+    // today's date — header + subject must read today, not the entry's old date.
+    // (Previously the old date carried over, then loadDraft force-bumped it on
+    // next launch, which is what froze the subject behind the header.)
+    const today = new Date().toLocaleDateString("en-CA")
     if (entry.formState) {
-      updateFormState(migrateFormState(entry.formState))
+      const restored = { ...migrateFormState(entry.formState), date: today }
+      updateFormState(restored)
+      // Stamp the ref now so the re-sync below reads the restored form, not the
+      // stale pre-restore one (React hasn't committed yet at this point).
+      formStateRef.current = restored
     }
-    setSubject(entry.subject)
+    setSubject(refreshAutoSubject(entry.subject, today))
     if (entry.mode === "editor") {
       richEditorRef.current?.setContent(entry.htmlBody)
       setEditorInitialized(true)
@@ -442,6 +454,9 @@ export function EodPage() {
     }
     handleTabChange(entry.mode)
     setViewingEntry(null)
+    // Restore overwrote today's synced meetings/holidays with the old entry's.
+    // Re-run the sync (additive) so today's meetings/holidays merge back in.
+    if (entry.formState && entry.mode === "form") void runMeetingSync({ force: true })
   }
 
   function handleRestoreLatest() {
