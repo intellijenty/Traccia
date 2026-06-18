@@ -1,123 +1,119 @@
-// Graceful injection of AI-generated drafts into the Power Composer form.
+// Merging a selected subset of an AI-generated draft into the Power Composer form.
 //
-// The AI owns the narrative (projects, tasks, concerns, next-day plan) and is
-// instructed never to emit meeting or leave lines. Meetings and leaves are
-// deterministic system data carried by `meetingKey` / `leaveKey`. This util
-// composes the two: it takes the keyless AI draft as the new base, strips any
-// stray system lines the model emitted anyway, then carries the keyed meeting
-// and leave items from the CURRENT form (already reconciled by mount-sync) back
-// onto the base — preserving the user's curated placement without re-fetching.
+// The AI owns the narrative (projects, tasks, concerns, next-day plan) and never
+// emits meetings or leaves — those are deterministic system items carried by
+// `meetingKey` / `leaveKey`. The picker hands us a form-shaped `subset` of just
+// the chosen work; this merges it onto the current form.
 //
-// Pure + synchronous: a single atomic result, so the form commit and the dialog
-// preview never flicker and always agree (what-you-see-is-what-you-send).
+//   additive (default) : keep the whole form, append the subset
+//   replace            : strip the form back to its system items (meetings /
+//                        leaves) only, then append the subset
+//
+// Either way meetings/leaves survive. Pure + synchronous; nothing is mutated.
 
 import type { EodFormState, EodSectionItem, EodTask } from './eod-types'
-import { makeEmptyProject } from './eod-types'
+import { makeEmptyProject, makeId } from './eod-types'
 
-// Sections that can hold system-imported meeting items (mirrors eod-meeting-sync).
-const MEETING_SECTIONS = [
-  'otherTasks', 'concerns', 'nextDayPlan', 'upcomingHolidays',
+const WORK_SECTIONS = [
+  'otherTasks', 'concerns', 'nextDayPlan',
 ] as const satisfies ReadonlyArray<keyof EodFormState>
 
-const ATTENDED_RX = /^\s*attended meeting\s*:/i
-
-/**
- * Compose the AI draft (`base`) with the keyed system items from the current
- * form (`source`). Returns a new form state; neither input is mutated.
- */
-export function injectSystemItems(base: EodFormState, source: EodFormState): EodFormState {
-  // 1. Strip any meeting lines the model emitted despite instructions.
-  let next: EodFormState = {
-    ...base,
-    projects: base.projects.map(p => ({
-      ...p,
-      tasksCompleted: p.tasksCompleted.filter(t => !ATTENDED_RX.test(t.text)),
-    })),
-  }
-  for (const sk of MEETING_SECTIONS) {
-    next = {
-      ...next,
-      [sk]: { ...next[sk], items: next[sk].items.filter(i => !ATTENDED_RX.test(i.text)) },
-    }
-  }
-
-  // 2. The system owns leaves entirely — discard whatever the model put here.
-  next = { ...next, upcomingHolidays: { items: [], isNA: true } }
-
-  // 3. Backfill one empty project so routing + dnd never hit an empty container.
-  if (next.projects.length === 0) {
-    next = { ...next, projects: [makeEmptyProject()] }
-  }
-
-  // 4a. Carry section meeting items back into their original section.
-  for (const sk of MEETING_SECTIONS) {
-    const carried = source[sk].items.filter(i => i.meetingKey)
-    if (carried.length === 0) continue
-    next = {
-      ...next,
-      [sk]: { isNA: false, items: [...next[sk].items, ...carried.map(cloneSectionItem)] },
-    }
-  }
-
-  // 4b. Carry project-attached meeting tasks back, matched by project name
-  //     (case-insensitive). No match → fall back to otherTasks.
-  const orphanMeetingTasks: EodTask[] = []
-  for (const sp of source.projects) {
-    const meetingTasks = sp.tasksCompleted.filter(t => t.meetingKey)
-    if (meetingTasks.length === 0) continue
-    const target = next.projects.find(
-      p => p.name.trim().toLowerCase() === sp.name.trim().toLowerCase() && sp.name.trim() !== '',
-    )
-    if (target) {
-      next = {
-        ...next,
-        projects: next.projects.map(p =>
-          p.id === target.id
-            ? { ...p, tasksCompleted: [...p.tasksCompleted, ...meetingTasks.map(cloneTask)] }
-            : p,
-        ),
-      }
-    } else {
-      orphanMeetingTasks.push(...meetingTasks)
-    }
-  }
-  if (orphanMeetingTasks.length > 0) {
-    const asItems: EodSectionItem[] = orphanMeetingTasks.map(t => ({
-      id: t.id,
-      text: t.text,
-      ...(t.meetingKey ? { meetingKey: t.meetingKey } : {}),
-    }))
-    next = {
-      ...next,
-      otherTasks: { isNA: false, items: [...next.otherTasks.items, ...asItems] },
-    }
-  }
-
-  // 4c. Carry leave ranges back into upcomingHolidays.
-  const carriedLeaves = source.upcomingHolidays.items.filter(i => i.leaveKey)
-  if (carriedLeaves.length > 0) {
-    next = {
-      ...next,
-      upcomingHolidays: { isNA: false, items: carriedLeaves.map(cloneSectionItem) },
-    }
-  }
-
-  return next
+function sameName(a: string, b: string): boolean {
+  return a.trim() !== '' && a.trim().toLowerCase() === b.trim().toLowerCase()
 }
 
-function cloneSectionItem(i: EodSectionItem): EodSectionItem {
-  const out: EodSectionItem = { id: i.id, text: i.text }
+// Fresh ids on every merged node — the form requires unique ids, and a forced
+// re-add of the same draft item must not collide with the copy already present.
+function freshTask(t: EodTask): EodTask {
+  const out: EodTask = {
+    id: makeId(),
+    text: t.text,
+    subBullets: t.subBullets.map(s => ({ id: makeId(), text: s.text })),
+  }
+  if (t.meetingKey) out.meetingKey = t.meetingKey
+  return out
+}
+
+function freshItem(i: EodSectionItem): EodSectionItem {
+  const out: EodSectionItem = { id: makeId(), text: i.text }
   if (i.meetingKey) out.meetingKey = i.meetingKey
   if (i.leaveKey) out.leaveKey = i.leaveKey
   return out
 }
 
-function cloneTask(t: EodTask): EodTask {
-  const out: EodTask = {
-    id: t.id,
-    text: t.text,
-    subBullets: t.subBullets.map(s => ({ id: s.id, text: s.text })),
+/** Strip the form back to its system items (keyed meetings + leaves) only. */
+function keepSystemOnly(form: EodFormState): EodFormState {
+  const projects = form.projects
+    .map(p => ({ ...p, tasksCompleted: p.tasksCompleted.filter(t => t.meetingKey) }))
+    .filter(p => p.tasksCompleted.length > 0)
+
+  let next: EodFormState = { ...form, projects }
+  for (const sk of WORK_SECTIONS) {
+    const items = form[sk].items.filter(i => i.meetingKey)
+    next = { ...next, [sk]: { items, isNA: items.length === 0 } }
   }
-  if (t.meetingKey) out.meetingKey = t.meetingKey
-  return out
+  const leaves = form.upcomingHolidays.items.filter(i => i.leaveKey)
+  next = { ...next, upcomingHolidays: { items: leaves, isNA: leaves.length === 0 } }
+  return next
+}
+
+export function mergeSelected(
+  form: EodFormState,
+  subset: EodFormState,
+  opts: { replace: boolean },
+): EodFormState {
+  let next = opts.replace ? keepSystemOnly(form) : form
+  let reusedEmpty = false
+
+  for (const sp of subset.projects) {
+    const match = next.projects.find(p => sameName(p.name, sp.name))
+    if (match) {
+      // Append tasks; keep the user's existing status/note untouched.
+      next = {
+        ...next,
+        projects: next.projects.map(p =>
+          p.id === match.id
+            ? { ...p, tasksCompleted: [...p.tasksCompleted, ...sp.tasksCompleted.map(freshTask)] }
+            : p,
+        ),
+      }
+      continue
+    }
+
+    // No match: reuse the lone empty default project for the first incoming
+    // project, otherwise create a new one carrying the AI's name/status/note.
+    const emptyIdx = reusedEmpty
+      ? -1
+      : next.projects.findIndex(p => p.name.trim() === '' && p.tasksCompleted.length === 0)
+    if (emptyIdx >= 0) {
+      reusedEmpty = true
+      next = {
+        ...next,
+        projects: next.projects.map((p, i) =>
+          i === emptyIdx
+            ? { ...p, name: sp.name, status: sp.status, statusNote: sp.statusNote, tasksCompleted: sp.tasksCompleted.map(freshTask) }
+            : p,
+        ),
+      }
+    } else {
+      next = {
+        ...next,
+        projects: [
+          ...next.projects,
+          { id: makeId(), name: sp.name, status: sp.status, statusNote: sp.statusNote, tasksCompleted: sp.tasksCompleted.map(freshTask) },
+        ],
+      }
+    }
+  }
+
+  for (const sk of WORK_SECTIONS) {
+    const add = subset[sk].items
+    if (add.length === 0) continue
+    next = { ...next, [sk]: { isNA: false, items: [...next[sk].items, ...add.map(freshItem)] } }
+  }
+
+  // Never leave the form with zero projects (dnd + routing need a container).
+  if (next.projects.length === 0) next = { ...next, projects: [makeEmptyProject()] }
+
+  return next
 }

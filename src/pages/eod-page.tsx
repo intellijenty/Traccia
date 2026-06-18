@@ -13,7 +13,7 @@ import {
 import { makeDefaultFormState, makeId } from "@/lib/eod-types"
 import type { EodFormState, EodHistoryEntry } from "@/lib/eod-types"
 import { applyMeetingSync } from "@/lib/eod-meeting-sync"
-import { injectSystemItems } from "@/lib/eod-ai-inject"
+import { mergeSelected } from "@/lib/eod-ai-inject"
 import { loadMeetingsSettings } from "@/lib/eod-meetings-settings"
 import { applyLeavesSync } from "@/lib/eod-leave-sync"
 import { loadHolidaysSettings } from "@/lib/eod-holidays-settings"
@@ -357,19 +357,24 @@ export function EodPage() {
   }
 
   // ── AI draft → form ───────────────────────────────────────────────────────
-  // Replace the form with the AI-generated draft (fast-ship "Use draft").
-  // The form's own undo history resets on an external state swap, so we keep the
-  // pre-apply snapshot here and expose one-tap Undo via the toast.
-  function applyAiDraft(draft: EodFormState) {
+  // Merge the picked subset of the AI draft into the form. Additive by default;
+  // replace clears existing work but keeps meetings/leaves. The form's own undo
+  // history resets on an external state swap, so we keep the pre-merge snapshot
+  // here and expose one-tap Undo via the toast.
+  function addSelectedToForm(subset: EodFormState, replace: boolean) {
     const snapshot = formState
     const today = new Date().toLocaleDateString("en-CA")
-    // AI draft is keyless; carry the form's synced meetings/leaves back onto it.
-    const merged = injectSystemItems({ ...draft, date: today }, formState)
+    const merged = mergeSelected({ ...formState, date: today }, subset, { replace })
     updateFormState(merged)
     setActiveTab("form")
     localStorage.setItem(KEYS.activeTab, "form")
-    toast.success("Draft applied to Form", {
-      description: "Review and tweak before sending.",
+    const n =
+      subset.projects.reduce((sum, p) => sum + p.tasksCompleted.length, 0) +
+      subset.otherTasks.items.length +
+      subset.concerns.items.length +
+      subset.nextDayPlan.items.length
+    toast.success(`${n} item${n === 1 ? "" : "s"} added to form`, {
+      description: replace ? "Replaced your previous draft." : undefined,
       action: { label: "Undo", onClick: () => updateFormState(snapshot) },
       duration: 8000,
     })
@@ -702,9 +707,7 @@ export function EodPage() {
                 open={aiDialogOpen}
                 onOpenChange={setAiDialogOpen}
                 history={history}
-                emailSettings={emailSettings}
-                currentFormState={formState}
-                onUseDraft={applyAiDraft}
+                onAddSelected={addSelectedToForm}
               />
             )}
             {/* Tab bar */}

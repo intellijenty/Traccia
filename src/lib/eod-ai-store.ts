@@ -12,6 +12,7 @@ import { makeId } from './eod-types'
 import type { EodFormState, EodSimpleSection } from './eod-types'
 import type { EodAiDraft, EodFactSheet } from './eod-ai-types'
 import { filterMeetings } from './eod-meeting-sync'
+import { allSelectableIds } from './eod-ai-selection'
 
 export type EodAiStatus = 'idle' | 'running' | 'done' | 'error'
 export type EodAiRunMode = 'generate' | 'refine'
@@ -28,6 +29,10 @@ export interface EodAiState {
   dropped: string[]
   error: { message: string; code: string; raw?: string } | null
   lastRefine: string | null
+  /** Picker selection — ids of tasks/subs/section items in `result`. */
+  selectedIds: string[]
+  /** Items already merged into the form this run (dimmed + tagged in picker). */
+  addedIds: string[]
 }
 
 export interface StartGenerationInput {
@@ -88,6 +93,7 @@ function idle(): EodAiState {
   return {
     status: 'idle', runMode: 'generate', stepIdx: 0, startedAt: null, generatedAt: null,
     result: null, rawDraft: null, factSheet: null, dropped: [], error: null, lastRefine: null,
+    selectedIds: [], addedIds: [],
   }
 }
 
@@ -97,18 +103,23 @@ function restoreInitial(): EodAiState {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return base
     const p = JSON.parse(raw) as {
-      date?: string; rawDraft?: EodAiDraft; factSheet?: EodFactSheet | null
-      dropped?: string[]; generatedAt?: number
+      date?: string; rawDraft?: EodAiDraft; result?: EodFormState; factSheet?: EodFactSheet | null
+      dropped?: string[]; generatedAt?: number; selectedIds?: string[]; addedIds?: string[]
     }
     if (p && p.date === today() && p.rawDraft) {
+      // Restore the persisted `result` so its ids still match selectedIds/addedIds
+      // (draftToFormState mints fresh ids, which would desync the selection).
+      const result = p.result ?? draftToFormState(p.rawDraft)
       return {
         ...base,
         status: 'done',
         rawDraft: p.rawDraft,
-        result: draftToFormState(p.rawDraft),
+        result,
         factSheet: p.factSheet ?? null,
         dropped: Array.isArray(p.dropped) ? p.dropped : [],
         generatedAt: typeof p.generatedAt === 'number' ? p.generatedAt : null,
+        selectedIds: Array.isArray(p.selectedIds) ? p.selectedIds : allSelectableIds(result),
+        addedIds: Array.isArray(p.addedIds) ? p.addedIds : [],
       }
     }
   } catch { /* ignore corrupt cache */ }
@@ -136,9 +147,12 @@ function persistDone(): void {
     localStorage.setItem(LS_KEY, JSON.stringify({
       date: today(),
       rawDraft: state.rawDraft,
+      result: state.result,
       factSheet: state.factSheet,
       dropped: state.dropped,
       generatedAt: state.generatedAt,
+      selectedIds: state.selectedIds,
+      addedIds: state.addedIds,
     }))
   } catch { /* quota — non-fatal */ }
 }
@@ -172,13 +186,17 @@ function ensureListening(): void {
   window.electronAPI.onEodAiDone(d => {
     if (d.requestId !== requestId || cancelled) return
     requestId = null
+    // Fresh draft → all items selected (the quickie default), marks cleared.
+    const result = draftToFormState(d.draft)
     setState({
       status: 'done',
       rawDraft: d.draft,
-      result: draftToFormState(d.draft),
+      result,
       factSheet: d.factSheet,
       dropped: Array.isArray(d.dropped) ? d.dropped : [],
       generatedAt: Date.now(),
+      selectedIds: allSelectableIds(result),
+      addedIds: [],
     })
     persistDone()
   })
@@ -207,6 +225,7 @@ export async function startGeneration(input: StartGenerationInput): Promise<void
   setState({
     status: 'running', runMode: 'generate', stepIdx: 0, startedAt: Date.now(),
     result: null, rawDraft: null, factSheet: null, dropped: [], error: null, lastRefine: null,
+    selectedIds: [], addedIds: [],
   })
 
   let meetings: Array<{ title: string; durationMin: number }> = []
@@ -261,4 +280,21 @@ export function cancelRun(): void {
 
 export function clearLastRefine(): void {
   setState({ lastRefine: null })
+}
+
+/** Replace the picker selection (ids of tasks/subs/section items in `result`). */
+export function setSelectedIds(ids: string[]): void {
+  setState({ selectedIds: ids })
+  persistDone()
+}
+
+/** Mark ids as added (dim + tag) and uncheck them so they don't re-add by accident. */
+export function markAdded(ids: string[]): void {
+  const addedSet = new Set([...state.addedIds, ...ids])
+  const dropped = new Set(ids)
+  setState({
+    addedIds: Array.from(addedSet),
+    selectedIds: state.selectedIds.filter(id => !dropped.has(id)),
+  })
+  persistDone()
 }

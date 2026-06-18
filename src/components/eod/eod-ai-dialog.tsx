@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Check, Copy, Plus, RotateCcw, Settings2, X } from 'lucide-react'
+import { ArrowLeft, Check, Plus, Replace, RotateCcw, Settings2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -7,11 +7,19 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Toggle } from '@/components/ui/toggle'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { AddCircleHalfDotIcon } from '@hugeicons/core-free-icons'
 import { cn } from '@/lib/utils'
 import { TiGlyph } from '@/components/ui/ti-glyph'
-import type { EodEmailSettings, EodFormState, EodHistoryEntry } from '@/lib/eod-types'
+import type { EodFormState, EodHistoryEntry } from '@/lib/eod-types'
 import type { EodAiProjectInfo } from '@/lib/eod-ai-types'
 import {
   activeFilterPaths,
@@ -19,26 +27,27 @@ import {
   saveEodAiSettings,
 } from '@/lib/eod-ai-settings'
 import type { EodAiSettings } from '@/lib/eod-ai-settings'
-import { buildEodHtml, buildEodPlainText } from '@/lib/eod-utils'
-import { injectSystemItems } from '@/lib/eod-ai-inject'
+import { EodDraftPicker } from './eod-ai-picker'
+import { selectedCount, selectedSubset } from '@/lib/eod-ai-selection'
 import {
   useEodAiState,
   startGeneration,
   startRefine,
   cancelRun,
   clearLastRefine,
+  setSelectedIds,
+  markAdded,
 } from '@/lib/eod-ai-store'
+import { Kbd } from '../ui/kbd'
+
+const REPLACE_KEY = 'traccia:eod-ai-replace'
 
 interface EodAiDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   history: Record<string, EodHistoryEntry>
-  emailSettings: EodEmailSettings
-  /** Current form — its synced meetings/leaves are composed into the preview
-   *  so what's shown matches what Use draft will produce. */
-  currentFormState: EodFormState
-  /** Push the finished draft into the Power Composer form. */
-  onUseDraft: (draft: EodFormState) => void
+  /** Merge the picked subset into the form (replace = clear work, keep system items). */
+  onAddSelected: (subset: EodFormState, replace: boolean) => void
 }
 
 type View = 'main' | 'settings'
@@ -54,20 +63,18 @@ function basename(p: string): string {
   return p.split(/[\\/]/).filter(Boolean).pop() ?? p
 }
 
-export function EodAiDialog({ open, onOpenChange, history, emailSettings, currentFormState, onUseDraft }: EodAiDialogProps) {
+export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodAiDialogProps) {
   const s = useEodAiState()
 
-  // The draft composed with the form's synced meetings/leaves — the single
-  // source for preview, copy and Use draft, so all three agree.
-  const composed = useMemo(
-    () => (s.result ? injectSystemItems(s.result, currentFormState) : null),
-    [s.result, currentFormState],
-  )
+  const selected = useMemo(() => new Set(s.selectedIds), [s.selectedIds])
+  const added = useMemo(() => new Set(s.addedIds), [s.addedIds])
+  const count = s.result ? selectedCount(s.result, selected) : 0
 
   const [view, setView] = useState<View>('main')
   const [notes, setNotes] = useState('')
   const [refineText, setRefineText] = useState('')
   const [showEvidence, setShowEvidence] = useState(false)
+  const [replaceMode, setReplaceMode] = useState(() => localStorage.getItem(REPLACE_KEY) === '1')
   const [elapsed, setElapsed] = useState(0)
   const [aiSettings, setAiSettings] = useState<EodAiSettings>(loadEodAiSettings)
   const [projects, setProjects] = useState<EodAiProjectInfo[]>([])
@@ -183,34 +190,30 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, curren
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const handleUseDraft = useCallback(() => {
-    if (!s.result) return
-    onUseDraft(s.result)
-    onOpenChange(false)
-  }, [s.result, onUseDraft, onOpenChange])
+  function updateReplaceMode(on: boolean) {
+    setReplaceMode(on)
+    localStorage.setItem(REPLACE_KEY, on ? '1' : '0')
+  }
 
-  // Cmd/Ctrl+Enter applies the finished draft to the form (the primary action).
-  const canUseDraft = s.status === 'done' && !!s.result
+  const handleAdd = useCallback(() => {
+    if (!s.result || count === 0) return
+    const ids = s.selectedIds
+    onAddSelected(selectedSubset(s.result, new Set(ids)), replaceMode)
+    markAdded(ids)
+    onOpenChange(false)
+  }, [s.result, s.selectedIds, count, replaceMode, onAddSelected, onOpenChange])
+
+  // Cmd/Ctrl+Enter = Add selected (primary action).
   useEffect(() => {
-    if (!open || view !== 'main' || !canUseDraft) return
+    if (!open || view !== 'main' || count === 0) return
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return
       e.preventDefault()
-      handleUseDraft()
+      handleAdd()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, view, canUseDraft, handleUseDraft])
-
-  async function handleCopy() {
-    if (!composed) return
-    try {
-      await navigator.clipboard.writeText(buildEodPlainText(composed, emailSettings))
-      toast.success('EOD copied to clipboard')
-    } catch {
-      toast.error('Could not copy to clipboard')
-    }
-  }
+  }, [open, view, count, handleAdd])
 
   const pastEodCount = Object.values(history).filter(
     e => typeof e.plainText === 'string' && e.plainText.trim().length > 0,
@@ -243,7 +246,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, curren
               : running
                 ? `${s.runMode === 'refine' ? 'Refining' : 'Generating'}… ${elapsed}s`
                 : showDone
-                  ? 'Review the draft, tweak it below, or copy it where you need it.'
+                  ? 'Pick what to bring into your draft — refine below if needed.'
                   : 'Generate your EOD with AI'}
           </p>
         </div>
@@ -392,16 +395,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, curren
                 </Button>
               </div>
             )}
-            <div className="flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setShowEvidence(v => !v)}
-                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                {showEvidence ? 'Show draft' : 'Show evidence'}
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background">
               {showEvidence && s.factSheet ? (
                 <ScrollArea className="h-full bg-background">
                   <div className="space-y-4 p-4">
@@ -428,19 +422,39 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, curren
                       </div>
                     ))}
                     {s.factSheet.meetings.length > 0 && (
-                      <p className="text-xs text-muted-foreground">Meetings: {s.factSheet.meetings.join(' · ')}</p>
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Meetings</p>
+                        <ul className="space-y-1 pl-3">
+                          {s.factSheet.meetings.map((m, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden="true" />
+                              <span>{m}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                     {s.factSheet.unmatchedWork.length > 0 && (
-                      <p className="text-xs text-muted-foreground">Unmatched: {s.factSheet.unmatchedWork.join(' · ')}</p>
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Unmatched</p>
+                        <ul className="space-y-1 pl-3">
+                          {s.factSheet.unmatchedWork.map((u, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden="true" />
+                              <span>{u}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
                 </ScrollArea>
               ) : (
-                <iframe
-                  srcDoc={buildEodHtml(composed!, emailSettings)}
-                  className="h-full w-full border-0"
-                  sandbox="allow-same-origin"
-                  title="Generated EOD preview"
+                <EodDraftPicker
+                  draft={s.result!}
+                  selected={selected}
+                  added={added}
+                  onChange={next => setSelectedIds(Array.from(next))}
                 />
               )}
             </div>
@@ -474,8 +488,8 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, curren
           </div>
         ) : (
           /* Idle / cold start */
-          <div className="flex h-full items-center justify-center rounded-lg border border-border bg-background p-8">
-            <div className="flex w-full max-w-md flex-col items-center gap-5 text-center">
+          <div className="h-full overflow-y-auto rounded-lg border border-border bg-background">
+            <div className="flex min-h-full w-full max-w-2xl mx-auto flex-col items-center justify-center gap-5 p-8 text-center">
               <TiGlyph size={44} />
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">
@@ -494,7 +508,7 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, curren
                 rows={3}
                 spellCheck={false}
                 className="resize-none text-sm leading-relaxed"
-                placeholder={'Anything to add about today? (optional)\ne.g. "Also updated services on remote server", "Guided Interns"...'}
+                placeholder={'Anything to add about today? (optional)\nYou can mention things that does not leave evidence on source platforms\nEg. Also Mention "Updated services on remote server", "Onboarded Interns" etc... '}
               />
               {availability.checked && !availability.available && (
                 <p className="text-xs text-destructive">Claude Code is not available: {availability.error ?? 'unknown error'}</p>
@@ -504,9 +518,16 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, curren
                 size="lg"
                 onClick={handleGenerate}
                 disabled={!availability.checked || !availability.available}
-                className="min-w-32"
+                className="min-w-32 px-6"
               >
-                {!availability.checked ? <Spinner className="size-4" /> : 'Generate'}
+                {!availability.checked ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <>
+                    <span>Generate</span>
+                    <Kbd className='p-1.5 h-5.5 ml-0'> <EnterIcon /> </Kbd>
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -514,31 +535,69 @@ export function EodAiDialog({ open, onOpenChange, history, emailSettings, curren
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-3">
-        {view === 'settings' ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setView('main')}>Done</Button>
-        ) : running ? (
-          <Button type="button" variant="outline" size="sm" onClick={cancelRun}>Cancel</Button>
-        ) : (
-          <Button type="button" variant="outline" size="sm" onClick={handleClose}>Close</Button>
-        )}
-        {view === 'main' && (showDone || s.status === 'error') && (
-          <Button type="button" variant="outline" size="sm" onClick={handleGenerate} className="gap-1.5">
-            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-            {s.status === 'error' ? 'Retry' : 'Regenerate'}
-          </Button>
-        )}
-        {view === 'main' && showDone && (
-          <>
-            <Button type="button" variant="outline" size="sm" onClick={() => void handleCopy()} className="gap-1.5">
-              <Copy className="h-3.5 w-3.5" aria-hidden="true" /> Copy
+      <div className="flex items-center justify-between gap-2 border-t border-border px-6 py-3">
+        {/* Left — view + regenerate */}
+        <div className="flex items-center gap-2">
+          {view === 'main' && showDone && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setShowEvidence(v => !v)}>
+              {showEvidence ? 'Show EOD' : 'Show Evidence'}
             </Button>
-            <Button type="button" size="sm" onClick={handleUseDraft} className="gap-1.5">
-              <Check className="h-3.5 w-3.5" aria-hidden="true" /> Use draft
+          )}
+          {view === 'main' && (showDone || s.status === 'error') && (
+            <Button type="button" variant="outline" size="sm" onClick={handleGenerate} className="gap-1.5">
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              {s.status === 'error' ? 'Retry' : 'Regenerate'}
             </Button>
-          </>
-        )}
+          )}
+        </div>
+
+        {/* Right — close + replace + add */}
+        <div className="flex items-center gap-2">
+          {view === 'settings' ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setView('main')}>Done</Button>
+          ) : running ? (
+            <Button type="button" variant="outline" size="sm" onClick={cancelRun}>Cancel</Button>
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={handleClose}>Close</Button>
+          )}
+          {view === 'main' && showDone && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    size="sm"
+                    variant="outline"
+                    pressed={replaceMode}
+                    onPressedChange={updateReplaceMode}
+                    aria-label={replaceMode ? 'Replace current draft' : 'Add to current draft'}
+                    className="cursor-pointer data-[state=on]:border-destructive data-[state=on]:bg-transparent data-[state=on]:text-destructive data-[state=on]:hover:bg-destructive/10 data-[state=on]:hover:text-destructive"
+                  >
+                    {replaceMode
+                      ? <Replace className="h-4 w-4" aria-hidden="true" />
+                      : <HugeiconsIcon icon={AddCircleHalfDotIcon} className="size-4" />}
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {replaceMode ? 'Replacing the current draft' : 'Adding to the current draft'}
+                </TooltipContent>
+              </Tooltip>
+              <Button type="button" disabled={count === 0} onClick={handleAdd} className="min-w-32 gap-1.5">
+                {/*{replaceMode ? <Replace className="h-3.5 w-3.5" aria-hidden="true" /> : <Plus className="h-3.5 w-3.5" aria-hidden="true" />}*/}
+                {replaceMode ? 'Replace & add' : 'Add selected'}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </div>
+  )
+}
+
+function EnterIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="128" height="128" color="currentColor" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 15.002H12C15.7712 15.002 17.6569 15.002 18.8284 13.8304C20 12.6588 20 10.7732 20 7.00195V4.00195"></path>
+        <path d="M8.99996 20.002C8.99996 20.002 4.00001 16.3195 4 15.0019C3.99999 13.6843 9 10.002 9 10.002"></path>
+    </svg>
   )
 }
