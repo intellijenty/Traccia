@@ -1,10 +1,11 @@
 ## v0.4.1 - June 2026
 
 ### New
-
-### Improved
+- **Pick what you need** - The generated EOD now shows as a selectable checklist. Tick the tasks and bullets you actually want, then click **Add selected** (`Ctrl` `Enter`) to merge only those into your Power Composer form. `Shift-click` to select a range at once. Toggle the mode icon to replace the form instead of adding to it.
 
 ### Fixed
+- Fixed AI-injected content conflicting with existing synced meetings in the form.
+- Fixed subject line date staying stale when the form date was advanced by draft load, AI inject, or the Outlook midnight correction.
 
 
 ## v0.4.0 - June 2026

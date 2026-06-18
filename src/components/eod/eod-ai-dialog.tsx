@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, Plus, Replace, RotateCcw, Settings2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,7 @@ import {
 } from '@/lib/eod-ai-settings'
 import type { EodAiSettings } from '@/lib/eod-ai-settings'
 import { EodDraftPicker } from './eod-ai-picker'
-import { selectedCount, selectedSubset } from '@/lib/eod-ai-selection'
+import { allSelectableIds, selectedCount, selectedSubset } from '@/lib/eod-ai-selection'
 import {
   useEodAiState,
   startGeneration,
@@ -69,6 +69,7 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
   const selected = useMemo(() => new Set(s.selectedIds), [s.selectedIds])
   const added = useMemo(() => new Set(s.addedIds), [s.addedIds])
   const count = s.result ? selectedCount(s.result, selected) : 0
+  const showDone = s.status === 'done' && !!s.result
 
   const [view, setView] = useState<View>('main')
   const [notes, setNotes] = useState('')
@@ -83,6 +84,7 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
   })
 
   const running = s.status === 'running'
+  const refineRef = useRef<HTMLInputElement>(null)
 
   function updateAiSettings(next: EodAiSettings) {
     setAiSettings(next)
@@ -203,11 +205,11 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
     onOpenChange(false)
   }, [s.result, s.selectedIds, count, replaceMode, onAddSelected, onOpenChange])
 
-  // Cmd/Ctrl+Enter = Add selected (primary action).
+  // Cmd/Ctrl+Enter = Add selected (primary action). Shift variant handled below.
   useEffect(() => {
     if (!open || view !== 'main' || count === 0) return
     function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return
+      if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || e.shiftKey) return
       e.preventDefault()
       handleAdd()
     }
@@ -215,11 +217,49 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
     return () => window.removeEventListener('keydown', onKey)
   }, [open, view, count, handleAdd])
 
+  // Cmd/Ctrl+Shift+Enter = Replace & add — force-replace regardless of the toggle.
+  const handleReplaceAdd = useCallback(() => {
+    if (!s.result || count === 0) return
+    const ids = s.selectedIds
+    onAddSelected(selectedSubset(s.result, new Set(ids)), true)
+    markAdded(ids)
+    onOpenChange(false)
+  }, [s.result, s.selectedIds, count, onAddSelected, onOpenChange])
+
+  // Cmd/Ctrl+A in the picker = select all ⇄ deselect all (not while typing).
+  const toggleSelectAll = useCallback(() => {
+    if (!s.result) return
+    const all = allSelectableIds(s.result)
+    setSelectedIds(selected.size >= all.length ? [] : all)
+  }, [s.result, selected])
+
+  // Done-state shortcuts: ⌘⇧↵ replace&add · ⌘A (de)select all · E evidence ·
+  // R regenerate · / focus refine. Single-keys ignored while typing in a field.
+  useEffect(() => {
+    if (!open || view !== 'main' || !(showDone || s.status === 'error')) return
+    function onKey(e: KeyboardEvent) {
+      const el = document.activeElement
+      const typing = el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement
+
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+        e.preventDefault(); handleReplaceAdd(); return
+      }
+      if ((e.key === 'a' || e.key === 'A') && (e.metaKey || e.ctrlKey) && !e.shiftKey && !typing) {
+        e.preventDefault(); toggleSelectAll(); return
+      }
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'e' || e.key === 'E') { e.preventDefault(); setShowEvidence(v => !v); return }
+      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); handleGenerate(); return }
+      if (e.key === '/') { e.preventDefault(); refineRef.current?.focus(); return }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, view, showDone, s.status, handleReplaceAdd, toggleSelectAll, handleGenerate])
+
   const pastEodCount = Object.values(history).filter(
     e => typeof e.plainText === 'string' && e.plainText.trim().length > 0,
   ).length
   const activePaths = activeFilterPaths(aiSettings)
-  const showDone = s.status === 'done' && !!s.result
 
   if (!open) return null
 
@@ -461,6 +501,7 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
             {/* Refine bar */}
             <div className="flex items-center gap-2">
               <Input
+                ref={refineRef}
                 value={refineText}
                 onChange={e => setRefineText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleRefine() }}
