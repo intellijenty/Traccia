@@ -3,6 +3,7 @@ import { TotalCard } from "@/components/total-card"
 import { ManualEntry } from "@/components/manual-entry"
 import { EventLog } from "@/components/event-log"
 import { PortalSection } from "@/components/portal-section"
+import { EntriesExportButton } from "@/components/entries-export-button"
 import { usePunchData } from "@/hooks/use-punch-data"
 import { useWeeklyTarget } from "@/hooks/use-weekly-target"
 import { formatDateDisplay, getLocalDate } from "@/lib/week-utils"
@@ -79,6 +80,7 @@ export function DayView({ date, showHeader = false, todayCustomTarget }: DayView
             Local
           </h2>
           <div className="h-px flex-1 bg-border/50" />
+          {events.length > 0 && <EntriesExportButton entries={events} date={date} />}
         </div>
 
         {/* Cards */}

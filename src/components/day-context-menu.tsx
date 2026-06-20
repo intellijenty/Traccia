@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react"
+import { toast } from "sonner"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -40,6 +41,8 @@ import {
   Delete02Icon,
   Time04Icon,
   ClockCheckIcon,
+  HardDriveIcon,
+  Download01Icon,
 } from "@hugeicons/core-free-icons"
 
 // ── Mark type registry ────────────────────────────────────────────────────────
@@ -270,6 +273,30 @@ export function DayContextMenu({
   const isCached = !!store.cache[date]
   const isPermanent = store.cache[date]?.permanent ?? false
   const isConnected = store.connected
+
+  // ── Export state ─────────────────────────────────────────────────────────
+  const [exporting, setExporting] = useState<"csv" | "json" | null>(null)
+
+  async function handleExportFile(format: "csv" | "json") {
+    if (exporting) return
+    setExporting(format)
+    try {
+      const result = await window.electronAPI.exportFile(format, date)
+      if (result.success && result.filePath) {
+        const filename = result.filePath.split(/[\\/]/).pop() ?? `traccia-entries-${date}.${format}`
+        toast.success(`Saved: ${filename}`, {
+          action: {
+            label: "Show in Folder",
+            onClick: () => window.electronAPI.showItemInFolder(result.filePath!),
+          },
+        })
+      } else {
+        toast.error(`Export failed: ${result.error ?? "unknown error"}`)
+      }
+    } finally {
+      setExporting(null)
+    }
+  }
 
   // ── Work window dialog state ──────────────────────────────────────────────
   const [customOpen, setCustomOpen] = useState(false)
@@ -505,6 +532,37 @@ export function DayContextMenu({
                 <HugeiconsIcon icon={Delete02Icon} size={14} className="shrink-0" />
                 Invalidate cache
               </ContextMenuItem>
+
+              <ContextMenuSeparator />
+
+              <ContextMenuSub>
+                <ContextMenuSubTrigger className="gap-2.5">
+                  <HugeiconsIcon
+                    icon={HardDriveIcon}
+                    size={14}
+                    className="shrink-0 text-muted-foreground"
+                  />
+                  Local
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent>
+                  <ContextMenuItem
+                    className="gap-2.5"
+                    disabled={exporting !== null}
+                    onClick={() => handleExportFile("csv")}
+                  >
+                    <HugeiconsIcon icon={Download01Icon} size={14} className="shrink-0" />
+                    {exporting === "csv" ? "Exporting…" : "Export CSV"}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    className="gap-2.5"
+                    disabled={exporting !== null}
+                    onClick={() => handleExportFile("json")}
+                  >
+                    <HugeiconsIcon icon={Download01Icon} size={14} className="shrink-0" />
+                    {exporting === "json" ? "Exporting…" : "Export JSON"}
+                  </ContextMenuItem>
+                </ContextMenuSubContent>
+              </ContextMenuSub>
             </ContextMenuSubContent>
           </ContextMenuSub>
 

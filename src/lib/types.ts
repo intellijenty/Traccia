@@ -353,6 +353,10 @@ export interface ElectronAPI {
   onEodAiPhase: (cb: (data: import('./eod-ai-types').EodAiPhaseEvent) => void) => () => void
   onEodAiDone: (cb: (data: import('./eod-ai-types').EodAiDoneEvent) => void) => () => void
   onEodAiError: (cb: (data: import('./eod-ai-types').EodAiErrorEvent) => void) => () => void
+
+  // Entries export
+  exportFile: (format: "csv" | "json", date: string) => Promise<{ success: boolean; filePath?: string; error?: string }>
+  showItemInFolder: (filePath: string) => Promise<void>
 }
 
 declare global {

@@ -1232,4 +1232,28 @@ export function registerIpcHandlers(
     if (!report.skipped) onDataChange()
     return report
   })
+
+  // ── Entries export ──
+
+  ipcMain.handle(
+    "entries:export-file",
+    async (_event, { format, date }: { format: "csv" | "json"; date: string }) => {
+      try {
+        const { formatDBEntriesAsCSV, formatDBEntriesAsJSON } = await import("./export-utils")
+        const entries = getEntriesByDate(date)
+        const content = format === "csv" ? formatDBEntriesAsCSV(entries) : formatDBEntriesAsJSON(entries)
+        const ext = format === "csv" ? "csv" : "json"
+        const filename = `traccia-entries-${date}.${ext}`
+        const filePath = path.join(app.getPath("downloads"), filename)
+        fs.writeFileSync(filePath, content, "utf-8")
+        return { success: true, filePath }
+      } catch (err) {
+        return { success: false, error: String(err instanceof Error ? err.message : err) }
+      }
+    }
+  )
+
+  ipcMain.handle("shell:show-item-in-folder", (_event, filePath: string) => {
+    shell.showItemInFolder(filePath)
+  })
 }

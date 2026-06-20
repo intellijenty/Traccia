@@ -278,6 +278,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on('eod:ai-error', fn)
     return () => ipcRenderer.removeListener('eod:ai-error', fn)
   },
+
+  // ── Entries export ──
+  exportFile: (format: "csv" | "json", date: string): Promise<{ success: boolean; filePath?: string; error?: string }> =>
+    ipcRenderer.invoke("entries:export-file", { format, date }),
+
+  showItemInFolder: (filePath: string): Promise<void> =>
+    ipcRenderer.invoke("shell:show-item-in-folder", filePath),
 })
 
 contextBridge.exposeInMainWorld('licenseAPI', {
