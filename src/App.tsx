@@ -53,6 +53,7 @@ import { TitleBar } from "./components/ui/title-bar"
 import { StatusBar } from "./components/ui/status-bar"
 import type { Page } from "@/lib/navigation"
 import { EodPage } from "@/pages/eod-page"
+import { PlaygroundOverlay } from "@/components/playground/playground-overlay"
 
 const isElectron = typeof window !== "undefined" && !!window.electronAPI
 
@@ -655,6 +656,7 @@ export default function App() {
   }
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [playgroundDate, setPlaygroundDate] = useState<string | null>(null)
   const pendingSettings = useRef(false)
   const pendingPage = useRef<Page | null>(null)
   const prevIsWide = useRef(isWide)
@@ -663,6 +665,15 @@ export default function App() {
     const handler = () => setSelectedDate(getLocalDate())
     window.addEventListener("traccia:go-today", handler)
     return () => window.removeEventListener("traccia:go-today", handler)
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ date: string }>).detail
+      if (detail?.date) setPlaygroundDate(detail.date)
+    }
+    window.addEventListener("traccia:open-playground", handler)
+    return () => window.removeEventListener("traccia:open-playground", handler)
   }, [])
 
   useEffect(() => {
@@ -767,7 +778,7 @@ export default function App() {
             activePage={activePage}
             onPageChange={setActivePage}
           />
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
             <AppInner
               isUltraWide={isUltraWide}
               isWide={isWide}
@@ -787,6 +798,12 @@ export default function App() {
               onSetTarget={setTarget}
               onDeleteTarget={deleteTarget}
             />
+            {playgroundDate && (
+              <PlaygroundOverlay
+                date={playgroundDate}
+                onClose={() => setPlaygroundDate(null)}
+              />
+            )}
           </div>
           <StatusBar />
         </div>

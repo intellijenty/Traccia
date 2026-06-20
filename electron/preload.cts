@@ -60,6 +60,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   dailySyncRun: (force?: boolean) =>
     ipcRenderer.invoke("daily-sync-run", force),
 
+  // ── Miss-punch playground drafts ──
+  misspunchDraftGet: (date: string) =>
+    ipcRenderer.invoke("misspunch-draft-get", date),
+  misspunchDraftSet: (date: string, data: string) =>
+    ipcRenderer.invoke("misspunch-draft-set", date, data),
+  misspunchDraftDelete: (date: string) =>
+    ipcRenderer.invoke("misspunch-draft-delete", date),
+
   // ── Day targets ──
   getAllDayTargets: () => ipcRenderer.invoke("get-all-day-targets"),
   getDayTarget: (date: string) => ipcRenderer.invoke("get-day-target", date),
