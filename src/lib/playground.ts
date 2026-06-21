@@ -169,3 +169,17 @@ export interface Wire {
   draftTime: string
   localTime: string
 }
+
+/**
+ * Returns true when the ISO timestamp falls within a HH:MM work window range.
+ * Handles midnight-crossing windows (e.g. night shift 22:00 – 06:00).
+ */
+export function isInTimeRange(iso: string, start: string, end: string): boolean {
+  const d = new Date(iso)
+  const ev = d.getHours() * 60 + d.getMinutes()
+  const [sh, sm] = start.split(":").map(Number)
+  const [eh, em] = end.split(":").map(Number)
+  const s = sh * 60 + sm
+  const e = eh * 60 + em
+  return s <= e ? ev >= s && ev <= e : ev >= s || ev <= e
+}

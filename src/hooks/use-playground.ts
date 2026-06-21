@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { PortalEntry, PunchEntry } from "@/lib/types"
+import type { PortalEntry, PunchEntry, WorkWindow } from "@/lib/types"
 import {
   type DraftPunch,
   type Wire,
@@ -14,12 +14,10 @@ import {
 
 const isElectron = typeof window !== "undefined" && !!window.electronAPI
 
-/** Truncate an ISO timestamp to whole minutes (portal precision) for matching. */
 function minuteKey(iso: string): number {
   return Math.floor(new Date(iso).getTime() / 60000)
 }
 
-/** Build an ISO-8601 UTC timestamp from a local YYYY-MM-DD + hour/minute. */
 function isoFromLocal(date: string, hours: number, minutes: number): string {
   const hh = String(hours).padStart(2, "0")
   const mm = String(minutes).padStart(2, "0")
@@ -28,24 +26,16 @@ function isoFromLocal(date: string, hours: number, minutes: number): string {
 
 interface MergeResult {
   draft: DraftPunch[]
-  /** True if portal changed since the persisted draft was last saved. */
   portalChanged: boolean
-  /** Times (clock strings) of added punches that the portal has since adopted. */
   appliedTimes: string[]
 }
 
-/**
- * Provenance merge (design Q14): fresh portal anchors always win for the anchor
- * set; the user's hand-added punches survive; an added punch the portal now
- * contains collapses into the anchor (it got approved).
- */
 function mergeDraft(freshAnchors: DraftPunch[], persisted: DraftPunch[]): MergeResult {
   const persistedAnchorMinutes = new Set(
     persisted.filter((p) => p.origin === "anchor").map((p) => minuteKey(p.time))
   )
   const freshAnchorMinutes = new Set(freshAnchors.map((a) => minuteKey(a.time)))
 
-  // Keep added punches the portal hasn't adopted; collapse the rest.
   const appliedTimes: string[] = []
   const keptAdded = persisted
     .filter((p) => p.origin === "added")
@@ -57,7 +47,6 @@ function mergeDraft(freshAnchors: DraftPunch[], persisted: DraftPunch[]): MergeR
       return true
     })
 
-  // Portal changed if anchor minute-sets differ.
   const portalChanged =
     persistedAnchorMinutes.size !== freshAnchorMinutes.size ||
     [...freshAnchorMinutes].some((m) => !persistedAnchorMinutes.has(m))
@@ -67,15 +56,10 @@ function mergeDraft(freshAnchors: DraftPunch[], persisted: DraftPunch[]): MergeR
 
 export interface UsePlaygroundResult {
   loading: boolean
-  /** Portal fetch failed and we fell back to (or have no) cache. */
   offline: boolean
-  /** Local evidence sessions for the rail. */
   localSessionsList: ReturnType<typeof localSessions>
-  /** The editable draft. */
   draft: DraftPunch[]
-  /** Evidence wires: draft punch time → local event time. */
   wires: Wire[]
-  /** Banner: portal changed under a persisted draft / adds got applied. */
   notice: { portalChanged: boolean; appliedTimes: string[] } | null
   dismissNotice: () => void
   // Derived
@@ -83,22 +67,28 @@ export interface UsePlaygroundResult {
   danglingCount: number
   correctedMinutes: number
   submittable: DraftPunch[]
-  // Mutations
+  // Local filter state
+  hiddenLocalTimes: string[]
+  localTimeRange: { start: string; end: string } | null
+  workWindow: WorkWindow | null
+  // Mutations — draft
   addPunch: (hours: number, minutes: number) => void
   editPunch: (id: string, hours: number, minutes: number) => void
   removePunch: (id: string) => void
   setReason: (id: string, reason: string) => void
   copyFromLocal: (iso: string) => void
+  // Mutations — local filters
+  hideLocalEvent: (time: string) => void
+  setTimeRange: (range: { start: string; end: string } | null) => void
+  // Mutations — reset
   reset: () => void
+  resetPortal: () => void
+  resetLocal: () => void
+  // Mutations — wires
   addWire: (draftTime: string, localTime: string) => void
   removeWire: (draftTime: string) => void
 }
 
-/**
- * Owns one day's miss-punch reconciliation: loads local + (live) portal data,
- * seeds/merges a persisted draft, exposes edit operations, and persists every
- * change to SQLite keyed by date.
- */
 export function usePlayground(date: string): UsePlaygroundResult {
   const [loading, setLoading] = useState(true)
   const [offline, setOffline] = useState(false)
@@ -107,11 +97,14 @@ export function usePlayground(date: string): UsePlaygroundResult {
   const [draft, setDraft] = useState<DraftPunch[]>([])
   const [notice, setNotice] = useState<{ portalChanged: boolean; appliedTimes: string[] } | null>(null)
   const [wires, setWires] = useState<Wire[]>([])
+  const [hiddenLocalTimes, setHiddenLocalTimes] = useState<string[]>([])
+  const [localTimeRange, setLocalTimeRange] = useState<{ start: string; end: string } | null>(null)
+  const [workWindow, setWorkWindow] = useState<WorkWindow | null>(null)
 
-  // Avoid persisting while we're still loading the initial state.
   const ready = useRef(false)
 
-  // ── Load: local events + live portal, then seed/merge draft ──
+  // ── Load ──────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     let cancelled = false
     ready.current = false
@@ -123,14 +116,12 @@ export function usePlayground(date: string): UsePlaygroundResult {
         return
       }
 
-      // DB returns `trigger_label` un-aliased; map onto `trigger` for localSessions().
       const rawEvents = await window.electronAPI.getEvents(date).catch(() => [])
       const localEvents = rawEvents.map((e) => ({
         ...e,
         trigger: e.trigger ?? (e as unknown as { trigger_label?: PunchEntry["trigger"] }).trigger_label,
       }))
 
-      // Live portal (force), fall back to cache on failure.
       let entries: PortalEntry[] = []
       let isOffline = false
       const live = await window.electronAPI.portalGetDay(date, true).catch(() => null)
@@ -138,18 +129,21 @@ export function usePlayground(date: string): UsePlaygroundResult {
         entries = live.data.entries
       } else {
         const cached = await window.electronAPI.portalGetDay(date, false).catch(() => null)
-        if (cached?.data?.success) {
-          entries = cached.data.entries
-        }
+        if (cached?.data?.success) entries = cached.data.entries
         isOffline = true
       }
 
+      // Work window for this date — used as time-range filter default.
+      const status = await window.electronAPI.getStatus(date).catch(() => null)
+      const ww = status?.workWindow ?? null
+
       const freshAnchors = unpairPortal(entries)
 
-      // Persisted draft?
       const storedRaw = await window.electronAPI.misspunchDraftGet(date).catch(() => null)
       let nextDraft = freshAnchors
       let nextWires: Wire[] = []
+      let nextHidden: string[] = []
+      let nextRange: { start: string; end: string } | null = ww ? { start: ww.start, end: ww.end } : null
       let nextNotice: { portalChanged: boolean; appliedTimes: string[] } | null = null
 
       if (storedRaw) {
@@ -157,6 +151,15 @@ export function usePlayground(date: string): UsePlaygroundResult {
           const parsed = JSON.parse(storedRaw)
           const persisted: DraftPunch[] = Array.isArray(parsed) ? parsed : (parsed.draft ?? [])
           nextWires = Array.isArray(parsed) ? [] : (parsed.wires ?? [])
+
+          // Load filter state — undefined means field absent (old draft) → use defaults.
+          nextHidden = Array.isArray(parsed) ? [] : (parsed.hiddenLocalTimes ?? [])
+          nextRange = Array.isArray(parsed)
+            ? nextRange
+            : parsed.localTimeRange !== undefined
+              ? parsed.localTimeRange
+              : nextRange
+
           const merged = mergeDraft(freshAnchors, persisted)
           nextDraft = merged.draft
           if (merged.portalChanged || merged.appliedTimes.length > 0) {
@@ -172,6 +175,9 @@ export function usePlayground(date: string): UsePlaygroundResult {
       setPortalEntries(entries)
       setDraft(nextDraft)
       setWires(nextWires)
+      setHiddenLocalTimes(nextHidden)
+      setLocalTimeRange(nextRange)
+      setWorkWindow(ww)
       setOffline(isOffline)
       setNotice(nextNotice)
       setLoading(false)
@@ -182,13 +188,17 @@ export function usePlayground(date: string): UsePlaygroundResult {
     return () => { cancelled = true }
   }, [date])
 
-  // ── Persist on every draft change (after initial load) ──
+  // ── Persist ───────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!ready.current || !isElectron) return
-    window.electronAPI.misspunchDraftSet(date, JSON.stringify({ draft, wires })).catch(() => {})
-  }, [draft, wires, date])
+    window.electronAPI
+      .misspunchDraftSet(date, JSON.stringify({ draft, wires, hiddenLocalTimes, localTimeRange }))
+      .catch(() => {})
+  }, [draft, wires, hiddenLocalTimes, localTimeRange, date])
 
-  // ── Mutations ──
+  // ── Draft mutations ───────────────────────────────────────────────────────
+
   const addPunch = useCallback((hours: number, minutes: number) => {
     setDraft((d) => [...d, makeAddedPunch(isoFromLocal(date, hours, minutes))])
   }, [date])
@@ -210,12 +220,43 @@ export function usePlayground(date: string): UsePlaygroundResult {
     setDraft((d) => [...d, makeAddedPunch(iso)])
   }, [])
 
-  const reset = useCallback(() => {
+  // ── Local filter mutations ────────────────────────────────────────────────
+
+  const hideLocalEvent = useCallback((time: string) => {
+    setHiddenLocalTimes((h) => (h.includes(time) ? h : [...h, time]))
+    // Remove any wire that referenced this event.
+    setWires((ws) => ws.filter((w) => w.localTime !== time))
+  }, [])
+
+  const setTimeRange = useCallback((range: { start: string; end: string } | null) => {
+    setLocalTimeRange(range)
+  }, [])
+
+  // ── Reset mutations ───────────────────────────────────────────────────────
+
+  const resetPortal = useCallback(() => {
     setDraft(unpairPortal(portalEntries))
+    // Wires key off draft timestamps — re-seeding draft makes them stale.
+    setWires([])
     setNotice(null)
   }, [portalEntries])
 
+  const resetLocal = useCallback(() => {
+    setHiddenLocalTimes([])
+    setLocalTimeRange(workWindow ? { start: workWindow.start, end: workWindow.end } : null)
+  }, [workWindow])
+
+  const reset = useCallback(() => {
+    setDraft(unpairPortal(portalEntries))
+    setWires([])
+    setNotice(null)
+    setHiddenLocalTimes([])
+    setLocalTimeRange(workWindow ? { start: workWindow.start, end: workWindow.end } : null)
+  }, [portalEntries, workWindow])
+
   const dismissNotice = useCallback(() => setNotice(null), [])
+
+  // ── Wire mutations ────────────────────────────────────────────────────────
 
   const addWire = useCallback((draftTime: string, localTime: string) => {
     setWires((ws) => {
@@ -228,7 +269,8 @@ export function usePlayground(date: string): UsePlaygroundResult {
     setWires((ws) => ws.filter((w) => w.draftTime !== draftTime))
   }, [])
 
-  // ── Derived ──
+  // ── Derived ───────────────────────────────────────────────────────────────
+
   const { balanced, danglingCount, correctedMinutes } = useMemo(() => {
     const pair = pairPunches(activePunches(draft))
     return {
@@ -253,12 +295,19 @@ export function usePlayground(date: string): UsePlaygroundResult {
     danglingCount,
     correctedMinutes,
     submittable,
+    hiddenLocalTimes,
+    localTimeRange,
+    workWindow,
     addPunch,
     editPunch,
     removePunch,
     setReason,
     copyFromLocal,
+    hideLocalEvent,
+    setTimeRange,
     reset,
+    resetPortal,
+    resetLocal,
     addWire,
     removeWire,
   }

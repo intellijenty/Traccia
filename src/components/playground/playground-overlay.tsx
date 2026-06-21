@@ -5,9 +5,16 @@ import { TimePopover } from "./playground-time-popover"
 import { formatMins } from "@/lib/playground"
 import { formatDateDisplay } from "@/lib/week-utils"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
+  ArrowDown01Icon,
   Cancel01Icon,
   SparklesIcon,
   RefreshIcon,
@@ -127,16 +134,38 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                       </Button>
                     }
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={pg.reset}
-                    title="Reset to portal"
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <HugeiconsIcon icon={RefreshIcon} size={14} />
-                  </Button>
+                  <div className="flex items-center rounded-md border border-border/60">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={pg.reset}
+                      className="gap-1.5 rounded-r-none border-r border-r-border/60 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <HugeiconsIcon icon={RefreshIcon} size={13} />
+                      Reset
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="rounded-l-none text-muted-foreground hover:text-foreground"
+                        >
+                          <HugeiconsIcon icon={ArrowDown01Icon} size={11} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="min-w-44">
+                        <DropdownMenuItem onClick={pg.resetPortal}>
+                          Reset portal
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={pg.resetLocal}>
+                          Restore local events
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
 
@@ -146,9 +175,14 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                   draft={pg.draft}
                   localSessions={pg.localSessionsList}
                   wires={pg.wires}
+                  hiddenLocalTimes={pg.hiddenLocalTimes}
+                  localTimeRange={pg.localTimeRange}
+                  workWindow={pg.workWindow}
                   onAddWire={pg.addWire}
                   onRemoveWire={pg.removeWire}
                   onCopyLocal={pg.copyFromLocal}
+                  onHideLocalEvent={pg.hideLocalEvent}
+                  onSetTimeRange={pg.setTimeRange}
                   onEditPunch={pg.editPunch}
                   onRemovePunch={pg.removePunch}
                 />

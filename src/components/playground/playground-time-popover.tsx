@@ -136,6 +136,102 @@ function TimeInput({
   )
 }
 
+// ── Helpers shared by both popovers ─────────────────────────────────────────
+
+function parseHHMM(hhmm: string): { h: number; m: number } {
+  const parts = hhmm.split(":").map(Number)
+  return { h: parts[0] ?? 0, m: parts[1] ?? 0 }
+}
+
+export function toHHMM(h: number, m: number): string {
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
+// ── TimeRangePopover ─────────────────────────────────────────────────────────
+
+interface TimeRangePopoverProps {
+  trigger: ReactNode
+  initialStart?: string
+  initialEnd?: string
+  align?: "start" | "end"
+  onSubmit: (start: string, end: string) => void
+}
+
+export function TimeRangePopover({
+  trigger,
+  initialStart = "09:00",
+  initialEnd = "18:00",
+  align = "end",
+  onSubmit,
+}: TimeRangePopoverProps) {
+  const [open, setOpen] = useState(false)
+
+  // Start state
+  const [sH, setSH] = useState(() => to12hr(parseHHMM(initialStart).h).h)
+  const [sM, setSM] = useState(() => parseHHMM(initialStart).m)
+  const [sAmpm, setSAmpm] = useState<"AM" | "PM">(() => to12hr(parseHHMM(initialStart).h).ampm)
+  // End state
+  const [eH, setEH] = useState(() => to12hr(parseHHMM(initialEnd).h).h)
+  const [eM, setEM] = useState(() => parseHHMM(initialEnd).m)
+  const [eAmpm, setEAmpm] = useState<"AM" | "PM">(() => to12hr(parseHHMM(initialEnd).h).ampm)
+
+  function syncToProps() {
+    const s = parseHHMM(initialStart)
+    const e = parseHHMM(initialEnd)
+    const s12 = to12hr(s.h)
+    const e12 = to12hr(e.h)
+    setSH(s12.h); setSM(s.m); setSAmpm(s12.ampm)
+    setEH(e12.h); setEM(e.m); setEAmpm(e12.ampm)
+  }
+
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) syncToProps() }}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent className="w-auto p-4" align={align}>
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <TimePickerRow label="From" h={sH} m={sM} ampm={sAmpm} onH={setSH} onM={setSM} onAmpm={setSAmpm} />
+            <TimePickerRow label="To"   h={eH} m={eM} ampm={eAmpm} onH={setEH} onM={setEM} onAmpm={setEAmpm} />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              onSubmit(toHHMM(to24hr(sH, sAmpm), sM), toHHMM(to24hr(eH, eAmpm), eM))
+              setOpen(false)
+            }}
+          >
+            Apply
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function TimePickerRow({
+  label, h, m, ampm, onH, onM, onAmpm,
+}: {
+  label: string
+  h: number; m: number; ampm: "AM" | "PM"
+  onH: (n: number) => void; onM: (n: number) => void; onAmpm: (v: "AM" | "PM") => void
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <div className="flex items-center gap-2">
+        <TimeInput value={h} min={1} max={12} onChange={onH} />
+        <span className="w-3 select-none text-center text-base font-light text-muted-foreground/40">:</span>
+        <TimeInput value={m} min={0} max={59} onChange={onM} pad />
+        <AmPmToggle value={ampm} onChange={onAmpm} />
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function AmPmToggle({
   value,
   onChange,
