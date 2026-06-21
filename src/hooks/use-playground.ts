@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { PortalEntry, PunchEntry } from "@/lib/types"
 import {
   type DraftPunch,
+  type Wire,
   activePunches,
   localSessions,
   makeAddedPunch,
@@ -72,6 +73,8 @@ export interface UsePlaygroundResult {
   localSessionsList: ReturnType<typeof localSessions>
   /** The editable draft. */
   draft: DraftPunch[]
+  /** Evidence wires: draft punch time → local event time. */
+  wires: Wire[]
   /** Banner: portal changed under a persisted draft / adds got applied. */
   notice: { portalChanged: boolean; appliedTimes: string[] } | null
   dismissNotice: () => void
@@ -87,6 +90,8 @@ export interface UsePlaygroundResult {
   setReason: (id: string, reason: string) => void
   copyFromLocal: (iso: string) => void
   reset: () => void
+  addWire: (draftTime: string, localTime: string) => void
+  removeWire: (draftTime: string) => void
 }
 
 /**
@@ -101,6 +106,7 @@ export function usePlayground(date: string): UsePlaygroundResult {
   const [portalEntries, setPortalEntries] = useState<PortalEntry[]>([])
   const [draft, setDraft] = useState<DraftPunch[]>([])
   const [notice, setNotice] = useState<{ portalChanged: boolean; appliedTimes: string[] } | null>(null)
+  const [wires, setWires] = useState<Wire[]>([])
 
   // Avoid persisting while we're still loading the initial state.
   const ready = useRef(false)
@@ -143,11 +149,14 @@ export function usePlayground(date: string): UsePlaygroundResult {
       // Persisted draft?
       const storedRaw = await window.electronAPI.misspunchDraftGet(date).catch(() => null)
       let nextDraft = freshAnchors
+      let nextWires: Wire[] = []
       let nextNotice: { portalChanged: boolean; appliedTimes: string[] } | null = null
 
       if (storedRaw) {
         try {
-          const persisted = JSON.parse(storedRaw) as DraftPunch[]
+          const parsed = JSON.parse(storedRaw)
+          const persisted: DraftPunch[] = Array.isArray(parsed) ? parsed : (parsed.draft ?? [])
+          nextWires = Array.isArray(parsed) ? [] : (parsed.wires ?? [])
           const merged = mergeDraft(freshAnchors, persisted)
           nextDraft = merged.draft
           if (merged.portalChanged || merged.appliedTimes.length > 0) {
@@ -162,6 +171,7 @@ export function usePlayground(date: string): UsePlaygroundResult {
       setEvents(localEvents)
       setPortalEntries(entries)
       setDraft(nextDraft)
+      setWires(nextWires)
       setOffline(isOffline)
       setNotice(nextNotice)
       setLoading(false)
@@ -175,9 +185,8 @@ export function usePlayground(date: string): UsePlaygroundResult {
   // ── Persist on every draft change (after initial load) ──
   useEffect(() => {
     if (!ready.current || !isElectron) return
-    // Only the user-meaningful state needs saving: the full draft.
-    window.electronAPI.misspunchDraftSet(date, JSON.stringify(draft)).catch(() => {})
-  }, [draft, date])
+    window.electronAPI.misspunchDraftSet(date, JSON.stringify({ draft, wires })).catch(() => {})
+  }, [draft, wires, date])
 
   // ── Mutations ──
   const addPunch = useCallback((hours: number, minutes: number) => {
@@ -208,6 +217,17 @@ export function usePlayground(date: string): UsePlaygroundResult {
 
   const dismissNotice = useCallback(() => setNotice(null), [])
 
+  const addWire = useCallback((draftTime: string, localTime: string) => {
+    setWires((ws) => {
+      const filtered = ws.filter((w) => w.draftTime !== draftTime && w.localTime !== localTime)
+      return [...filtered, { draftTime, localTime }]
+    })
+  }, [])
+
+  const removeWire = useCallback((draftTime: string) => {
+    setWires((ws) => ws.filter((w) => w.draftTime !== draftTime))
+  }, [])
+
   // ── Derived ──
   const { balanced, danglingCount, correctedMinutes } = useMemo(() => {
     const pair = pairPunches(activePunches(draft))
@@ -226,6 +246,7 @@ export function usePlayground(date: string): UsePlaygroundResult {
     offline,
     localSessionsList,
     draft,
+    wires,
     notice,
     dismissNotice,
     balanced,
@@ -238,5 +259,7 @@ export function usePlayground(date: string): UsePlaygroundResult {
     setReason,
     copyFromLocal,
     reset,
+    addWire,
+    removeWire,
   }
 }

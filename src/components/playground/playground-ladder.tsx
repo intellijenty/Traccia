@@ -1,4 +1,5 @@
-import type { DraftPunch, LocalSession } from "@/lib/playground"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import type { DraftPunch, LocalSession, Wire } from "@/lib/playground"
 import { activePunches, formatClock, formatMins } from "@/lib/playground"
 import { TimePopover } from "./playground-time-popover"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,9 @@ import {
 interface PlaygroundLadderProps {
   draft: DraftPunch[]
   localSessions: LocalSession[]
+  wires: Wire[]
+  onAddWire: (draftTime: string, localTime: string) => void
+  onRemoveWire: (draftTime: string) => void
   onCopyLocal: (iso: string) => void
   onEditPunch: (id: string, hours: number, minutes: number) => void
   onRemovePunch: (id: string) => void
@@ -24,7 +28,6 @@ function minOfDay(iso: string): { h: number; m: number } {
   return { h: d.getHours(), m: d.getMinutes() }
 }
 
-/** Flatten sessions → individual time-sorted events for the local rail. */
 function localEventList(sessions: LocalSession[]) {
   const events: { time: string; trigger: string; role: "in" | "out" }[] = []
   for (const s of sessions) {
@@ -37,6 +40,9 @@ function localEventList(sessions: LocalSession[]) {
 export function PlaygroundLadder({
   draft,
   localSessions,
+  wires,
+  onAddWire,
+  onRemoveWire,
   onCopyLocal,
   onEditPunch,
   onRemovePunch,
@@ -45,12 +51,140 @@ export function PlaygroundLadder({
   const unbalanced = active.length % 2 === 1
   const localEvents = localEventList(localSessions)
 
+  // ── Wiring state ──
+  const containerRef = useRef<HTMLDivElement>(null)
+  const portRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const [pending, setPending] = useState<{ side: "draft" | "local"; time: string } | null>(null)
+  const trailingPathRef = useRef<SVGPathElement>(null)
+  const [wirePaths, setWirePaths] = useState<{ key: string; d: string }[]>([])
+
+  function getPortCenter(key: string) {
+    const el = portRefs.current.get(key)
+    const container = containerRef.current
+    if (!el || !container) return null
+    const er = el.getBoundingClientRect()
+    const cr = container.getBoundingClientRect()
+    return { x: er.left + er.width / 2 - cr.left, y: er.top + er.height / 2 - cr.top }
+  }
+
+  // Recompute completed wire SVG paths after every layout that could move rows
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const paths: { key: string; d: string }[] = []
+    for (const wire of wires) {
+      const p1 = getPortCenter(`d:${wire.draftTime}`)
+      const p2 = getPortCenter(`l:${wire.localTime}`)
+      if (!p1 || !p2) continue
+      const t = (p2.x - p1.x) * 0.5
+      paths.push({
+        key: `${wire.draftTime}|${wire.localTime}`,
+        d: `M ${p1.x} ${p1.y} C ${p1.x + t} ${p1.y} ${p2.x - t} ${p2.y} ${p2.x} ${p2.y}`,
+      })
+    }
+    setWirePaths(paths)
+  }, [wires, active.length, localEvents.length])
+
+  // Clear trailing bezier when pending cleared
+  useEffect(() => {
+    if (!pending && trailingPathRef.current) {
+      trailingPathRef.current.setAttribute("d", "")
+    }
+  }, [pending])
+
+  // Escape cancels pending
+  useEffect(() => {
+    if (!pending) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPending(null) }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [pending])
+
+  // Port click: first click sets pending, second click completes wire
+  function handlePortClick(side: "draft" | "local", time: string) {
+    if (!pending) {
+      const existing = wires.find((w) =>
+        side === "draft" ? w.draftTime === time : w.localTime === time
+      )
+      if (existing) {
+        onRemoveWire(existing.draftTime)
+        return
+      }
+      setPending({ side, time })
+      return
+    }
+    if (pending.side === side) {
+      // Same column → cancel
+      setPending(null)
+      return
+    }
+    const draftTime = pending.side === "draft" ? pending.time : time
+    const localTime = pending.side === "local" ? pending.time : time
+    onAddWire(draftTime, localTime)
+    setPending(null)
+  }
+
+  // Trailing bezier — imperative update on mousemove (no React state = no flicker)
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!pending || !trailingPathRef.current || !containerRef.current) return
+      const cr = containerRef.current.getBoundingClientRect()
+      const cx = e.clientX - cr.left
+      const cy = e.clientY - cr.top
+      const portKey = `${pending.side === "draft" ? "d" : "l"}:${pending.time}`
+      const p1 = getPortCenter(portKey)
+      if (!p1) return
+      const t = Math.abs(cx - p1.x) * 0.5
+      const d =
+        pending.side === "draft"
+          ? `M ${p1.x} ${p1.y} C ${p1.x + t} ${p1.y} ${cx - t} ${cy} ${cx} ${cy}`
+          : `M ${p1.x} ${p1.y} C ${p1.x - t} ${p1.y} ${cx + t} ${cy} ${cx} ${cy}`
+      trailingPathRef.current.setAttribute("d", d)
+    },
+    [pending] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
   return (
-    <div className="flex gap-8">
+    <div
+      ref={containerRef}
+      className="relative flex gap-8"
+      onMouseMove={handleMouseMove}
+      onClick={(e) => {
+        if (!pending) return
+        const target = e.target as HTMLElement
+        if (!target.closest("[data-port]")) setPending(null)
+      }}
+    >
+      {/* SVG overlay — pointer-events-none, wires render behind port dots */}
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+        aria-hidden="true"
+      >
+        {wirePaths.map(({ key, d }) => (
+          <path
+            key={key}
+            d={d}
+            fill="none"
+            stroke="rgb(168 85 247)"
+            strokeWidth={1.5}
+            strokeOpacity={0.65}
+            strokeLinecap="round"
+          />
+        ))}
+        <path
+          ref={trailingPathRef}
+          fill="none"
+          stroke="rgb(168 85 247)"
+          strokeWidth={1.5}
+          strokeOpacity={0.45}
+          strokeDasharray="4 3"
+          strokeLinecap="round"
+          d=""
+        />
+      </svg>
+
       {/* ── Draft ladder ── */}
       <div className="min-w-0 flex-1">
         <LaneHeader label="Draft" sub="your fix" />
-
         {active.length === 0 ? (
           <Empty text="No punches. Copy from local → or add one manually." />
         ) : (
@@ -59,9 +193,13 @@ export function PlaygroundLadder({
               const role: "in" | "out" = i % 2 === 0 ? "in" : "out"
               const prev = i > 0 ? active[i - 1] : null
               const connMin = prev
-                ? Math.floor((new Date(punch.time).getTime() - new Date(prev.time).getTime()) / 60000)
+                ? Math.floor(
+                    (new Date(punch.time).getTime() - new Date(prev.time).getTime()) / 60000
+                  )
                 : null
               const prevIsIn = i > 0 && (i - 1) % 2 === 0
+              const isWired = wires.some((w) => w.draftTime === punch.time)
+              const isPending = pending?.side === "draft" && pending.time === punch.time
 
               return (
                 <div key={punch.id} className={cn("relative", i > 0 && "mt-1.5")}>
@@ -73,6 +211,14 @@ export function PlaygroundLadder({
                   <PunchRow
                     punch={punch}
                     role={role}
+                    isWired={isWired}
+                    isPending={isPending}
+                    portRef={(el) => {
+                      const key = `d:${punch.time}`
+                      if (el) portRefs.current.set(key, el)
+                      else portRefs.current.delete(key)
+                    }}
+                    onPortClick={() => handlePortClick("draft", punch.time)}
                     onEdit={onEditPunch}
                     onRemove={onRemovePunch}
                   />
@@ -86,10 +232,9 @@ export function PlaygroundLadder({
             )}
           </div>
         )}
-
       </div>
 
-      {/* ── Local evidence rail — same cell height as draft ── */}
+      {/* ── Local evidence rail ── */}
       <div className="min-w-0 flex-1">
         <LaneHeader label="Local" sub="evidence" />
         {localEvents.length === 0 ? (
@@ -99,9 +244,13 @@ export function PlaygroundLadder({
             {localEvents.map((ev, i) => {
               const prev = i > 0 ? localEvents[i - 1] : null
               const connMin = prev
-                ? Math.round((new Date(ev.time).getTime() - new Date(prev.time).getTime()) / 60000)
+                ? Math.round(
+                    (new Date(ev.time).getTime() - new Date(prev.time).getTime()) / 60000
+                  )
                 : null
               const prevIsIn = prev?.role === "in"
+              const isWired = wires.some((w) => w.localTime === ev.time)
+              const isPending = pending?.side === "local" && pending.time === ev.time
 
               return (
                 <div key={i} className={cn("relative", i > 0 && "mt-1.5")}>
@@ -110,7 +259,18 @@ export function PlaygroundLadder({
                       <FloatingBadge kind={prevIsIn ? "work" : "gap"} minutes={connMin} />
                     </div>
                   )}
-                  <LocalEventRow ev={ev} onCopy={() => onCopyLocal(ev.time)} />
+                  <LocalEventRow
+                    ev={ev}
+                    isWired={isWired}
+                    isPending={isPending}
+                    portRef={(el) => {
+                      const key = `l:${ev.time}`
+                      if (el) portRefs.current.set(key, el)
+                      else portRefs.current.delete(key)
+                    }}
+                    onPortClick={() => handlePortClick("local", ev.time)}
+                    onCopy={() => onCopyLocal(ev.time)}
+                  />
                 </div>
               )
             })}
@@ -153,7 +313,6 @@ function RoleBadge({ role }: { role: "in" | "out" }) {
   )
 }
 
-/** Floating pill badge — absolutely positioned at -top-4 on the lower entry's wrapper. */
 function FloatingBadge({ kind, minutes }: { kind: "work" | "gap"; minutes: number }) {
   return (
     <span
@@ -169,49 +328,65 @@ function FloatingBadge({ kind, minutes }: { kind: "work" | "gap"; minutes: numbe
   )
 }
 
-function LocalEventRow({
-  ev,
-  onCopy,
+function Port({
+  portRef,
+  side,
+  isWired,
+  isPending,
+  onPortClick,
 }: {
-  ev: { time: string; trigger: string; role: "in" | "out" }
-  onCopy: () => void
+  portRef: (el: HTMLElement | null) => void
+  side: "draft" | "local"
+  isWired: boolean
+  isPending: boolean
+  onPortClick: () => void
 }) {
   return (
     <button
+      ref={portRef}
+      data-port="true"
       type="button"
-      onClick={onCopy}
-      title="Copy this time into the draft"
-      className="group flex h-12 w-full items-center gap-3 rounded-lg border border-border/40 bg-card/20 px-3 text-left transition-colors hover:border-emerald-400/40 hover:bg-emerald-400/5"
-    >
-      <RoleBadge role={ev.role} />
-      <span className="font-mono text-base font-medium tabular-nums">{formatClock(ev.time)}</span>
-      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground/60">
-        {(ev.trigger || "").replace("via ", "")}
-      </span>
-      <HugeiconsIcon
-        icon={ArrowDownDoubleIcon}
-        size={14}
-        className="shrink-0 text-muted-foreground/0 transition-colors group-hover:text-emerald-400"
-      />
-    </button>
+      onClick={(e) => {
+        e.stopPropagation()
+        onPortClick()
+      }}
+      className={cn(
+        "absolute top-1/2 z-20 size-2.5 -translate-y-1/2 cursor-pointer rounded-full border-2 transition-all duration-150",
+        side === "draft" ? "right-0 translate-x-1/2" : "left-0 -translate-x-1/2",
+        isPending
+          ? "animate-pulse scale-125 border-purple-400 bg-purple-400/40"
+          : isWired
+          ? "scale-110 border-purple-500 bg-purple-500"
+          : "border-muted-foreground/25 bg-transparent hover:border-purple-400/60 hover:bg-purple-400/10"
+      )}
+      aria-label={isWired ? "Disconnect" : "Connect"}
+    />
   )
 }
 
 function PunchRow({
   punch,
   role,
+  isWired,
+  isPending,
+  portRef,
+  onPortClick,
   onEdit,
   onRemove,
 }: {
   punch: DraftPunch
   role: "in" | "out"
+  isWired: boolean
+  isPending: boolean
+  portRef: (el: HTMLElement | null) => void
+  onPortClick: () => void
   onEdit: (id: string, h: number, m: number) => void
   onRemove: (id: string) => void
 }) {
   const isAnchor = punch.origin === "anchor"
   const init = minOfDay(punch.time)
   return (
-    <div className="flex h-12 items-center gap-3 rounded-lg border border-border/40 bg-card/20 px-3 transition-colors hover:bg-card/40">
+    <div className={cn("relative flex h-12 items-center gap-3 rounded-lg border px-3 transition-colors hover:bg-card/40", isWired ? "border-purple-500/30" : !isAnchor ? "border-emerald-400/30" : "border-border/60", isAnchor ? "bg-card/20" : "bg-emerald-400/[0.06]")}>
       <RoleBadge role={role} />
       <span className="font-mono text-base font-medium tabular-nums">{formatClock(punch.time)}</span>
       <span
@@ -226,37 +401,88 @@ function PunchRow({
       {!isAnchor && (
         <div className="ml-auto flex items-center gap-1">
           <TimePopover
-              title="Edit time"
-              submitLabel="Set time"
-              align="end"
-              initialH={init.h}
-              initialM={init.m}
-              onSubmit={(h, m) => onEdit(punch.id, h, m)}
-              trigger={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-muted-foreground hover:text-foreground"
-                  aria-label="Edit time"
-                >
-                  <HugeiconsIcon icon={PencilEdit02Icon} size={14} />
-                </Button>
-              }
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-red-400"
-              onClick={() => onRemove(punch.id)}
-              aria-label="Delete punch"
-            >
-              <HugeiconsIcon icon={Delete02Icon} size={15} />
-            </Button>
+            title="Edit time"
+            submitLabel="Set time"
+            align="end"
+            initialH={init.h}
+            initialM={init.m}
+            onSubmit={(h, m) => onEdit(punch.id, h, m)}
+            trigger={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Edit time"
+              >
+                <HugeiconsIcon icon={PencilEdit02Icon} size={14} />
+              </Button>
+            }
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-red-400"
+            onClick={() => onRemove(punch.id)}
+            aria-label="Delete punch"
+          >
+            <HugeiconsIcon icon={Delete02Icon} size={15} />
+          </Button>
         </div>
       )}
+
+      <Port
+        portRef={portRef}
+        side="draft"
+        isWired={isWired}
+        isPending={isPending}
+        onPortClick={onPortClick}
+      />
     </div>
+  )
+}
+
+function LocalEventRow({
+  ev,
+  isWired,
+  isPending,
+  portRef,
+  onPortClick,
+  onCopy,
+}: {
+  ev: { time: string; trigger: string; role: "in" | "out" }
+  isWired: boolean
+  isPending: boolean
+  portRef: (el: HTMLElement | null) => void
+  onPortClick: () => void
+  onCopy: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      title="Copy this time into the draft"
+      className={cn("group relative flex h-12 w-full items-center gap-3 rounded-lg border bg-card/20 px-3 text-left transition-colors hover:border-emerald-400/40 hover:bg-emerald-400/5", isWired ? "border-purple-500/30" : "border-border/40")}
+    >
+      <RoleBadge role={ev.role} />
+      <span className="font-mono text-base font-medium tabular-nums">{formatClock(ev.time)}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground/60">
+        {(ev.trigger || "").replace("via ", "")}
+      </span>
+      <HugeiconsIcon
+        icon={ArrowDownDoubleIcon}
+        size={14}
+        className="shrink-0 text-muted-foreground/0 transition-colors group-hover:text-emerald-400"
+      />
+      <Port
+        portRef={portRef}
+        side="local"
+        isWired={isWired}
+        isPending={isPending}
+        onPortClick={onPortClick}
+      />
+    </button>
   )
 }
 
@@ -273,4 +499,3 @@ function MissingRow() {
     </div>
   )
 }
-

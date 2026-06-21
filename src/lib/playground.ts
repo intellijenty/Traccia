@@ -163,3 +163,9 @@ export function makeAddedPunch(time: string, reason = ""): DraftPunch {
 export function submittablePunches(draft: DraftPunch[]): DraftPunch[] {
   return draft.filter((p) => p.origin === "added").sort(byTime)
 }
+
+/** Evidence wire: links a draft punch (by its ISO time) to a local PC event. Annotation-only. */
+export interface Wire {
+  draftTime: string
+  localTime: string
+}

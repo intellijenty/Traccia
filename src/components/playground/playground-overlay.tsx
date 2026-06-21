@@ -145,6 +145,9 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                 <PlaygroundLadder
                   draft={pg.draft}
                   localSessions={pg.localSessionsList}
+                  wires={pg.wires}
+                  onAddWire={pg.addWire}
+                  onRemoveWire={pg.removeWire}
                   onCopyLocal={pg.copyFromLocal}
                   onEditPunch={pg.editPunch}
                   onRemovePunch={pg.removePunch}
