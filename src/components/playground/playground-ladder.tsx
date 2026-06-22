@@ -1,17 +1,22 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import type { DraftPunch, LocalSession, Wire } from "@/lib/playground"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import type { DraftPunch, Gate, LocalSession, Wire } from "@/lib/playground"
 import { activePunches, formatClock, formatMins, isInTimeRange } from "@/lib/playground"
 import { TimePopover, TimeRangePopover } from "./playground-time-popover"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Delete02Icon,
   AlertCircleIcon,
   PencilEdit02Icon,
-  PlusSignCircleIcon,
-  ViewOffIcon,
+  Add01Icon,
+  ViewOffSlashIcon,
   Cancel01Icon,
+  Door02Icon,
+  Coffee02Icon,
+  Hotel02Icon,
+  CodeSquareIcon,
 } from "@hugeicons/core-free-icons"
 import type { WorkWindow } from "@/lib/types"
 
@@ -29,6 +34,7 @@ interface PlaygroundLadderProps {
   onSetTimeRange: (range: { start: string; end: string } | null) => void
   onEditPunch: (id: string, hours: number, minutes: number) => void
   onRemovePunch: (id: string) => void
+  onCycleGate: (id: string) => void
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,6 +60,17 @@ function localEventList(sessions: LocalSession[]) {
   return events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
 }
 
+const TIP_DELAY = 500
+
+function Tip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip delayDuration={TIP_DELAY}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top" sideOffset={4}>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PlaygroundLadder({
@@ -70,6 +87,7 @@ export function PlaygroundLadder({
   onSetTimeRange,
   onEditPunch,
   onRemovePunch,
+  onCycleGate,
 }: PlaygroundLadderProps) {
   const active = activePunches(draft)
   const unbalanced = active.length % 2 === 1
@@ -193,7 +211,7 @@ export function PlaygroundLadder({
 
       {/* ── Draft lane ── */}
       <div className="min-w-0 flex-1">
-        <LaneHeader label="Draft" sub="your fix" />
+        <LaneHeader label="Draft Entries" sub="to be fixed" />
         {active.length === 0 ? (
           <Empty text="No punches. Copy from local → or add one manually." />
         ) : (
@@ -211,7 +229,7 @@ export function PlaygroundLadder({
               return (
                 <div key={punch.id} className={cn("relative", i > 0 && "mt-1.5")}>
                   {connMin !== null && (
-                    <div className="absolute inset-x-0 -top-4 z-10 flex justify-center">
+                    <div className="pointer-events-none absolute inset-x-0 -top-4 z-10 flex justify-center">
                       <FloatingBadge kind={prevIsIn ? "work" : "gap"} minutes={connMin} />
                     </div>
                   )}
@@ -228,6 +246,7 @@ export function PlaygroundLadder({
                     onPortClick={() => handlePortClick("draft", punch.time)}
                     onEdit={onEditPunch}
                     onRemove={onRemovePunch}
+                    onCycleGate={onCycleGate}
                   />
                 </div>
               )
@@ -264,7 +283,7 @@ export function PlaygroundLadder({
               return (
                 <div key={ev.time} className={cn("relative", i > 0 && "mt-1.5")}>
                   {connMin !== null && (
-                    <div className="absolute inset-x-0 -top-4 z-10 flex justify-center">
+                    <div className="pointer-events-none absolute inset-x-0 -top-4 z-10 flex justify-center">
                       <FloatingBadge kind={prevIsIn ? "work" : "gap"} minutes={connMin} />
                     </div>
                   )}
@@ -320,7 +339,7 @@ function LocalLaneHeader({
 
   return (
     <div className="mb-2 flex h-7 items-center gap-2">
-      <span className="text-sm font-medium">Local</span>
+      <span className="text-sm font-medium">Local Machine Entries</span>
       <span className="text-[11px] text-muted-foreground/70">evidence</span>
 
       <div className="ml-auto flex items-center gap-2">
@@ -428,28 +447,31 @@ function Port({
   isPending: boolean
   onPortClick: () => void
 }) {
+  const tipLabel = isPending ? "Cancel (Esc)" : isWired ? "Disconnect" : "Link to Evidence"
   return (
-    <button
-      ref={portRef}
-      data-port="true"
-      type="button"
-      onClick={(e) => { e.stopPropagation(); onPortClick() }}
-      className={cn(
-        "absolute top-1/2 z-20 size-2.5 -translate-y-1/2 cursor-pointer rounded-full border-2 transition-all duration-150",
-        side === "draft" ? "right-0 translate-x-1/2" : "left-0 -translate-x-1/2",
-        isPending
-          ? "animate-pulse scale-125 border-purple-400 bg-purple-400/40"
-          : isWired
-          ? "scale-110 border-purple-500 bg-purple-500"
-          : "border-muted-foreground/25 bg-transparent hover:border-purple-400/60 hover:bg-purple-400/10"
-      )}
-      aria-label={isWired ? "Disconnect" : "Connect"}
-    />
+    <Tip label={tipLabel}>
+      <button
+        ref={portRef}
+        data-port="true"
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onPortClick() }}
+        className={cn(
+          "absolute top-1/2 z-20 size-2.5 -translate-y-1/2 cursor-pointer rounded-full border-2 transition-all duration-150",
+          side === "draft" ? "right-0 translate-x-1/2" : "left-0 -translate-x-1/2",
+          isPending
+            ? "animate-pulse scale-125 border-purple-400 bg-purple-400/40"
+            : isWired
+            ? "scale-110 border-purple-500 bg-purple-500"
+            : "border-muted-foreground/25 bg-transparent hover:border-purple-400/60 hover:bg-purple-400/10"
+        )}
+        aria-label={tipLabel}
+      />
+    </Tip>
   )
 }
 
 function PunchRow({
-  punch, role, isWired, isPending, portRef, onPortClick, onEdit, onRemove,
+  punch, role, isWired, isPending, portRef, onPortClick, onEdit, onRemove, onCycleGate,
 }: {
   punch: DraftPunch
   role: "in" | "out"
@@ -459,12 +481,13 @@ function PunchRow({
   onPortClick: () => void
   onEdit: (id: string, h: number, m: number) => void
   onRemove: (id: string) => void
+  onCycleGate: (id: string) => void
 }) {
   const isAnchor = punch.origin === "anchor"
   const init = minOfDay(punch.time)
   return (
     <div className={cn(
-      "relative flex h-12 items-center gap-3 rounded-lg border px-3 transition-colors hover:bg-card/40",
+      "group relative flex h-12 items-center gap-3 rounded-lg border px-3 transition-colors hover:bg-card/40",
       isWired ? "border-purple-500/30" : !isAnchor ? "border-emerald-400/30" : "border-border/60",
       isAnchor ? "bg-card/20" : "bg-emerald-400/[0.06]"
     )}>
@@ -477,29 +500,66 @@ function PunchRow({
         {isAnchor ? "portal" : "added"}
       </span>
 
-      {!isAnchor && (
-        <div className="ml-auto flex items-center gap-1">
-          <TimePopover
-            title="Edit time"
-            submitLabel="Set time"
-            align="end"
-            initialH={init.h}
-            initialM={init.m}
-            onSubmit={(h, m) => onEdit(punch.id, h, m)}
-            trigger={
-              <Button type="button" variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" aria-label="Edit time">
-                <HugeiconsIcon icon={PencilEdit02Icon} size={14} />
+      <div className="ml-auto flex items-center gap-1">
+        <GateButton gate={punch.gate ?? null} onClick={() => onCycleGate(punch.id)} />
+        {!isAnchor && (
+          <>
+            <Tooltip delayDuration={TIP_DELAY}>
+              <TimePopover
+                title="Edit time"
+                submitLabel="Set time"
+                align="end"
+                initialH={init.h}
+                initialM={init.m}
+                onSubmit={(h, m) => onEdit(punch.id, h, m)}
+                trigger={
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" aria-label="Edit time">
+                      <HugeiconsIcon icon={PencilEdit02Icon} size={14} />
+                    </Button>
+                  </TooltipTrigger>
+                }
+              />
+              <TooltipContent side="top" sideOffset={4}>Edit time</TooltipContent>
+            </Tooltip>
+            <Tip label="Delete punch">
+              <Button type="button" variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-red-400" onClick={() => onRemove(punch.id)} aria-label="Delete punch">
+                <HugeiconsIcon icon={Delete02Icon} size={15} />
               </Button>
-            }
-          />
-          <Button type="button" variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-red-400" onClick={() => onRemove(punch.id)} aria-label="Delete punch">
-            <HugeiconsIcon icon={Delete02Icon} size={15} />
-          </Button>
-        </div>
-      )}
+            </Tip>
+          </>
+        )}
+      </div>
 
       <Port portRef={portRef} side="draft" isWired={isWired} isPending={isPending} onPortClick={onPortClick} />
     </div>
+  )
+}
+
+function GateButton({ gate, onClick }: { gate: Gate; onClick: () => void }) {
+  const { icon, label } =
+    gate === "room1"     ? { icon: Hotel02Icon,    label: "Room 1" }
+    : gate === "room2"   ? { icon: CodeSquareIcon, label: "Room 2" }
+    : gate === "cafeteria" ? { icon: Coffee02Icon, label: "Cafeteria" }
+    : { icon: Door02Icon, label: "Set gate" }
+
+  const className = gate === null
+    ? "text-transparent group-hover:text-foreground/40 hover:!text-foreground/70"
+    : "text-foreground/70 hover:text-foreground"
+
+  return (
+    <Tip label={label}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={onClick}
+        aria-label={label}
+        className={cn("transition-colors", className)}
+      >
+        <HugeiconsIcon icon={icon} size={14} />
+      </Button>
+    </Tip>
   )
 }
 
@@ -516,7 +576,7 @@ function LocalEventRow({
 }) {
   return (
     <div className={cn(
-      "relative flex h-12 items-center gap-3 rounded-lg border bg-card/20 px-3 transition-colors hover:bg-card/40",
+      "group relative flex h-12 items-center gap-3 rounded-lg border bg-card/20 px-3 transition-colors hover:bg-card/40",
       isWired ? "border-purple-500/30" : "border-border/60"
     )}>
       <RoleBadge role={ev.role} />
@@ -524,12 +584,18 @@ function LocalEventRow({
       <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground/60">
         {(ev.trigger || "").replace("via ", "")}
       </span>
-      <Button type="button" variant="ghost" size="icon-sm" onClick={onCopy} className="text-muted-foreground hover:text-emerald-400" aria-label="Add to draft">
-        <HugeiconsIcon icon={PlusSignCircleIcon} size={15} />
-      </Button>
-      <Button type="button" variant="ghost" size="icon-sm" onClick={onHide} className="text-muted-foreground/40 hover:text-muted-foreground" aria-label="Hide event">
-        <HugeiconsIcon icon={ViewOffIcon} size={13} />
-      </Button>
+      <div className="ml-auto flex items-center gap-1">
+        <Tip label="Hide event">
+          <Button type="button" variant="ghost" size="icon-sm" onClick={onHide} className="text-transparent transition-colors group-hover:text-foreground/40 hover:!text-foreground/70" aria-label="Hide event">
+            <HugeiconsIcon icon={ViewOffSlashIcon} size={13} />
+          </Button>
+        </Tip>
+        <Tip label="Add to draft">
+          <Button type="button" variant="ghost" size="icon-sm" onClick={onCopy} className="text-muted-foreground hover:text-foreground" aria-label="Add to draft">
+            <HugeiconsIcon icon={Add01Icon} size={15} />
+          </Button>
+        </Tip>
+      </div>
       <Port portRef={portRef} side="local" isWired={isWired} isPending={isPending} onPortClick={onPortClick} />
     </div>
   )

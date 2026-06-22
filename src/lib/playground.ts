@@ -16,6 +16,17 @@ import type { PortalEntry, PunchEntry, EntryTrigger } from "@/lib/types"
 
 export type PunchOrigin = "anchor" | "added"
 
+/** Biometric gate reference — annotation only, for flow visualization. */
+export type Gate = "room1" | "room2" | "cafeteria" | null
+
+/** Cycle: null → room1 → room2 → cafeteria → room1 (loop). */
+export function nextGate(current: Gate): Gate {
+  if (current === null) return "room1"
+  if (current === "room1") return "room2"
+  if (current === "room2") return "cafeteria"
+  return "room1"
+}
+
 /** A punch on the editable Draft lane. */
 export interface DraftPunch {
   id: string
@@ -24,6 +35,8 @@ export interface DraftPunch {
   origin: PunchOrigin
   /** Free-text reason (added punches only; required before it counts as ready). */
   reason: string
+  /** Biometric gate annotation for flow visualization. */
+  gate: Gate
 }
 
 /** A paired session for display. outTime null = dangling (unclosed) punch. */
@@ -71,10 +84,10 @@ export function unpairPortal(entries: PortalEntry[]): DraftPunch[] {
   const punches: DraftPunch[] = []
   for (const e of entries) {
     if (e.intime) {
-      punches.push({ id: newId("anchor"), time: e.intime, origin: "anchor", reason: "" })
+      punches.push({ id: newId("anchor"), time: e.intime, origin: "anchor", reason: "", gate: null })
     }
     if (e.outtime) {
-      punches.push({ id: newId("anchor"), time: e.outtime, origin: "anchor", reason: "" })
+      punches.push({ id: newId("anchor"), time: e.outtime, origin: "anchor", reason: "", gate: null })
     }
   }
   return punches.sort(byTime)
@@ -156,7 +169,7 @@ export function formatMins(mins: number): string {
 
 /** Make a fresh added punch at the given ISO time. */
 export function makeAddedPunch(time: string, reason = ""): DraftPunch {
-  return { id: newId("added"), time, origin: "added", reason }
+  return { id: newId("added"), time, origin: "added", reason, gate: null }
 }
 
 /** Added punches ready for submission — the copy-list. */

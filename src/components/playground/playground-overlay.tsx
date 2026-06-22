@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { usePlayground } from "@/hooks/use-playground"
 import { PlaygroundLadder } from "./playground-ladder"
 import { PlaygroundOutput } from "./playground-output"
@@ -30,6 +31,14 @@ interface PlaygroundOverlayProps {
 
 export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
   const pg = usePlayground(date)
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [onClose])
 
   return (
     <div
@@ -185,6 +194,7 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                   onSetTimeRange={pg.setTimeRange}
                   onEditPunch={pg.editPunch}
                   onRemovePunch={pg.removePunch}
+                  onCycleGate={pg.cycleGate}
                 />
               </div>
             </>
@@ -192,7 +202,7 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
         </div>
 
         {/* Right: output checklist */}
-        <div className="w-80 shrink-0 border-l border-border bg-muted/20">
+        <div className="h-full w-80 shrink-0 overflow-hidden border-l border-border bg-muted/20">
           <PlaygroundOutput
             submittable={pg.submittable}
             onSetReason={pg.setReason}

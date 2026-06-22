@@ -6,6 +6,7 @@ import {
   activePunches,
   localSessions,
   makeAddedPunch,
+  nextGate,
   pairPunches,
   submittablePunches,
   unpairPortal,
@@ -31,10 +32,12 @@ interface MergeResult {
 }
 
 function mergeDraft(freshAnchors: DraftPunch[], persisted: DraftPunch[]): MergeResult {
-  const persistedAnchorMinutes = new Set(
-    persisted.filter((p) => p.origin === "anchor").map((p) => minuteKey(p.time))
-  )
+  const persistedAnchors = persisted.filter((p) => p.origin === "anchor")
+  const persistedAnchorMinutes = new Set(persistedAnchors.map((p) => minuteKey(p.time)))
   const freshAnchorMinutes = new Set(freshAnchors.map((a) => minuteKey(a.time)))
+
+  // Gate assignments on anchors must survive the fresh-anchor rebuild.
+  const persistedAnchorByMinute = new Map(persistedAnchors.map((p) => [minuteKey(p.time), p]))
 
   const appliedTimes: string[] = []
   const keptAdded = persisted
@@ -51,7 +54,12 @@ function mergeDraft(freshAnchors: DraftPunch[], persisted: DraftPunch[]): MergeR
     persistedAnchorMinutes.size !== freshAnchorMinutes.size ||
     [...freshAnchorMinutes].some((m) => !persistedAnchorMinutes.has(m))
 
-  return { draft: [...freshAnchors, ...keptAdded], portalChanged, appliedTimes }
+  const mergedAnchors = freshAnchors.map((a) => {
+    const prev = persistedAnchorByMinute.get(minuteKey(a.time))
+    return prev?.gate ? { ...a, gate: prev.gate } : a
+  })
+
+  return { draft: [...mergedAnchors, ...keptAdded], portalChanged, appliedTimes }
 }
 
 export interface UsePlaygroundResult {
@@ -87,6 +95,8 @@ export interface UsePlaygroundResult {
   // Mutations — wires
   addWire: (draftTime: string, localTime: string) => void
   removeWire: (draftTime: string) => void
+  // Mutations — gate
+  cycleGate: (id: string) => void
 }
 
 export function usePlayground(date: string): UsePlaygroundResult {
@@ -269,6 +279,10 @@ export function usePlayground(date: string): UsePlaygroundResult {
     setWires((ws) => ws.filter((w) => w.draftTime !== draftTime))
   }, [])
 
+  const cycleGate = useCallback((id: string) => {
+    setDraft((d) => d.map((p) => (p.id === id ? { ...p, gate: nextGate(p.gate ?? null) } : p)))
+  }, [])
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const { balanced, danglingCount, correctedMinutes } = useMemo(() => {
@@ -310,5 +324,6 @@ export function usePlayground(date: string): UsePlaygroundResult {
     resetLocal,
     addWire,
     removeWire,
+    cycleGate,
   }
 }

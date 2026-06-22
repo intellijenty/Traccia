@@ -5,6 +5,8 @@ import { CopyButton } from "@/components/copy-button"
 import { cn } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
+import FloorPlan from "./FloorPlan"
+import { Separator } from "../ui/separator"
 
 interface PlaygroundOutputProps {
   submittable: DraftPunch[]
@@ -22,22 +24,29 @@ export function PlaygroundOutput({ submittable, onSetReason }: PlaygroundOutputP
     })
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto scrollbar-hide p-4">
+    <div className="h-full overflow-y-auto scrollbar-hide">
+      <div className="flex flex-col gap-4 p-4">
+      <FloorPlan compact className="w-full" />
+
+      <Separator />
+
       {/* Section 1: submit yourself */}
       <section>
-        <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Submit yourself
-          <span className="rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-            {submittable.length}
-          </span>
-        </h3>
-        <p className="mb-3 text-[11px] leading-snug text-muted-foreground/70">
-          Add each of these in the portal&apos;s Request Time Entry dialog — pick the time, paste the reason.
-        </p>
+        {submittable.length !== 0 && (
+          <>
+            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Submit yourself
+            </h3>
+            <p className="mb-3 text-[11px] leading-snug text-muted-foreground/70">
+              Add each of these in the portal&apos;s Request Time Entry dialog.
+              Pick the time, paste the reason.
+            </p>
+          </>
+        )}
 
         {submittable.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border/50 px-3 py-4 text-center text-[11px] text-muted-foreground/60">
-            Nothing to add yet. Copy from local or add a punch manually.
+          <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground/60">
+            Nothing to add yet. <br/> Copy from local or add a punch manually.
           </p>
         ) : (
           <ul className="space-y-2">
@@ -80,7 +89,7 @@ export function PlaygroundOutput({ submittable, onSetReason }: PlaygroundOutputP
                     type="text"
                     value={p.reason}
                     onChange={(e) => onSetReason(p.id, e.target.value)}
-                    placeholder="Reason for HR (required)…"
+                    placeholder="Reason for HRMS (required)"
                     className={cn(
                       "mt-2 w-full rounded-md border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring",
                       p.reason.trim() ? "border-border" : "border-amber-500/40"
@@ -92,7 +101,7 @@ export function PlaygroundOutput({ submittable, onSetReason }: PlaygroundOutputP
           </ul>
         )}
       </section>
-
+      </div>
     </div>
   )
 }
