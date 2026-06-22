@@ -102,6 +102,12 @@ export function initDatabase(): void {
       type  TEXT NOT NULL CHECK(type IN ('fixed','end-time','flex-balance','weekly-distribute','relative-offset')),
       value TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS misspunch_drafts (
+      date       TEXT PRIMARY KEY,
+      data       TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `)
 
   // Migration: upgrade old day_work_windows schema (NOT NULL + missing 'disabled')
@@ -550,6 +556,26 @@ export function getAllDayTargets(): DBDayTarget[] {
   return db
     .prepare("SELECT * FROM day_targets ORDER BY date ASC")
     .all() as DBDayTarget[]
+}
+
+// ── Miss-punch playground drafts ──
+// One row per date; `data` is an opaque JSON blob owned by the renderer.
+
+export function getMisspunchDraft(date: string): string | null {
+  const row = db
+    .prepare("SELECT data FROM misspunch_drafts WHERE date = ?")
+    .get(date) as { data: string } | undefined
+  return row?.data ?? null
+}
+
+export function setMisspunchDraft(date: string, data: string): void {
+  db.prepare(
+    "INSERT OR REPLACE INTO misspunch_drafts (date, data, updated_at) VALUES (?, ?, datetime('now'))"
+  ).run(date, data)
+}
+
+export function deleteMisspunchDraft(date: string): void {
+  db.prepare("DELETE FROM misspunch_drafts WHERE date = ?").run(date)
 }
 
 // ── Effective day mode ────────────────────────────────────────────────────────

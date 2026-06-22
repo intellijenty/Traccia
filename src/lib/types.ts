@@ -286,6 +286,11 @@ export interface ElectronAPI {
     portalDays?: { results: unknown[]; synced: number; promoted: number; failed: number }
   }>
 
+  // Miss-punch playground drafts
+  misspunchDraftGet: (date: string) => Promise<string | null>
+  misspunchDraftSet: (date: string, data: string) => Promise<void>
+  misspunchDraftDelete: (date: string) => Promise<void>
+
   // Leave data
   leaveSync: () => Promise<LeaveSyncResult>
 

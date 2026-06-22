@@ -35,6 +35,9 @@ import {
   setDayTarget,
   deleteDayTarget,
   getAllDayTargets,
+  getMisspunchDraft,
+  setMisspunchDraft,
+  deleteMisspunchDraft,
   type DayTargetType,
 } from "./database"
 import {
@@ -807,6 +810,20 @@ export function registerIpcHandlers(
 
   ipcMain.handle("portal-cache-invalidate-all", () => {
     invalidateAll()
+  })
+
+  // ── Miss-punch playground drafts ──
+
+  ipcMain.handle("misspunch-draft-get", (_event, date: string) => {
+    return getMisspunchDraft(date)
+  })
+
+  ipcMain.handle("misspunch-draft-set", (_event, date: string, data: string) => {
+    setMisspunchDraft(date, data)
+  })
+
+  ipcMain.handle("misspunch-draft-delete", (_event, date: string) => {
+    deleteMisspunchDraft(date)
   })
 
   // ── Leave data ──

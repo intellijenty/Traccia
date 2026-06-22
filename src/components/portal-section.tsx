@@ -10,11 +10,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { usePortalDay } from "@/hooks/use-portal-day"
 import { useWeeklyTarget } from "@/hooks/use-weekly-target"
+import { useDayMarks } from "@/hooks/use-day-marks"
 import { getLocalDate } from "@/lib/week-utils"
 import { relativeTime, computePortalBreakMinutes } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Globe02Icon } from "@hugeicons/core-free-icons"
+import { Globe02Icon, SparklesIcon } from "@hugeicons/core-free-icons"
 import { Card, CardContent } from "./ui/card"
+import { Button } from "./ui/button"
+import type { PortalEntry } from "@/lib/types"
 
 // Skeleton that mirrors the real portal cards layout
 
@@ -225,8 +228,50 @@ export function PortalSection({
             />
           </div>
           <PortalLog entries={portalData.entries} />
+          <FixMissPunchButton date={date ?? today} entries={portalData.entries} />
         </>
       )}
     </div>
+  )
+}
+
+// ── Fix miss-punch entry button ──
+// Eligible when: a past day 1–7 days ago has an unpaired (open) punch.
+
+function daysAgo(date: string): number {
+  const today = getLocalDate()
+  const a = new Date(today + "T00:00:00").getTime()
+  const b = new Date(date + "T00:00:00").getTime()
+  return Math.round((a - b) / 86400000)
+}
+
+function hasMissPunch(entries: PortalEntry[]): boolean {
+  // A past-day entry with no out-time = dangling = miss-punch.
+  return entries.some((e) => e.outtime === null)
+}
+
+function FixMissPunchButton({ date, entries }: { date: string; entries: PortalEntry[] }) {
+  const { dayMarks } = useDayMarks()
+  const ago = daysAgo(date)
+  // Eligible on a real portal dangling punch OR a manual "mp" day-mark.
+  const flagged = hasMissPunch(entries) || dayMarks.get(date) === "mp"
+  const eligible = ago >= 1 && ago <= 7 && flagged
+  if (!eligible) return null
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="w-full border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
+      onClick={() =>
+        window.dispatchEvent(
+          new CustomEvent("traccia:open-playground", { detail: { date } })
+        )
+      }
+    >
+      <HugeiconsIcon icon={SparklesIcon} size={14} className="mr-1.5" />
+      Fix miss-punch
+    </Button>
   )
 }
