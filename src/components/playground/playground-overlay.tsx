@@ -1,7 +1,9 @@
-import { useEffect } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Keyboard } from "lucide-react"
 import { usePlayground } from "@/hooks/use-playground"
 import { PlaygroundLadder } from "./playground-ladder"
 import { PlaygroundOutput } from "./playground-output"
+import { PlaygroundShortcutsDialog } from "./playground-shortcuts-dialog"
 import { TimePopover } from "./playground-time-popover"
 import { formatMins } from "@/lib/playground"
 import { formatDateDisplay } from "@/lib/week-utils"
@@ -31,14 +33,38 @@ interface PlaygroundOverlayProps {
 
 export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
   const pg = usePlayground(date)
+  const hasPendingWireRef = useRef(false)
+  const addPunchTriggerRef = useRef<HTMLButtonElement>(null)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  const handlePendingChange = useCallback((active: boolean) => {
+    hasPendingWireRef.current = active
+  }, [])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose()
+      const target = e.target as HTMLElement
+      const inInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+
+      if (e.key === "Escape") {
+        if (!hasPendingWireRef.current) onClose()
+        return
+      }
+
+      if (inInput) return
+
+      if ((e.key === "a" || e.key === "A") && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        addPunchTriggerRef.current?.click()
+      }
     }
+
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [onClose])
+  }, [onClose, pg])
 
   return (
     <div
@@ -56,17 +82,21 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
           </h2>
           <p className="text-sm text-muted-foreground">{formatDateDisplay(date)}</p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={onClose}
-          aria-label="Close"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <HugeiconsIcon icon={Cancel01Icon} size={16} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </Button>
+        </div>
       </div>
+
+      <PlaygroundShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       {/* Notice banner */}
       {pg.notice && (
@@ -137,7 +167,7 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                     align="end"
                     onSubmit={pg.addPunch}
                     trigger={
-                      <Button type="button" variant="outline" size="sm">
+                      <Button ref={addPunchTriggerRef} type="button" variant="outline" size="sm">
                         <HugeiconsIcon icon={PlusSignCircleIcon} size={13} className="mr-" />
                         Add punch
                       </Button>
@@ -149,7 +179,7 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                       variant="ghost"
                       size="sm"
                       onClick={pg.reset}
-                      className="gap-1.5 rounded-r-none border-r border-r-border/60 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                      className="gap-1.5 rounded-r-none border-r border-r-border/60 px-2.5 text-xs hover:text-foreground"
                     >
                       <HugeiconsIcon icon={RefreshIcon} size={13} />
                       Reset
@@ -165,16 +195,26 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                           <HugeiconsIcon icon={ArrowDown01Icon} size={11} />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-44">
+                      <DropdownMenuContent align="end" className="min-w-40">
                         <DropdownMenuItem onClick={pg.resetPortal}>
                           Reset portal
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={pg.resetLocal}>
-                          Restore local events
+                          Restore local
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setShortcutsOpen(true)}
+                    aria-label="Keyboard shortcuts"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
                 </div>
               </div>
 
@@ -195,6 +235,9 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                   onEditPunch={pg.editPunch}
                   onRemovePunch={pg.removePunch}
                   onCycleGate={pg.cycleGate}
+                  onSetGate={pg.setGate}
+                  onPendingChange={handlePendingChange}
+                  onShowShortcuts={() => setShortcutsOpen(true)}
                 />
               </div>
             </>

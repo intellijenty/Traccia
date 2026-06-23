@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { PortalEntry, PunchEntry, WorkWindow } from "@/lib/types"
 import {
   type DraftPunch,
+  type Gate,
   type Wire,
   activePunches,
   localSessions,
@@ -97,6 +98,7 @@ export interface UsePlaygroundResult {
   removeWire: (draftTime: string) => void
   // Mutations — gate
   cycleGate: (id: string) => void
+  setGate: (id: string, gate: Gate) => void
 }
 
 export function usePlayground(date: string): UsePlaygroundResult {
@@ -283,6 +285,10 @@ export function usePlayground(date: string): UsePlaygroundResult {
     setDraft((d) => d.map((p) => (p.id === id ? { ...p, gate: nextGate(p.gate ?? null) } : p)))
   }, [])
 
+  const setGate = useCallback((id: string, gate: Gate) => {
+    setDraft((d) => d.map((p) => (p.id === id ? { ...p, gate } : p)))
+  }, [])
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const { balanced, danglingCount, correctedMinutes } = useMemo(() => {
@@ -325,5 +331,6 @@ export function usePlayground(date: string): UsePlaygroundResult {
     addWire,
     removeWire,
     cycleGate,
+    setGate,
   }
 }

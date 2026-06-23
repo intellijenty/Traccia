@@ -707,6 +707,7 @@ export default function App() {
       }
     },
     "day-prev": () => {
+      if (activePage !== "home") return
       setSelectedDate((current) => {
         const d = new Date(current + "T00:00:00")
         d.setDate(d.getDate() - 1)
@@ -719,6 +720,7 @@ export default function App() {
       })
     },
     "day-next": () => {
+      if (activePage !== "home") return
       setSelectedDate((current) => {
         const d = new Date(current + "T00:00:00")
         d.setDate(d.getDate() + 1)
@@ -747,7 +749,7 @@ export default function App() {
       else setActivePage("eod")
     },
     "week-prev": () => {
-      if (!isWide) return
+      if (!isWide || activePage !== "home") return
       setSelectedDate((current) => {
         const d = new Date(current + "T00:00:00")
         d.setDate(d.getDate() - 7)
@@ -755,7 +757,7 @@ export default function App() {
       })
     },
     "week-next": () => {
-      if (!isWide) return
+      if (!isWide || activePage !== "home") return
       setSelectedDate((current) => {
         const d = new Date(current + "T00:00:00")
         d.setDate(d.getDate() + 7)
