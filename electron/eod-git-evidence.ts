@@ -81,6 +81,6 @@ export async function gatherGitEvidence(repoPaths: string[], sinceIso: string): 
   const settled = await Promise.all(unique.map(p => gatherRepo(p, sinceIso).catch(() => null)))
   return settled.filter((r): r is RepoEvidence => {
     if (!r) return false
-    return r.commitsToday.length > 0 || r.uncommitted !== null || /[A-Z][A-Z0-9]+-\d+/.test(r.branch)
+    return r.commitsToday.length > 0 || r.uncommitted !== null
   })
 }

@@ -1022,6 +1022,7 @@ export function registerIpcHandlers(
     }
 
     let currentPhase: EodAiPhaseId = 'sessions'
+    let jiraToolCalled = false
     const setPhase = (phase: EodAiPhaseId, label: string): void => {
       if (phase === currentPhase) return
       currentPhase = phase
@@ -1030,6 +1031,7 @@ export function registerIpcHandlers(
     const phaseForTool = (tool: string): void => {
       const t = tool.toLowerCase()
       if (t.includes('jira') || t.includes('atlassian') || t.includes('confluence')) {
+        jiraToolCalled = true
         setPhase('jira', 'Querying Jira...')
       } else if (t === 'bash' || t === 'powershell' || t.includes('bitbucket')) {
         setPhase('bitbucket', 'Checking Bitbucket...')
@@ -1073,8 +1075,11 @@ export function registerIpcHandlers(
       const dayStart = effectiveDayStart()
       const git = await gatherGitEvidence(allRepos, dayStart.toISOString())
       try {
-        // Persist all repos ever seen (unfiltered) so the checklist stays complete
-        const merged = Array.from(new Set([...repoPaths, ...knownRepos])).slice(0, 30)
+        // Prune: only keep repos active today (session or git activity).
+        // Repos not touched today fall off naturally; no manual cleanup needed.
+        const activeToday = new Set([...repoPaths, ...git.map(e => e.repoPath)])
+        const pruned = knownRepos.filter(p => activeToday.has(p))
+        const merged = Array.from(new Set([...repoPaths, ...pruned])).slice(0, 30)
         electronStore.set('eodAiKnownRepos', merged)
       } catch { /* non-fatal */ }
 
@@ -1136,6 +1141,7 @@ export function registerIpcHandlers(
         durationMs: Date.now() - startedAt,
         factSheet,
         seenProjects,
+        jiraUnavailable: !jiraToolCalled,
       })
     })().catch(err => {
       fail(String(err instanceof Error ? err.message : err), 'unknown')

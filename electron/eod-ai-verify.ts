@@ -200,12 +200,32 @@ export function verifyDraft(
   // Drop projects left with neither tasks nor a meaningful note
   const cleanedProjects = projects.filter(p => p.tasksCompleted.length > 0 || p.statusNote !== null)
 
+  // Apply the same anti-hallucination ticket-key check to simple sections.
+  // A nextDayPlan item like "Working on ATON-7632 quota work" that has no
+  // factSheet backing is stale history leaking in from the past-EOD index.
+  function filterSection(
+    raw: unknown,
+    defaultNA: boolean,
+  ): { items: Array<{ text: string }>; isNA: boolean } {
+    const sec = asSection(raw, defaultNA)
+    const kept: Array<{ text: string }> = []
+    for (const item of sec.items) {
+      const keyMatch = TICKET_KEY_RX.exec(item.text.toUpperCase())
+      if (keyMatch && !allowedKeys.has(keyMatch[1])) {
+        dropped.push(item.text)
+      } else {
+        kept.push(item)
+      }
+    }
+    return { items: kept, isNA: kept.length === 0 ? sec.isNA : false }
+  }
+
   const draft: EodAiDraft = {
     projects: cleanedProjects,
-    otherTasks: asSection(obj.otherTasks, true),
-    concerns: asSection(obj.concerns, true),
-    nextDayPlan: asSection(obj.nextDayPlan, false),
-    upcomingHolidays: asSection(obj.upcomingHolidays, true),
+    otherTasks: filterSection(obj.otherTasks, true),
+    concerns: filterSection(obj.concerns, true),
+    nextDayPlan: filterSection(obj.nextDayPlan, false),
+    upcomingHolidays: filterSection(obj.upcomingHolidays, true),
   }
 
   // Usable if it carries ANY content. A day of only non-ticket work (everything

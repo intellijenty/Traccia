@@ -37,6 +37,8 @@ export interface EodAiDoneEvent {
   factSheet: EodFactSheet
   /** Project cwds digested this run before filtering (empty for refine runs). */
   seenProjects: string[]
+  /** True when the gather subprocess had no Jira/Atlassian tools — MCP needs re-auth. */
+  jiraUnavailable?: boolean
 }
 
 export interface EodAiErrorEvent {

@@ -33,6 +33,8 @@ export interface EodAiState {
   selectedIds: string[]
   /** Items already merged into the form this run (dimmed + tagged in picker). */
   addedIds: string[]
+  /** True when the gather subprocess had no Jira tools — MCP needs re-auth. */
+  jiraUnavailable: boolean
 }
 
 export interface StartGenerationInput {
@@ -93,7 +95,7 @@ function idle(): EodAiState {
   return {
     status: 'idle', runMode: 'generate', stepIdx: 0, startedAt: null, generatedAt: null,
     result: null, rawDraft: null, factSheet: null, dropped: [], error: null, lastRefine: null,
-    selectedIds: [], addedIds: [],
+    selectedIds: [], addedIds: [], jiraUnavailable: false,
   }
 }
 
@@ -197,6 +199,7 @@ function ensureListening(): void {
       generatedAt: Date.now(),
       selectedIds: allSelectableIds(result),
       addedIds: [],
+      jiraUnavailable: d.jiraUnavailable === true,
     })
     persistDone()
   })

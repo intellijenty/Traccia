@@ -1,3 +1,20 @@
+## v0.4.2 - June 2026
+
+### New
+- **Miss-punch Correction Playground** — A dedicated playground for correcting missed punches. Shows your portal draft punches and local PC session events as two parallel timelines. Wire them together to reconcile, assign gates, add or remove punches, and get a clean correction checklist to submit. Drafts persist automatically so you can return anytime within the 7-day window.
+- Mark some day as miss punch from context menu, and fix miss punch button will appear to open the playground.
+- Keyboard shortcut batteries included for power users. 🙂
+
+### Improved
+- **Jira unavailable warning** — If the Atlassian MCP connection drops or needs re-authentication, the Intelligence panel now shows a clear warning instead of silently skipping Jira.
+
+### Fixed
+- **Stale tickets from old branches** — Parked git branches with no activity today no longer generate phantom tickets in your EOD.
+- **Side projects polluting EOD** — Repos not touched today are no longer scanned on every run. The list self-cleans after each run, keeping only repos with actual activity.
+- **Old ticket keys leaking in** — Ticket keys from your past EODs (the title index) can no longer originate today's work. They're now used only to fill in a title for a key already found in sessions, git, or Jira.
+- **Exploration work going invisible** — Work done without a ticket key (research, planning, deep reads) now correctly appears in the **Other Tasks** section instead of being silently dropped.
+- **Hallucinated keys in Plan for Next Day** — Ticket keys with no evidence today can no longer survive in the *Plan for Next Day*, *Other Tasks*, or *Concerns* sections. All sections are now verified, not just the main task list.
+
 ## v0.4.1 - June 2026
 
 ### New

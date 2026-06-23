@@ -219,7 +219,8 @@ ${notesBlock}${instructionsBlock}━━━ YOUR TASKS ━━━
 ━━━ HARD RULES ━━━
 - Meetings are recorded here only as work context. Do not treat them as deliverables; a later step lists attended meetings automatically.
 - This is a READ-ONLY analysis. Never create, modify or delete files, never run state-changing commands, never write to Jira/Bitbucket — only read/search/query.
-- NEVER invent a ticket key or title. Every key must literally appear in evidence A/B/D or in Jira results. Work you cannot map to a real key goes in "unmatchedWork".
+- NEVER invent a ticket key or title. Every key must literally appear in evidence A (sessions), B (git), or Jira results. Work you cannot map to a real key goes in "unmatchedWork".
+- Evidence D (past-EOD index) is TITLE LOOKUP ONLY. Use it to fill in the title for a key already found in A, B, or Jira. A key that appears ONLY in evidence D and has NO trace in today's sessions, git, or Jira MUST NOT be included in the tickets array — it is stale history, not today's work.
 - Each action text must be concrete and traceable to evidence (what was analysed/fixed/added/tested), 5–20 words.
 - 2–6 actions per ticket. Merge near-duplicate actions.
 - statusSignal "done" only with completion evidence (PR opened/merged, ticket transitioned, explicit completion in session); otherwise "wip".
@@ -265,7 +266,7 @@ ${userRulesBlock(ctx.instructions, ctx.notes)}━━━ FORMAT RULES ━━━
 - Meetings: do NOT output any meeting lines (no "Attended meeting: ..." entries). The app inserts attended meetings automatically after you finish. Ignore the fact sheet's "meetings" array and any meeting lines in the past-EOD style examples — they are not yours to write.
 - Group tickets under the correct project name (derive from the ticket key prefix and past EODs).
 - Project status: "green" unless evidence clearly says otherwise.
-- "unmatchedWork" items go under otherTasks, phrased like the user would.
+- REQUIRED: "unmatchedWork" items represent real work done today with no ticket key. If unmatchedWork is non-empty, every item MUST appear in otherTasks.items, phrased like the user would. Setting otherTasks.isNA:true when unmatchedWork is non-empty is a critical error — the user's work becomes invisible.
 - nextDayPlan: continue WIP tickets, phrased like in past EODs (e.g. "Working on ticket KEY"). If nothing is WIP, use a sensible short plan.
 - concerns: leave as N/A (isNA: true, empty items) unless past EODs show a recurring concern pattern that clearly still applies.
 - upcomingHolidays: ALWAYS isNA true with empty items. The app injects approved leave automatically — never write holiday or leave entries yourself.

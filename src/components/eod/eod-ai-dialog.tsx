@@ -422,6 +422,11 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
           </div>
         ) : showDone ? (
           <div className="flex h-full flex-col gap-2">
+            {s.jiraUnavailable && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+                Jira not queried — ticket titles may be missing. Re-authenticate Atlassian in Claude settings (<code className="font-mono">claude mcp</code>).
+              </div>
+            )}
             {s.dropped.length > 0 && (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
                 {s.dropped.length} task{s.dropped.length > 1 ? 's' : ''} removed — no evidence for: {s.dropped.join(' · ')}

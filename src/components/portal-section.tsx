@@ -228,8 +228,12 @@ export function PortalSection({
             />
           </div>
           <PortalLog entries={portalData.entries} />
-          <FixMissPunchButton date={date ?? today} entries={portalData.entries} />
         </>
+      )}
+
+      {/* Fix miss-punch — shown for manual mp mark even before portal loads */}
+      {showControls && (
+        <FixMissPunchButton date={date ?? today} entries={portalData?.entries ?? []} />
       )}
     </div>
   )
