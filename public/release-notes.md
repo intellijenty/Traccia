@@ -1,3 +1,9 @@
+## v0.4.3 - June 2026
+
+### IMPROVED
+- **Start Minimized** - App Starts minimized and operates silently in tray on Startup, instead of popping up window. 
+- Note: Startup takes time on windows os, so don't get confused about hotkey is not working.
+
 ## v0.4.2 - June 2026
 
 ### NEW

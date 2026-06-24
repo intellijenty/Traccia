@@ -70,9 +70,20 @@ if (!isDev) {
 // ─────────────────────────────────────────────────────────────
 // Helper Functions
 // ─────────────────────────────────────────────────────────────
+// Flag passed to the OS Run-key launch so we can detect login-launch on Windows.
+// (wasOpenedAtLogin is macOS-only; on Windows we must sniff process.argv.)
+const LOGIN_LAUNCH_FLAG = "--hidden"
+
+function wasOpenedAtLogin(): boolean {
+  return app.isPackaged && process.argv.includes(LOGIN_LAUNCH_FLAG)
+}
+
 function syncLoginItem(enabled: boolean): void {
   if (app.isPackaged) {
-    app.setLoginItemSettings({ openAtLogin: enabled })
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      args: [LOGIN_LAUNCH_FLAG],
+    })
   }
 }
 
@@ -225,11 +236,8 @@ function createWindow(): void {
   })
 
   mainWindow.on("ready-to-show", () => {
-    const openedAtLogin = app.isPackaged
-      ? app.getLoginItemSettings().wasOpenedAtLogin
-      : false
-
-    if (!openedAtLogin) {
+    // Stay hidden in tray when launched at login; show on manual launch.
+    if (!wasOpenedAtLogin()) {
       mainWindow?.show()
     }
   })

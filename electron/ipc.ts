@@ -570,9 +570,13 @@ export function registerIpcHandlers(
       for (const [key, value] of Object.entries(settings)) {
         setSetting(key, String(value))
       }
-      // Sync login item when autoStart changes
+      // Sync login item when autoStart changes.
+      // args flag lets the app detect login-launch on Windows (see main.ts).
       if ("autoStart" in settings && app.isPackaged) {
-        app.setLoginItemSettings({ openAtLogin: settings.autoStart === true })
+        app.setLoginItemSettings({
+          openAtLogin: settings.autoStart === true,
+          args: ["--hidden"],
+        })
       }
       // Re-register hotkey whenever hotkey settings change
       const HOTKEY_KEYS = ["hotkeyCombo", "hotkeyMode", "hotkeyEnabled"]
