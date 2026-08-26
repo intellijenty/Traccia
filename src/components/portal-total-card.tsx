@@ -35,6 +35,8 @@ interface PortalTotalCardProps {
   targetMinutes?: number
   adjustmentLabel?: string | null
   breakMinutes?: number
+  /** Signed correction to portal minutes, estimated from local punches. */
+  etaOffsetMinutes?: number
 }
 
 export function PortalTotalCard({
@@ -43,8 +45,15 @@ export function PortalTotalCard({
   targetMinutes = 480,
   adjustmentLabel = null,
   breakMinutes = 0,
+  etaOffsetMinutes = 0,
 }: PortalTotalCardProps) {
   const remainingMinutes = Math.max(0, targetMinutes - totalMinutes)
+  // ETA runs on the local-corrected total; every other number on this card
+  // stays on portal-confirmed time.
+  const etaRemainingMinutes = Math.max(
+    0,
+    targetMinutes - totalMinutes - etaOffsetMinutes
+  )
   const percentage = Math.min(
     100,
     Math.round((totalMinutes / targetMinutes) * 1000) / 10
@@ -76,8 +85,8 @@ export function PortalTotalCard({
 
         {/* Primary number */}
         <p className="mt-2 font-mono text-3xl font-bold tracking-tight tabular-nums">
-          {isIn && !completed
-            ? formatCompletionTime(remainingMinutes)
+          {(isIn || etaOffsetMinutes > 0) && !completed
+            ? formatCompletionTime(etaRemainingMinutes)
             : formatHoursMinutes(totalMinutes)}
         </p>
 

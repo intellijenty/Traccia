@@ -71,6 +71,7 @@ export function DayView({ date, showHeader = false, todayCustomTarget }: DayView
             variant="wide"
             todayCustomTarget={isViewingToday ? todayCustomTarget : null}
             workWindowStart={isViewingToday ? (status.workWindow?.start ?? null) : null}
+            localEvents={events}
           />
         </div>
 

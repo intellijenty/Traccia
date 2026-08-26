@@ -13,11 +13,12 @@ import { useWeeklyTarget } from "@/hooks/use-weekly-target"
 import { useDayMarks } from "@/hooks/use-day-marks"
 import { getLocalDate } from "@/lib/week-utils"
 import { relativeTime, computePortalBreakMinutes } from "@/lib/utils"
+import { estimatePortalTotalMinutes } from "@/lib/portal-estimate"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Globe02Icon, SparklesIcon } from "@hugeicons/core-free-icons"
 import { Card, CardContent } from "./ui/card"
 import { Button } from "./ui/button"
-import type { PortalEntry } from "@/lib/types"
+import type { PortalEntry, PunchEntry } from "@/lib/types"
 
 // Skeleton that mirrors the real portal cards layout
 
@@ -54,6 +55,7 @@ interface PortalSectionProps {
   variant?: "default" | "wide"
   todayCustomTarget?: import("@/lib/types").DayTarget | null
   workWindowStart?: string | null
+  localEvents?: PunchEntry[]
 }
 
 export function PortalSection({
@@ -61,6 +63,7 @@ export function PortalSection({
   variant = "default",
   todayCustomTarget,
   workWindowStart,
+  localEvents,
 }: PortalSectionProps) {
   const {
     hrmsStatus,
@@ -86,6 +89,17 @@ export function PortalSection({
     todayCustomTarget,
     workWindowStart
   )
+
+  // The portal lags behind the gate. Correct the ETA with the local record:
+  // add the punch-in it has not seen, deduct the breaks it has not seen.
+  const projectedMinutes =
+    isToday && portalData?.success && localEvents?.length
+      ? estimatePortalTotalMinutes(portalData, localEvents)
+      : null
+  const etaOffsetMinutes =
+    projectedMinutes === null || !portalData
+      ? 0
+      : projectedMinutes - portalData.totalMinutes
 
   return (
     <div className="space-y-3">
@@ -225,6 +239,7 @@ export function PortalSection({
               targetMinutes={isToday ? adjustedTargetMinutes : 480}
               adjustmentLabel={isToday ? targetTooltip : null}
               breakMinutes={computePortalBreakMinutes(portalData.entries)}
+              etaOffsetMinutes={etaOffsetMinutes}
             />
           </div>
           <PortalLog entries={portalData.entries} />

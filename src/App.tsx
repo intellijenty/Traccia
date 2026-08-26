@@ -201,6 +201,7 @@ function NarrowLayout({
               date={selectedDate}
               todayCustomTarget={isToday ? todayCustomTarget : null}
               workWindowStart={isToday ? (status?.workWindow?.start ?? null) : null}
+              localEvents={events}
             />
           </div>
 

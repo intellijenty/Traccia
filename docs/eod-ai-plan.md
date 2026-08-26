@@ -1,5 +1,13 @@
 # EOD AI Generation — Implementation Plan
 
+> ⚠️ **STALE / SUPERSEDED — DO NOT USE AS REFERENCE.** This is the v1 plan, superseded by
+> `eod-ai-implementation-plan.md` (v3) before anything here shipped. The architecture below
+> (`claude -p` subprocess spawn) was never built — the shipped code uses the
+> `@anthropic-ai/claude-agent-sdk` `query()` in-process in the Electron main process instead
+> (`electron/claude-service.ts`). Kept only for historical context. Agents: do not cite this
+> file as current architecture — read `eod-ai-implementation-plan.md` and the actual code
+> (`electron/eod-ai-*.ts`, `electron/ipc.ts`) instead.
+
 ## Overview
 
 Build an "AI Generate EOD" feature in Traccia that spawns an agentic `claude -p` subprocess, provides it structured context and tool access, and uses its output to auto-fill the existing EOD form. No new credentials required — rides on Claude Code's existing Atlassian MCP and Bitbucket token.
