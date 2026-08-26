@@ -13,6 +13,7 @@ import type { EodFormState, EodSimpleSection } from './eod-types'
 import type { EodAiDraft, EodFactSheet } from './eod-ai-types'
 import { filterMeetings } from './eod-meeting-sync'
 import { allSelectableIds } from './eod-ai-selection'
+import { workDate } from './eod-workday'
 
 export type EodAiStatus = 'idle' | 'running' | 'done' | 'error'
 export type EodAiRunMode = 'generate' | 'refine'
@@ -55,7 +56,7 @@ function toSection(s: EodAiDraft['otherTasks']): EodSimpleSection {
 
 export function draftToFormState(draft: EodAiDraft): EodFormState {
   return {
-    date: new Date().toLocaleDateString('en-CA'),
+    date: workDate(),
     projects: draft.projects.map(p => ({
       id: makeId(),
       name: p.name,
@@ -79,8 +80,7 @@ function stepIndexForPhase(phase: string): number {
     case 'sessions': return 0
     case 'gather':
     case 'jira': return 1
-    case 'bitbucket': return 2
-    case 'write': return 3
+    case 'write': return 2
     default: return 0
   }
 }
@@ -88,10 +88,6 @@ function stepIndexForPhase(phase: string): number {
 // ── Store internals ───────────────────────────────────────────────────────────
 
 const LS_KEY = 'traccia:eod-ai-last'
-
-function today(): string {
-  return new Date().toLocaleDateString('en-CA')
-}
 
 function idle(): EodAiState {
   return {
@@ -112,7 +108,7 @@ function restoreInitial(): EodAiState {
       dropped?: string[]; droppedTickets?: string[]; generatedAt?: number
       selectedIds?: string[]; addedIds?: string[]
     }
-    if (p && p.date === today() && p.rawDraft) {
+    if (p && p.date === workDate() && p.rawDraft) {
       // Restore the persisted `result` so its ids still match selectedIds/addedIds
       // (draftToFormState mints fresh ids, which would desync the selection).
       const result = p.result ?? draftToFormState(p.rawDraft)
@@ -152,7 +148,7 @@ function persistDone(): void {
   try {
     if (!state.rawDraft) return
     localStorage.setItem(LS_KEY, JSON.stringify({
-      date: today(),
+      date: workDate(),
       rawDraft: state.rawDraft,
       result: state.result,
       factSheet: state.factSheet,
@@ -172,7 +168,7 @@ function dropStaleDraft(): void {
   if (
     state.status === 'done' &&
     state.generatedAt &&
-    new Date(state.generatedAt).toLocaleDateString('en-CA') !== today()
+    workDate(new Date(state.generatedAt)) !== workDate()
   ) {
     try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
     state = idle()

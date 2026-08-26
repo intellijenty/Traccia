@@ -135,7 +135,7 @@ function unwantedConnectors(): string[] {
       ? parsed.claudeAiMcpEverConnected.filter((n): n is string => typeof n === 'string')
       : []
     return names
-      .filter(n => !/atlassian|jira|bitbucket/i.test(n))
+      .filter(n => !/atlassian|jira/i.test(n))
       .map(connectorPrefix)
   } catch {
     return []

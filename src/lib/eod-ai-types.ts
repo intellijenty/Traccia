@@ -2,7 +2,7 @@
 // Imported by both the renderer (dialog) and the main process (orchestrator),
 // mirroring the outlook-meetings.ts cross-import pattern.
 
-export type EodAiPhaseId = 'sessions' | 'gather' | 'jira' | 'bitbucket' | 'write'
+export type EodAiPhaseId = 'sessions' | 'gather' | 'jira' | 'write'
 
 export interface EodAiPhaseEvent {
   requestId: string

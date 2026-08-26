@@ -61,7 +61,8 @@ import type { OutlookMeeting } from '../src/lib/outlook-meetings'
 import { claude } from './claude-service'
 import type { GenerateOptions } from './claude-service'
 import { claudeUsage } from './claude-usage-service'
-import { digestTodaySessions, effectiveDayStart } from './eod-session-digest'
+import { digestTodaySessions } from './eod-session-digest'
+import { effectiveDayStart, workDate } from '../src/lib/eod-workday'
 import { gatherGitEvidence } from './eod-git-evidence'
 import {
   buildGatherPrompt,
@@ -1021,9 +1022,11 @@ export function registerIpcHandlers(
   const GATHER_FALLBACK = 'opus'
   const WRITE_MODEL = 'opus'
   const WRITE_FALLBACK = 'sonnet'
-  // Built-in tools the analyst may use. Read-only by construction: no Write,
-  // Edit or Task. MCP connectors (Jira) are unaffected by this list.
-  const GATHER_TOOLS = 'Bash,Read,Grep,Glob'
+  // No built-in tools at all. Every piece of local evidence is already inlined
+  // into the prompt, and Jira arrives over MCP, which this list does not affect
+  // (verified). Read-only therefore becomes structural rather than a request:
+  // the analyst has no shell and no file access to misuse.
+  const GATHER_TOOLS = ''
   // Failures worth a tool-free second attempt. A run that stalls talking to MCP
   // connectors still has everything it needs sitting in the prompt, so retrying
   // without tools usually succeeds in seconds. Auth, quota and cancellation are
@@ -1031,6 +1034,15 @@ export function registerIpcHandlers(
   const GATHER_RETRY_CODES = new Set(['timeout', 'empty-response', 'unknown'])
 
   let activeEodAiRequestId: string | null = null
+
+  // Versions up to 0.4.x wrote one `eodAiLastRun:<date>` key per run and never
+  // removed them. Nothing reads them now; clear them out once at startup so the
+  // store does not keep growing a key per day.
+  try {
+    for (const key of Object.keys((electronStore as unknown as { store: Record<string, unknown> }).store)) {
+      if (key.startsWith('eodAiLastRun:')) electronStore.delete(key as never)
+    }
+  } catch { /* store unavailable — nothing to clean */ }
 
   const readKnownRepos = (): string[] => {
     const stored = electronStore.get('eodAiKnownRepos')
@@ -1068,8 +1080,6 @@ export function registerIpcHandlers(
       if (t.includes('jira') || t.includes('atlassian') || t.includes('confluence')) {
         jiraToolCalled = true
         setPhase('jira', 'Querying Jira...')
-      } else if (t === 'bash' || t === 'powershell' || t.includes('bitbucket')) {
-        setPhase('bitbucket', 'Checking Bitbucket...')
       }
     }
 
@@ -1136,7 +1146,7 @@ export function registerIpcHandlers(
         electronStore.set('eodAiKnownRepos', merged)
       } catch { /* non-fatal */ }
 
-      const todayDate = getLocalDate()
+      const todayDate = workDate()
       // Past EODs write tickets as "KEY - title", which makes them a
       // high-precision source of the project codes this user actually uses.
       // Those codes are then exempt from the "looks like a standard, not a
@@ -1164,8 +1174,8 @@ export function registerIpcHandlers(
         return fail(`${reason}${hint}`, 'no-evidence')
       }
 
-      // 2. Gather facts (agentic: Jira MCP + Bitbucket)
-      setPhase('gather', 'Cross-referencing Jira & Bitbucket...')
+      // 2. Gather facts (agentic: Jira over MCP)
+      setPhase('gather', 'Cross-referencing Jira...')
       const gatherPrompt = buildGatherPrompt({
         todayDate,
         digests,
@@ -1333,7 +1343,7 @@ export function registerIpcHandlers(
 
     void (async () => {
       const refinePrompt = buildRefinePrompt({
-        todayDate: getLocalDate(),
+        todayDate: workDate(),
         factSheet,
         previousDraft: payload.previousDraft,
         instruction,

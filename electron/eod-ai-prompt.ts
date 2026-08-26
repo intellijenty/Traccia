@@ -1,8 +1,8 @@
 // Prompt builders for the two AI phases of EOD generation.
 //
 // Phase GATHER (agentic): session digests + git evidence + meetings + ticket
-// index → evidence-tagged fact sheet JSON, cross-referenced against Jira and
-// Bitbucket via the user's own Claude Code tooling.
+// index → evidence-tagged fact sheet JSON, cross-referenced against Jira via
+// the user's own Claude Code MCP connector.
 //
 // Phase WRITE (plain): fact sheet + past EODs (style fingerprint) → EodFormState
 // shaped JSON in the user's personal voice.
@@ -170,12 +170,12 @@ Rules for standing instructions: declarations of recurring work (e.g. "always in
 `
     : ''
 
-  // The agentic run cross-references Jira and Bitbucket. The offline rerun has
-  // no tools at all, so asking it to "try Jira" invites it to pretend it did.
+  // The agentic run may query Jira. The offline rerun has no tools at all, so
+  // asking it to "try Jira" only invites it to pretend it did.
   const tasksBlock = ctx.offline
     ? `━━━ YOUR TASKS ━━━
 1. From evidence A and B, identify every distinct piece of work done today and the ticket keys involved (branch names like "ATON-7632-fix-quota" and prompts/commits usually contain them).
-2. You have NO tools on this run. Do not attempt Jira, Bitbucket, the shell or any lookup — every fact must come from the evidence above. Take a ticket title from evidence D when a key matches (titleSource "pastEod"); otherwise leave the key as the title (titleSource "branch-only"). Never use titleSource "jira".
+2. You have NO tools on this run. Do not attempt Jira or any other lookup — every fact must come from the evidence above. Take a ticket title from evidence D when a key matches (titleSource "pastEod"); otherwise leave the key as the title (titleSource "branch-only"). Never use titleSource "jira".
 3. Produce the FACT SHEET as JSON.`
     : `━━━ YOUR TASKS ━━━
 1. From evidence A and B, identify every distinct piece of work done today and the ticket keys involved (branch names like "ATON-7632-fix-quota" and prompts/commits usually contain them).
@@ -183,8 +183,8 @@ Rules for standing instructions: declarations of recurring work (e.g. "always in
    - Search: JQL \`assignee = currentUser() AND updated >= -1d ORDER BY updated DESC\`
    - Also fetch by key any ticket seen in evidence but missing from that search, to get its exact title and status.
    If the MCP is unavailable or errors, continue using titles from evidence D (mark titleSource accordingly).
-3. If you can reach the company Bitbucket (an MCP tool or an API token already present in the environment), check pull requests authored or updated today — a PR opened today is a strong "done" signal for its ticket. Spend at most 2 attempts on this; if it fails, move on.
-4. Produce the FACT SHEET as JSON.`
+   Jira is your only lookup: you have no shell and no file access on this run.
+3. Produce the FACT SHEET as JSON.`
 
   return `${TRACCIA_EOD_SENTINEL} Automated work-evidence analysis for an End-of-Day status report. Today is ${ctx.todayDate}.
 
@@ -212,19 +212,19 @@ ${notesBlock}${instructionsBlock}${tasksBlock}
     "titleSource": "jira" | "pastEod" | "branch-only",
     "statusSignal": "done" | "wip",
     "statusEvidence": "short reason, e.g. 'PR #123 opened 16:40' or 'still debugging at end of last session'",
-    "actions": [{ "text": "specific thing done today within this ticket", "source": "session" | "git" | "jira" | "bitbucket" }]
+    "actions": [{ "text": "specific thing done today within this ticket", "source": "session" | "git" | "jira" }]
   }],
   "unmatchedWork": ["work evident today that maps to no ticket key", ...]
 }
 
 ━━━ HARD RULES ━━━
 - Meetings are context only. Never output a meeting as a ticket, an action or unmatched work — Traccia adds attended meetings to the report itself. Use them only to work out which ticket a piece of work belongs to.
-- This is a READ-ONLY analysis. Never create, modify or delete files, never run state-changing commands, never write to Jira/Bitbucket — only read/search/query.
+- This is a READ-ONLY analysis: never create, transition or comment on anything in Jira — only search and read.
 - NEVER invent a ticket key or title. Every key must literally appear in evidence A (sessions), B (git), or Jira results. Work you cannot map to a real key goes in "unmatchedWork".
 - Evidence D (past-EOD index) is TITLE LOOKUP ONLY. Use it to fill in the title for a key already found in A, B, or Jira. A key that appears ONLY in evidence D and has NO trace in today's sessions, git, or Jira MUST NOT be included in the tickets array — it is stale history, not today's work.
 - Each action text must be concrete and traceable to evidence (what was analysed/fixed/added/tested), 5–20 words.
 - 2–6 actions per ticket. Merge near-duplicate actions.
-- statusSignal "done" only with completion evidence (PR opened/merged, ticket transitioned, explicit completion in session); otherwise "wip".
+- statusSignal "done" only with completion evidence (ticket transitioned to a done state in Jira, or explicit completion in the session/commits); otherwise "wip".
 - Final response: ONLY the JSON object. No markdown fences, no commentary.`
 }
 

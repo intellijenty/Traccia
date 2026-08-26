@@ -10,6 +10,7 @@ import { promises as fs } from 'fs'
 import { existsSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
+import { effectiveDayStart } from '../src/lib/eod-workday'
 
 export interface SessionDigest {
   /** Folder the session ran in (exact path from the transcript's cwd field). */
@@ -42,18 +43,9 @@ export interface DigestResult {
 // but it still catches transcripts left behind by older app versions.
 export const TRACCIA_EOD_SENTINEL = '[TRACCIA-EOD]'
 
-// A "work day" starts at 04:00 local, not midnight — work done at 01:30 still
-// belongs to the previous day's EOD (night-owl support).
-const DAY_START_HOUR = 4
-
-/** Start of the current effective work day. Shared with git evidence so both
- *  sources use the identical boundary. */
-export function effectiveDayStart(now = new Date()): Date {
-  const start = new Date(now)
-  start.setHours(DAY_START_HOUR, 0, 0, 0)
-  if (now.getTime() < start.getTime()) start.setDate(start.getDate() - 1)
-  return start
-}
+// The work-day boundary lives in one place shared with the renderer (see
+// src/lib/eod-workday), so evidence gathering, draft expiry and the date
+// stamped on a draft cannot drift apart.
 
 const USER_PROMPT_CAP = 400
 const ASSISTANT_TEXT_CAP = 600

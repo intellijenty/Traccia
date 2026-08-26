@@ -44,7 +44,7 @@ export const FACT_SHEET_SCHEMA = {
               type: 'object',
               properties: {
                 text: { type: 'string' },
-                source: { type: 'string', enum: ['session', 'git', 'jira', 'bitbucket', 'user'] },
+                source: { type: 'string', enum: ['session', 'git', 'jira', 'user'] },
               },
               required: ['text', 'source'],
               additionalProperties: false,

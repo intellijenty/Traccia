@@ -55,7 +55,6 @@ type View = 'main' | 'settings'
 const STEPS = [
   { key: 'sessions', label: 'Reading your Claude sessions' },
   { key: 'jira', label: 'Cross-referencing Jira' },
-  { key: 'bitbucket', label: 'Checking Bitbucket' },
   { key: 'write', label: 'Writing your EOD' },
 ] as const
 
@@ -545,7 +544,7 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   Traccia reads your work evidence and writes the draft in your own style.
                   <br />
-                  Claude sessions · Git · Jira · Bitbucket · Meetings
+                  Claude sessions · Git · Jira · Meetings
                   {pastEodCount > 0 ? ` · style from your last ${pastEodCount} EOD${pastEodCount > 1 ? 's' : ''}` : ''}
                 </p>
               </div>
