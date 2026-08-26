@@ -79,12 +79,16 @@ function asItems(v: unknown): Array<{ text: string }> {
     .filter(i => i.text.length > 0)
 }
 
-function asSection(v: unknown, defaultNA: boolean): { items: Array<{ text: string }>; isNA: boolean } {
-  const obj = (v && typeof v === 'object' ? v : {}) as { items?: unknown; isNA?: unknown }
+/**
+ * isNA is derived, never trusted: it means "nothing to report", so it is exactly
+ * `items.length === 0`. The model regularly disagrees with itself here, and
+ * filtering can empty a section that arrived marked not-N/A, leaving a section
+ * that renders as present but blank.
+ */
+function asSection(v: unknown): { items: Array<{ text: string }>; isNA: boolean } {
+  const obj = (v && typeof v === 'object' ? v : {}) as { items?: unknown }
   const items = asItems(obj.items)
-  // isNA must be consistent with content: items present → not N/A
-  const isNA = items.length > 0 ? false : typeof obj.isNA === 'boolean' ? obj.isNA : defaultNA
-  return { items, isNA }
+  return { items, isNA: items.length === 0 }
 }
 
 // ── Fact sheet coercion ───────────────────────────────────────────────────────
@@ -291,25 +295,21 @@ export function verifyDraft(
   // Simple sections get the same treatment. A nextDayPlan item like "Working on
   // ATON-7632 quota work" with no fact-sheet backing is stale history leaking
   // in from the past-EOD index.
-  function filterSection(
-    raw: unknown,
-    defaultNA: boolean,
-  ): { items: Array<{ text: string }>; isNA: boolean } {
-    const sec = asSection(raw, defaultNA)
+  function filterSection(raw: unknown): { items: Array<{ text: string }>; isNA: boolean } {
     const kept: Array<{ text: string }> = []
-    for (const item of sec.items) {
+    for (const item of asSection(raw).items) {
       if (unbackedKeys(item.text).length > 0) dropped.push(item.text)
       else kept.push(item)
     }
-    return { items: kept, isNA: kept.length === 0 ? sec.isNA : false }
+    return { items: kept, isNA: kept.length === 0 }
   }
 
   const draft: EodAiDraft = {
     projects: cleanedProjects,
-    otherTasks: filterSection(obj.otherTasks, true),
-    concerns: filterSection(obj.concerns, true),
-    nextDayPlan: filterSection(obj.nextDayPlan, false),
-    upcomingHolidays: filterSection(obj.upcomingHolidays, true),
+    otherTasks: filterSection(obj.otherTasks),
+    concerns: filterSection(obj.concerns),
+    nextDayPlan: filterSection(obj.nextDayPlan),
+    upcomingHolidays: filterSection(obj.upcomingHolidays),
   }
 
   // Usable if it carries ANY content. A day of only non-ticket work (everything
