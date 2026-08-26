@@ -93,6 +93,5 @@ export interface EodFactTicket {
 
 export interface EodFactSheet {
   tickets: EodFactTicket[]
-  meetings: string[]
   unmatchedWork: string[]
 }

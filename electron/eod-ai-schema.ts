@@ -55,10 +55,9 @@ export const FACT_SHEET_SCHEMA = {
         additionalProperties: false,
       },
     },
-    meetings: { type: 'array', items: { type: 'string' } },
     unmatchedWork: { type: 'array', items: { type: 'string' } },
   },
-  required: ['tickets', 'meetings', 'unmatchedWork'],
+  required: ['tickets', 'unmatchedWork'],
   additionalProperties: false,
 } as const
 

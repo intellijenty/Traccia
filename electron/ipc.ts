@@ -74,7 +74,13 @@ import {
   extractDeclaredKeys,
   learnProjectPrefixes,
 } from './eod-ai-keys'
-import { extractJson, coerceFactSheet, screenFactSheet, verifyDraft } from './eod-ai-verify'
+import {
+  extractJson,
+  coerceFactSheet,
+  isEmptyFactSheet,
+  screenFactSheet,
+  verifyDraft,
+} from './eod-ai-verify'
 import { makeProjectFilter } from './eod-ai-filter'
 import { FACT_SHEET_SCHEMA, EOD_DRAFT_SCHEMA } from './eod-ai-schema'
 import type {
@@ -1115,12 +1121,20 @@ export function registerIpcHandlers(
       // appear in evidence we collected ourselves.
       const evidenceKeys = collectEvidenceKeys(digests, git, knownPrefixes)
 
-      if (digests.length === 0 && git.length === 0 && meetings.length === 0 &&
-          notes.trim().length === 0 && declaredKeys.length === 0) {
+      // Meetings deliberately do not count here. The analyst is forbidden from
+      // reporting them and Traccia adds attended meetings to the draft itself,
+      // so a meetings-only day would burn a full agentic run to produce nothing.
+      const hasWorkEvidence =
+        digests.length > 0 || git.length > 0 ||
+        notes.trim().length > 0 || declaredKeys.length > 0
+      if (!hasWorkEvidence) {
         const hint = filterMode === 'allowlist' && seenProjects.length > 0
           ? ` Your project filter (only report selected projects) excluded all ${seenProjects.length} project(s) seen today — check Personalize settings.`
           : ''
-        return fail(`No work evidence found for today (no Claude sessions, git activity, or meetings).${hint}`, 'no-evidence')
+        const reason = meetings.length > 0
+          ? 'Only meetings found for today — Traccia adds those to your draft automatically, so there is nothing for the AI to write.'
+          : 'No work evidence found for today (no Claude sessions, git activity or notes).'
+        return fail(`${reason}${hint}`, 'no-evidence')
       }
 
       // 2. Gather facts (agentic: Jira MCP + Bitbucket)
@@ -1156,6 +1170,9 @@ export function registerIpcHandlers(
       if (!rawFactSheet) {
         return fail('Could not extract a usable fact sheet from the analysis step.', 'parse', gatherResult.text.slice(0, 4000))
       }
+      if (isEmptyFactSheet(rawFactSheet)) {
+        return fail('The analysis found no reportable work for today.', 'no-evidence')
+      }
 
       // Screen the analyst before the writer ever sees its output — otherwise
       // verification only ever checks the writer against the analyst, and a
@@ -1167,12 +1184,9 @@ export function registerIpcHandlers(
         jiraConsulted: jiraToolCalled,
         knownPrefixes,
       })
-      if (factSheet.tickets.length === 0 && factSheet.unmatchedWork.length === 0 &&
-          factSheet.meetings.length === 0) {
+      if (isEmptyFactSheet(factSheet)) {
         return fail(
-          droppedTickets.length > 0
-            ? `Every ticket the analysis reported is unsupported by today's evidence (${droppedTickets.join(', ')}). Nothing left to write.`
-            : 'The analysis found no work to report for today.',
+          `Every ticket the analysis reported is unsupported by today's evidence (${droppedTickets.join(', ')}). Nothing left to write.`,
           'no-evidence',
         )
       }
@@ -1237,7 +1251,7 @@ export function registerIpcHandlers(
     const instructions = (typeof payload?.instructions === 'string' ? payload.instructions : '').slice(0, 4_000)
     // Re-coerce the round-tripped fact sheet — renderer data is untrusted
     const factSheet = coerceFactSheet(payload?.factSheet)
-    if (!factSheet || !instruction.trim() || !payload?.previousDraft) {
+    if (!factSheet || isEmptyFactSheet(factSheet) || !instruction.trim() || !payload?.previousDraft) {
       fail('Refine request is missing the draft, fact sheet or instruction.', 'bad-request')
       return { requestId }
     }

@@ -471,19 +471,6 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
                         </ul>
                       </div>
                     ))}
-                    {s.factSheet.meetings.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Meetings</p>
-                        <ul className="space-y-1 pl-3">
-                          {s.factSheet.meetings.map((m, i) => (
-                            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden="true" />
-                              <span>{m}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                     {s.factSheet.unmatchedWork.length > 0 && (
                       <div className="space-y-1.5">
                         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Unmatched</p>

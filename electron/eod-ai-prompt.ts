@@ -177,7 +177,7 @@ ${sessionsBlock}
 ━━━ EVIDENCE B — Git activity today ━━━
 ${formatGitEvidence(ctx.git)}
 
-━━━ EVIDENCE C — Meetings attended today ━━━
+━━━ EVIDENCE C — Meetings attended today (context for mapping work to tickets; never an output) ━━━
 ${meetingsBlock}
 
 ━━━ EVIDENCE D — Ticket-title index from this user's past EODs ━━━
@@ -202,12 +202,11 @@ ${notesBlock}${instructionsBlock}━━━ YOUR TASKS ━━━
     "statusEvidence": "short reason, e.g. 'PR #123 opened 16:40' or 'still debugging at end of last session'",
     "actions": [{ "text": "specific thing done today within this ticket", "source": "session" | "git" | "jira" | "bitbucket" }]
   }],
-  "meetings": ["meeting title", ...],
   "unmatchedWork": ["work evident today that maps to no ticket key", ...]
 }
 
 ━━━ HARD RULES ━━━
-- Meetings are recorded here only as work context. Do not treat them as deliverables; a later step lists attended meetings automatically.
+- Meetings are context only. Never output a meeting as a ticket, an action or unmatched work — Traccia adds attended meetings to the report itself. Use them only to work out which ticket a piece of work belongs to.
 - This is a READ-ONLY analysis. Never create, modify or delete files, never run state-changing commands, never write to Jira/Bitbucket — only read/search/query.
 - NEVER invent a ticket key or title. Every key must literally appear in evidence A (sessions), B (git), or Jira results. Work you cannot map to a real key goes in "unmatchedWork".
 - Evidence D (past-EOD index) is TITLE LOOKUP ONLY. Use it to fill in the title for a key already found in A, B, or Jira. A key that appears ONLY in evidence D and has NO trace in today's sessions, git, or Jira MUST NOT be included in the tickets array — it is stale history, not today's work.
@@ -253,7 +252,7 @@ ${formatPastEods(ctx.pastEods)}
 ${userRulesBlock(ctx.instructions, ctx.notes)}━━━ FORMAT RULES ━━━
 - Task line: "KEY - exact ticket title → WIP" or "→ Done" (use the fact sheet's statusSignal).
 - Sub-bullets: past tense, 3–10 words each, management-friendly (no code-level jargon), 2–5 per ticket, derived only from the fact sheet's actions.
-- Meetings: do NOT output any meeting lines (no "Attended meeting: ..." entries). The app inserts attended meetings automatically after you finish. Ignore the fact sheet's "meetings" array and any meeting lines in the past-EOD style examples — they are not yours to write.
+- Meetings: do NOT output any meeting lines (no "Attended meeting: ..." entries). Traccia inserts attended meetings automatically after you finish. The past-EOD examples below contain meeting lines — mimic their style, never their meeting entries.
 - Group tickets under the correct project name (derive from the ticket key prefix and past EODs).
 - Project status: "green" unless evidence clearly says otherwise.
 - REQUIRED: "unmatchedWork" items represent real work done today with no ticket key. If unmatchedWork is non-empty, every item MUST appear in otherTasks.items, phrased like the user would. Setting otherTasks.isNA:true when unmatchedWork is non-empty is a critical error — the user's work becomes invisible.

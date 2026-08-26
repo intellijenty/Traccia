@@ -89,10 +89,16 @@ function asSection(v: unknown, defaultNA: boolean): { items: Array<{ text: strin
 
 // ── Fact sheet coercion ───────────────────────────────────────────────────────
 
-/** Defensive coercion of the gather phase's output into a usable fact sheet. */
+/**
+ * Defensive coercion of the gather phase's output into a usable fact sheet.
+ * Returns null only when the input is not a fact sheet at all; a well-formed
+ * but empty one comes back empty, so the caller can tell "the model produced
+ * garbage" apart from "the analysis found nothing", which are different
+ * failures with different fixes.
+ */
 export function coerceFactSheet(parsed: unknown): EodFactSheet | null {
   if (!parsed || typeof parsed !== 'object') return null
-  const obj = parsed as { tickets?: unknown; meetings?: unknown; unmatchedWork?: unknown }
+  const obj = parsed as { tickets?: unknown; unmatchedWork?: unknown }
 
   const tickets: EodFactTicket[] = []
   if (Array.isArray(obj.tickets)) {
@@ -123,18 +129,16 @@ export function coerceFactSheet(parsed: unknown): EodFactSheet | null {
     }
   }
 
-  const meetings = Array.isArray(obj.meetings)
-    ? obj.meetings.filter((m): m is string => typeof m === 'string' && m.trim().length > 0)
-    : []
   const unmatchedWork = Array.isArray(obj.unmatchedWork)
     ? obj.unmatchedWork.filter((m): m is string => typeof m === 'string' && m.trim().length > 0)
     : []
 
-  // A fact sheet with no signal at all is useless — treat as failure so the
-  // orchestrator reports it instead of producing an empty email.
-  if (tickets.length === 0 && meetings.length === 0 && unmatchedWork.length === 0) return null
+  return { tickets, unmatchedWork }
+}
 
-  return { tickets, meetings, unmatchedWork }
+/** Nothing for the writer to work from. */
+export function isEmptyFactSheet(factSheet: EodFactSheet): boolean {
+  return factSheet.tickets.length === 0 && factSheet.unmatchedWork.length === 0
 }
 
 // ── Fact sheet screening (gather phase) ───────────────────────────────────────
