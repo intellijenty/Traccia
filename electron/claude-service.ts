@@ -1,8 +1,9 @@
 import { spawn, execFile } from 'child_process'
-import { existsSync } from 'fs'
-import { homedir } from 'os'
+import { existsSync, mkdirSync, readFileSync } from 'fs'
+import { homedir, tmpdir } from 'os'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
+import { app } from 'electron'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -16,15 +17,43 @@ export type ErrorCode =
   | 'unknown'
 
 export type GenerateResult =
-  | { ok: true; text: string; durationMs: number }
+  | {
+      ok: true
+      text: string
+      durationMs: number
+      /** Present when `jsonSchema` was supplied — already-parsed, schema-valid
+       *  output. Callers should prefer this over re-parsing `text`. */
+      structured?: unknown
+    }
   | { ok: false; error: string; code: ErrorCode }
+
+/**
+ * Which slice of the user's Claude Code environment a run needs.
+ *
+ * 'gather'  Needs the user's claude.ai MCP connectors (Jira is an account-level
+ *           connector, not a file-based server — `--mcp-config` cannot recreate
+ *           it), so user settings must load. Plugins, hooks and bundled skills
+ *           are force-disabled on top via `--settings`, otherwise the user's own
+ *           SessionStart/UserPromptSubmit hooks and plugins inject instructions
+ *           into our prompt (verified: the caveman plugin was rewriting the
+ *           analyst's output style).
+ * 'write'   Needs no tools and no MCP at all — load nothing.
+ */
+export type ClaudeProfile = 'gather' | 'write'
 
 export type GenerateOptions = {
   prompt: string
   systemPrompt?: string
   model?: string
+  /** Comma-separated fallbacks used when the primary model is overloaded. */
+  fallbackModel?: string
   timeoutMs?: number
   requestId?: string
+  profile?: ClaudeProfile
+  /** Built-in tool allowlist. '' disables every built-in tool. */
+  tools?: string
+  /** JSON Schema enforced by the CLI on the final response. */
+  jsonSchema?: object
 }
 
 export type AvailabilityResult = {
@@ -60,6 +89,8 @@ type ResultMessage = {
   is_error: boolean
   duration_ms: number
   error?: string
+  /** Parsed, schema-valid payload — present when --json-schema was passed. */
+  structured_output?: unknown
 }
 
 type RateLimitMessage = {
@@ -79,15 +110,113 @@ function killProcessTree(pid: number): void {
   })
 }
 
+/**
+ * Settings overlay for the 'gather' profile: strip every user plugin, every
+ * hook and the bundled skills while still loading user settings (which is what
+ * makes the claude.ai MCP connectors available). Pinning the effort level keeps
+ * run duration predictable instead of inheriting the user's interactive default.
+ */
+/** Tool-name prefix the CLI derives from a claude.ai connector's display name. */
+function connectorPrefix(displayName: string): string {
+  return 'mcp__' + displayName.replace(/[^A-Za-z0-9]+/g, '_')
+}
+
+/**
+ * Deny every claude.ai connector except the ticket-tracking ones. Connectors are
+ * account-level, so `--mcp-config`/`--strict-mcp-config` cannot scope them —
+ * a permission deny list is the only lever, and it does prune the advertised
+ * tool set (measured: 102 tools → 45).
+ */
+function unwantedConnectors(): string[] {
+  try {
+    const raw = readFileSync(join(homedir(), '.claude.json'), 'utf8')
+    const parsed = JSON.parse(raw) as { claudeAiMcpEverConnected?: unknown }
+    const names = Array.isArray(parsed.claudeAiMcpEverConnected)
+      ? parsed.claudeAiMcpEverConnected.filter((n): n is string => typeof n === 'string')
+      : []
+    return names
+      .filter(n => !/atlassian|jira|bitbucket/i.test(n))
+      .map(connectorPrefix)
+  } catch {
+    return []
+  }
+}
+
+function isolationSettings(): string {
+  const enabledPlugins: Record<string, boolean> = {}
+  const deny = new Set(unwantedConnectors())
+  try {
+    const raw = readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8')
+    const parsed = JSON.parse(raw) as {
+      enabledPlugins?: Record<string, unknown>
+      permissions?: { deny?: unknown }
+    }
+    for (const name of Object.keys(parsed.enabledPlugins ?? {})) enabledPlugins[name] = false
+    // Our `permissions` block replaces the user's, so carry their denials over —
+    // dropping them would grant the analyst MORE access than the user allows.
+    const userDeny = parsed.permissions?.deny
+    if (Array.isArray(userDeny)) {
+      for (const rule of userDeny) if (typeof rule === 'string') deny.add(rule)
+    }
+  } catch { /* no user settings file — nothing to switch off */ }
+  return JSON.stringify({
+    enabledPlugins,
+    hooks: {},
+    disableBundledSkills: true,
+    effortLevel: 'medium',
+    permissions: { deny: Array.from(deny) },
+  })
+}
+
+/**
+ * A dedicated empty working directory. Without it the CLI inherits Electron's
+ * cwd, which pulls Traccia's own CLAUDE.md and git status into the system
+ * prompt of every run.
+ */
+function scratchDir(): string {
+  let base: string
+  try {
+    base = app.getPath('userData')
+  } catch {
+    base = tmpdir() // app not ready (tests / early startup)
+  }
+  const dir = join(base, 'ai-scratch')
+  try { mkdirSync(dir, { recursive: true }) } catch { /* already there */ }
+  return dir
+}
+
 function buildArgs(options: GenerateOptions): string[] {
   // NOTE: no '--no-color' — removed from the CLI (rejected as unknown option
   // since at least v2.1.x). '--verbose' is required for stream-json in -p mode.
+  const profile = options.profile ?? 'write'
   const args = [
     '-p',
     '--verbose',
     '--output-format', 'stream-json',
     '--permission-mode', 'dontAsk',
+    // Our runs are not conversations: never write a transcript. This also stops
+    // generation runs from landing in ~/.claude/projects and polluting the next
+    // day's session digest.
+    '--no-session-persistence',
+    '--disable-slash-commands',
+    // Keeps per-machine sections out of the system prompt so the cache is
+    // reusable across runs.
+    '--exclude-dynamic-system-prompt-sections',
   ]
+
+  if (profile === 'gather') {
+    args.push('--setting-sources', 'user', '--settings', isolationSettings())
+  } else {
+    args.push('--setting-sources', '')
+  }
+
+  if (options.tools !== undefined) {
+    args.push('--tools', options.tools)
+  }
+
+  if (options.jsonSchema) {
+    args.push('--json-schema', JSON.stringify(options.jsonSchema))
+  }
 
   if (options.systemPrompt) {
     args.push('--append-system-prompt', options.systemPrompt)
@@ -95,6 +224,10 @@ function buildArgs(options: GenerateOptions): string[] {
 
   if (options.model) {
     args.push('--model', options.model)
+  }
+
+  if (options.fallbackModel) {
+    args.push('--fallback-model', options.fallbackModel)
   }
 
   return args
@@ -207,6 +340,7 @@ class ClaudeService {
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
         env: { ...process.env },
+        cwd: scratchDir(),
       })
 
       this.activeProcesses.set(requestId, proc)
@@ -228,8 +362,14 @@ class ClaudeService {
 
       // ── stdout: parse NDJSON lines ──
       let stdoutBuf = ''
-      let collectedText = ''
-      let lastEmittedLen = 0
+      // Text is accumulated ACROSS assistant messages: a run that emits prose,
+      // calls a tool, then emits the answer produces two assistant messages, and
+      // keeping only the last one loses content. `emittedLen` is tracked per
+      // message so the streaming deltas stay correct either way.
+      const textParts: string[] = []
+      let emittedLen = 0
+      let currentIdx = -1
+      let structured: unknown
       let rateLimited = false
 
       proc.stdout.on('data', (chunk: Buffer) => {
@@ -260,13 +400,20 @@ class ClaudeService {
               .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
               .map(b => b.text)
               .join('')
+            if (!fullText) continue
 
-            if (fullText.length > lastEmittedLen) {
-              const delta = fullText.slice(lastEmittedLen)
-              callbacks?.onChunk(delta)
-              lastEmittedLen = fullText.length
+            // A shorter text than last seen means a NEW assistant message, not a
+            // rewind — start a fresh part and reset the delta cursor.
+            if (currentIdx < 0 || fullText.length < emittedLen) {
+              textParts.push('')
+              currentIdx = textParts.length - 1
+              emittedLen = 0
             }
-            collectedText = fullText
+            if (fullText.length > emittedLen) {
+              callbacks?.onChunk(fullText.slice(emittedLen))
+              emittedLen = fullText.length
+            }
+            textParts[currentIdx] = fullText
           }
 
           if (msg.type === 'rate_limit_event') rateLimited = true
@@ -274,14 +421,19 @@ class ClaudeService {
           if (msg.type === 'result') {
             const rm = msg as ResultMessage
             const durationMs = Date.now() - startedAt
+            if (rm.structured_output !== undefined) structured = rm.structured_output
 
             if (rm.subtype === 'success' && !rm.is_error) {
-              const text = (rm.result?.trim()) || collectedText.trim()
-              if (!text) {
+              const text = (rm.result?.trim()) || textParts.join('\n').trim()
+              if (!text && structured === undefined) {
                 finish({ ok: false, error: 'Claude returned an empty response', code: 'empty-response' })
               } else {
-                finish({ ok: true, text, durationMs })
+                finish({ ok: true, text, durationMs, structured })
               }
+            } else if (structured !== undefined || textParts.length > 0) {
+              // Turn and execution limits still leave usable output behind — salvage
+              // it rather than throwing the whole run away.
+              finish({ ok: true, text: (rm.result?.trim()) || textParts.join('\n').trim(), durationMs, structured })
             } else {
               const errText = rm.error ?? `Generation failed (${rm.subtype})`
               finish({ ok: false, error: errText, code: rateLimited ? 'rate-limited' : 'unknown' })
@@ -307,10 +459,10 @@ class ClaudeService {
 
         if (exitCode === 0) {
           // Exited cleanly but result message never arrived (shouldn't happen, safety net)
-          const text = collectedText.trim()
+          const text = textParts.join('\n').trim()
           const durationMs = Date.now() - startedAt
           if (text) {
-            finish({ ok: true, text, durationMs })
+            finish({ ok: true, text, durationMs, structured })
           } else {
             finish({ ok: false, error: 'No output received', code: 'empty-response' })
           }

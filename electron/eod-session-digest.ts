@@ -32,7 +32,9 @@ export interface DigestResult {
 }
 
 // Sessions spawned by Traccia's own EOD generation open with this marker so
-// they never pollute the next day's digest.
+// they never pollute the next day's digest. Belt-and-braces since the CLI is
+// now invoked with --no-session-persistence (no transcript is written at all),
+// but it still catches transcripts left behind by older app versions.
 export const TRACCIA_EOD_SENTINEL = '[TRACCIA-EOD]'
 
 // A "work day" starts at 04:00 local, not midnight — work done at 01:30 still

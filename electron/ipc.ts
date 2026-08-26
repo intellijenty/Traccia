@@ -72,6 +72,7 @@ import {
 } from './eod-ai-prompt'
 import { extractJson, coerceFactSheet, verifyDraft } from './eod-ai-verify'
 import { makeProjectFilter } from './eod-ai-filter'
+import { FACT_SHEET_SCHEMA, EOD_DRAFT_SCHEMA } from './eod-ai-schema'
 import type {
   EodAiGeneratePayload,
   EodAiPhaseId,
@@ -1002,6 +1003,17 @@ export function registerIpcHandlers(
   // Cancellation reuses the generic 'ai:cancel' channel (same requestId for
   // both phases).
 
+  // Model pinning: the analyst phase is tool-heavy and latency-sensitive; the
+  // writer phase is a small prompt where style mimicry matters. Both declare a
+  // fallback so an overloaded model degrades instead of failing the run.
+  const GATHER_MODEL = 'sonnet'
+  const GATHER_FALLBACK = 'opus'
+  const WRITE_MODEL = 'opus'
+  const WRITE_FALLBACK = 'sonnet'
+  // Built-in tools the analyst may use. Read-only by construction: no Write,
+  // Edit or Task. MCP connectors (Jira) are unaffected by this list.
+  const GATHER_TOOLS = 'Bash,Read,Grep,Glob'
+
   let activeEodAiRequestId: string | null = null
 
   const readKnownRepos = (): string[] => {
@@ -1110,13 +1122,24 @@ export function registerIpcHandlers(
         instructions,
       })
       const gatherResult = await claude.stream(
-        { prompt: gatherPrompt, requestId, timeoutMs: 240_000 },
+        {
+          prompt: gatherPrompt,
+          requestId,
+          timeoutMs: 240_000,
+          profile: 'gather',
+          tools: GATHER_TOOLS,
+          jsonSchema: FACT_SHEET_SCHEMA,
+          model: GATHER_MODEL,
+          fallbackModel: GATHER_FALLBACK,
+        },
         { onChunk: () => {}, onToolUse: phaseForTool },
       )
       if (activeEodAiRequestId !== requestId) return // superseded by a newer run
       if (!gatherResult.ok) return fail(gatherResult.error, gatherResult.code)
 
-      const factSheet = coerceFactSheet(extractJson(gatherResult.text))
+      // Schema-enforced output arrives pre-parsed; text extraction is only a
+      // fallback for an older CLI that ignored --json-schema.
+      const factSheet = coerceFactSheet(gatherResult.structured ?? extractJson(gatherResult.text))
       if (!factSheet) {
         return fail('Could not extract a usable fact sheet from the analysis step.', 'parse', gatherResult.text.slice(0, 4000))
       }
@@ -1127,13 +1150,18 @@ export function registerIpcHandlers(
         prompt: buildWritePrompt({ todayDate, factSheet, pastEods, instructions, notes }),
         requestId,
         timeoutMs: 120_000,
+        profile: 'write',
+        tools: '', // no tools: the writer only transforms the fact sheet
+        jsonSchema: EOD_DRAFT_SCHEMA,
+        model: WRITE_MODEL,
+        fallbackModel: WRITE_FALLBACK,
       })
       if (activeEodAiRequestId !== requestId) return
       if (!writeResult.ok) return fail(writeResult.error, writeResult.code)
 
       // 4. Deterministic verification (anti-hallucination + shape coercion).
       // User-declared keys count as evidence and can never be dropped.
-      const verified = verifyDraft(extractJson(writeResult.text), factSheet, declaredKeys)
+      const verified = verifyDraft(writeResult.structured ?? extractJson(writeResult.text), factSheet, declaredKeys)
       if (!verified) {
         return fail('Could not parse the generated EOD draft.', 'parse', writeResult.text.slice(0, 4000))
       }
@@ -1195,11 +1223,16 @@ export function registerIpcHandlers(
         }),
         requestId,
         timeoutMs: 120_000,
+        profile: 'write',
+        tools: '',
+        jsonSchema: EOD_DRAFT_SCHEMA,
+        model: WRITE_MODEL,
+        fallbackModel: WRITE_FALLBACK,
       })
       if (activeEodAiRequestId !== requestId) return
       if (!result.ok) return fail(result.error, result.code)
 
-      const verified = verifyDraft(extractJson(result.text), factSheet, declaredKeys)
+      const verified = verifyDraft(result.structured ?? extractJson(result.text), factSheet, declaredKeys)
       if (!verified) {
         return fail('Could not parse the refined EOD draft.', 'parse', result.text.slice(0, 4000))
       }
