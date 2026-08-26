@@ -29,7 +29,7 @@ export interface EodAiState {
   dropped: string[]
   /** Tickets the analysis reported that today's evidence does not support. */
   droppedTickets: string[]
-  error: { message: string; code: string; raw?: string } | null
+  error: { message: string; code: string; raw?: string; logPath?: string } | null
   lastRefine: string | null
   /** Picker selection — ids of tasks/subs/section items in `result`. */
   selectedIds: string[]
@@ -215,7 +215,7 @@ function ensureListening(): void {
   window.electronAPI.onEodAiError(d => {
     if (d.requestId !== requestId || cancelled) return
     requestId = null
-    setState({ status: 'error', error: { message: d.error, code: d.code, raw: d.raw } })
+    setState({ status: 'error', error: { message: d.error, code: d.code, raw: d.raw, logPath: d.logPath } })
   })
 }
 

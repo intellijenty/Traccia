@@ -50,6 +50,8 @@ export interface EodAiErrorEvent {
   code: string
   /** Raw model output, present when JSON parsing failed so the user can copy manually. */
   raw?: string
+  /** Diagnostics file for this run — prompts, model output and the failure. */
+  logPath?: string
 }
 
 export interface EodAiGeneratePayload {

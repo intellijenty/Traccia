@@ -127,6 +127,9 @@ export interface GatherContext {
   notes: string
   /** Standing instructions doc (style rules + declared recurring work). */
   instructions: string
+  /** Tool-free rerun after the agentic attempt failed: analyse the evidence
+   *  already in this prompt and nothing else. */
+  offline?: boolean
 }
 
 export function buildGatherPrompt(ctx: GatherContext): string {
@@ -167,6 +170,22 @@ Rules for standing instructions: declarations of recurring work (e.g. "always in
 `
     : ''
 
+  // The agentic run cross-references Jira and Bitbucket. The offline rerun has
+  // no tools at all, so asking it to "try Jira" invites it to pretend it did.
+  const tasksBlock = ctx.offline
+    ? `━━━ YOUR TASKS ━━━
+1. From evidence A and B, identify every distinct piece of work done today and the ticket keys involved (branch names like "ATON-7632-fix-quota" and prompts/commits usually contain them).
+2. You have NO tools on this run. Do not attempt Jira, Bitbucket, the shell or any lookup — every fact must come from the evidence above. Take a ticket title from evidence D when a key matches (titleSource "pastEod"); otherwise leave the key as the title (titleSource "branch-only"). Never use titleSource "jira".
+3. Produce the FACT SHEET as JSON.`
+    : `━━━ YOUR TASKS ━━━
+1. From evidence A and B, identify every distinct piece of work done today and the ticket keys involved (branch names like "ATON-7632-fix-quota" and prompts/commits usually contain them).
+2. If Atlassian/Jira MCP tools are available, cross-reference:
+   - Search: JQL \`assignee = currentUser() AND updated >= -1d ORDER BY updated DESC\`
+   - Also fetch by key any ticket seen in evidence but missing from that search, to get its exact title and status.
+   If the MCP is unavailable or errors, continue using titles from evidence D (mark titleSource accordingly).
+3. If you can reach the company Bitbucket (an MCP tool or an API token already present in the environment), check pull requests authored or updated today — a PR opened today is a strong "done" signal for its ticket. Spend at most 2 attempts on this; if it fails, move on.
+4. Produce the FACT SHEET as JSON.`
+
   return `${TRACCIA_EOD_SENTINEL} Automated work-evidence analysis for an End-of-Day status report. Today is ${ctx.todayDate}.
 
 You are a meticulous analyst reconstructing exactly what this engineer worked on TODAY from hard evidence. Be precise; never speculate.
@@ -183,14 +202,7 @@ ${meetingsBlock}
 ━━━ EVIDENCE D — Ticket-title index from this user's past EODs ━━━
 ${ticketIndexBlock}
 
-${notesBlock}${instructionsBlock}━━━ YOUR TASKS ━━━
-1. From evidence A and B, identify every distinct piece of work done today and the ticket keys involved (branch names like "ATON-7632-fix-quota" and prompts/commits usually contain them).
-2. If Atlassian/Jira MCP tools are available, cross-reference:
-   - Search: JQL \`assignee = currentUser() AND updated >= -1d ORDER BY updated DESC\`
-   - Also fetch by key any ticket seen in evidence but missing from that search, to get its exact title and status.
-   If the MCP is unavailable or errors, continue using titles from evidence D (mark titleSource accordingly).
-3. If you can reach the company Bitbucket (an MCP tool or an API token already present in the environment), check pull requests authored or updated today — a PR opened today is a strong "done" signal for its ticket. Spend at most 2 attempts on this; if it fails, move on.
-4. Produce the FACT SHEET as JSON.
+${notesBlock}${instructionsBlock}${tasksBlock}
 
 ━━━ FACT SHEET JSON SCHEMA ━━━
 {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, Plus, Replace, RotateCcw, Settings2, X } from 'lucide-react'
+import { ArrowLeft, Check, FileSearch, Plus, Replace, RotateCcw, Settings2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -424,7 +424,7 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
           <div className="flex h-full flex-col gap-2">
             {s.jiraUnavailable && (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-                Jira not queried — ticket titles may be missing. Re-authenticate Atlassian in Claude settings (<code className="font-mono">claude mcp</code>).
+                Jira was not queried this run — ticket titles may be missing or out of date. If this keeps happening, re-authenticate Atlassian in Claude settings (<code className="font-mono">claude mcp</code>).
               </div>
             )}
             {s.dropped.length > 0 && (
@@ -518,6 +518,15 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
               <p className="text-sm text-muted-foreground">{s.error.message}</p>
               <p className="font-mono text-xs text-muted-foreground">({s.error.code})</p>
             </div>
+            {s.error.logPath && (
+              <Button
+                type="button" variant="outline" size="sm"
+                onClick={() => { void window.electronAPI.showItemInFolder(s.error!.logPath!) }}
+                className="gap-1.5"
+              >
+                <FileSearch className="h-3.5 w-3.5" aria-hidden="true" /> Show diagnostics
+              </Button>
+            )}
             {s.error.raw && (
               <ScrollArea className="max-h-64 w-full max-w-lg rounded-lg border border-border bg-muted/40">
                 <pre className="p-3 text-left text-xs whitespace-pre-wrap">{s.error.raw}</pre>

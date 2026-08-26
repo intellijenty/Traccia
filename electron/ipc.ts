@@ -82,6 +82,7 @@ import {
   verifyDraft,
 } from './eod-ai-verify'
 import { makeProjectFilter } from './eod-ai-filter'
+import { startRunLog } from './eod-ai-log'
 import { FACT_SHEET_SCHEMA, EOD_DRAFT_SCHEMA } from './eod-ai-schema'
 import type {
   EodAiGeneratePayload,
@@ -1023,6 +1024,11 @@ export function registerIpcHandlers(
   // Built-in tools the analyst may use. Read-only by construction: no Write,
   // Edit or Task. MCP connectors (Jira) are unaffected by this list.
   const GATHER_TOOLS = 'Bash,Read,Grep,Glob'
+  // Failures worth a tool-free second attempt. A run that stalls talking to MCP
+  // connectors still has everything it needs sitting in the prompt, so retrying
+  // without tools usually succeeds in seconds. Auth, quota and cancellation are
+  // excluded — retrying those just fails twice.
+  const GATHER_RETRY_CODES = new Set(['timeout', 'empty-response', 'unknown'])
 
   let activeEodAiRequestId: string | null = null
 
@@ -1036,6 +1042,7 @@ export function registerIpcHandlers(
     if (activeEodAiRequestId) claude.cancel(activeEodAiRequestId)
     const requestId = randomUUID()
     activeEodAiRequestId = requestId
+    const log = startRunLog(requestId, 'generate')
 
     const send = (channel: string, data: Record<string, unknown>): void => {
       try {
@@ -1044,7 +1051,9 @@ export function registerIpcHandlers(
     }
     const fail = (error: string, code: string, raw?: string): void => {
       if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
-      send('eod:ai-error', raw ? { error, code, raw } : { error, code })
+      log.set({ outcome: 'error', error, code, raw })
+      log.write()
+      send('eod:ai-error', { error, code, logPath: log.path, ...(raw ? { raw } : {}) })
     }
 
     let currentPhase: EodAiPhaseId = 'sessions'
@@ -1083,6 +1092,24 @@ export function registerIpcHandlers(
     const startedAt = Date.now()
 
     void (async () => {
+      // 0. Quota pre-flight. Without it an exhausted account still buys a
+      // two-minute run that can only end in a rate-limit error.
+      const usage = await claudeUsage.fetch()
+      if (usage.ok) {
+        const spent = usage.data.session.utilization >= 100
+          ? usage.data.session
+          : usage.data.weekly.utilization >= 100
+            ? usage.data.weekly
+            : null
+        if (spent) {
+          const resetsAt = new Date(spent.resetsAt)
+          const when = Number.isNaN(resetsAt.getTime())
+            ? 'later'
+            : resetsAt.toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', weekday: 'short' })
+          return fail(`Claude usage limit reached — resets ${when}.`, 'rate-limited')
+        }
+      }
+
       // 1. Deterministic evidence (fast, no AI)
       send('eod:ai-phase', { phase: 'sessions', label: 'Reading your Claude sessions...' })
       const { digests: allDigests, repoPaths } = await digestTodaySessions()
@@ -1148,7 +1175,10 @@ export function registerIpcHandlers(
         notes,
         instructions,
       })
-      const gatherResult = await claude.stream(
+      log.set({ gatherPrompt })
+      log.write()
+
+      let gatherResult = await claude.stream(
         {
           prompt: gatherPrompt,
           requestId,
@@ -1162,6 +1192,30 @@ export function registerIpcHandlers(
         { onChunk: () => {}, onToolUse: phaseForTool },
       )
       if (activeEodAiRequestId !== requestId) return // superseded by a newer run
+      log.set({ gather: { ok: gatherResult.ok, code: gatherResult.ok ? null : gatherResult.code, text: gatherResult.ok ? gatherResult.text : gatherResult.error } })
+
+      // The agentic attempt can stall on MCP connectors it did not need. All
+      // the evidence is already in the prompt, so retry once with no tools at
+      // all rather than losing the whole run.
+      let gatherRetried = false
+      if (!gatherResult.ok && GATHER_RETRY_CODES.has(gatherResult.code)) {
+        gatherRetried = true
+        send('eod:ai-phase', { phase: 'gather', label: 'Retrying without external tools...' })
+        gatherResult = await claude.generate({
+          prompt: buildGatherPrompt({
+            todayDate, digests, git, meetings, ticketIndex, notes, instructions, offline: true,
+          }),
+          requestId,
+          timeoutMs: 90_000,
+          profile: 'write',
+          tools: '',
+          jsonSchema: FACT_SHEET_SCHEMA,
+          model: GATHER_MODEL,
+          fallbackModel: GATHER_FALLBACK,
+        })
+        if (activeEodAiRequestId !== requestId) return
+        log.set({ gatherRetry: { ok: gatherResult.ok, code: gatherResult.ok ? null : gatherResult.code } })
+      }
       if (!gatherResult.ok) return fail(gatherResult.error, gatherResult.code)
 
       // Schema-enforced output arrives pre-parsed; text extraction is only a
@@ -1178,12 +1232,16 @@ export function registerIpcHandlers(
       // verification only ever checks the writer against the analyst, and a
       // stale key the analyst lifted from the past-EOD title index sails
       // through both.
+      // The retry has no tools, so a fact sheet produced by it is never
+      // Jira-backed — even if the first attempt got a Jira call in before dying.
+      const jiraConsulted = jiraToolCalled && !gatherRetried
       const { factSheet, droppedTickets } = screenFactSheet(rawFactSheet, {
         evidenceKeys,
         declaredKeys,
-        jiraConsulted: jiraToolCalled,
+        jiraConsulted,
         knownPrefixes,
       })
+      log.set({ factSheet, droppedTickets, jiraConsulted, gatherRetried })
       if (isEmptyFactSheet(factSheet)) {
         return fail(
           `Every ticket the analysis reported is unsupported by today's evidence (${droppedTickets.join(', ')}). Nothing left to write.`,
@@ -1193,8 +1251,10 @@ export function registerIpcHandlers(
 
       // 3. Write in the user's voice (plain call, no tool use expected)
       setPhase('write', 'Writing your EOD...')
+      const writePrompt = buildWritePrompt({ todayDate, factSheet, pastEods, instructions, notes })
+      log.set({ writePrompt })
       const writeResult = await claude.generate({
-        prompt: buildWritePrompt({ todayDate, factSheet, pastEods, instructions, notes }),
+        prompt: writePrompt,
         requestId,
         timeoutMs: 120_000,
         profile: 'write',
@@ -1204,6 +1264,7 @@ export function registerIpcHandlers(
         fallbackModel: WRITE_FALLBACK,
       })
       if (activeEodAiRequestId !== requestId) return
+      log.set({ write: { ok: writeResult.ok, text: writeResult.ok ? writeResult.text : writeResult.error } })
       if (!writeResult.ok) return fail(writeResult.error, writeResult.code)
 
       // 4. Deterministic verification (anti-hallucination + shape coercion).
@@ -1214,6 +1275,13 @@ export function registerIpcHandlers(
       }
 
       if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
+      log.set({
+        outcome: 'ok',
+        draft: verified.draft,
+        dropped: verified.dropped,
+        durationMs: Date.now() - startedAt,
+      })
+      log.write()
       send('eod:ai-done', {
         draft: verified.draft,
         dropped: verified.dropped,
@@ -1221,7 +1289,7 @@ export function registerIpcHandlers(
         durationMs: Date.now() - startedAt,
         factSheet,
         seenProjects,
-        jiraUnavailable: !jiraToolCalled,
+        jiraUnavailable: !jiraConsulted,
       })
     })().catch(err => {
       fail(String(err instanceof Error ? err.message : err), 'unknown')
@@ -1236,6 +1304,7 @@ export function registerIpcHandlers(
     if (activeEodAiRequestId) claude.cancel(activeEodAiRequestId)
     const requestId = randomUUID()
     activeEodAiRequestId = requestId
+    const log = startRunLog(requestId, 'refine')
 
     const send = (channel: string, data: Record<string, unknown>): void => {
       try {
@@ -1244,7 +1313,9 @@ export function registerIpcHandlers(
     }
     const fail = (error: string, code: string, raw?: string): void => {
       if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
-      send('eod:ai-error', raw ? { error, code, raw } : { error, code })
+      log.set({ outcome: 'error', error, code, raw })
+      log.write()
+      send('eod:ai-error', { error, code, logPath: log.path, ...(raw ? { raw } : {}) })
     }
 
     const instruction = (typeof payload?.instruction === 'string' ? payload.instruction : '').slice(0, 500)
@@ -1261,14 +1332,16 @@ export function registerIpcHandlers(
     send('eod:ai-phase', { phase: 'write', label: 'Rewriting your EOD...' })
 
     void (async () => {
+      const refinePrompt = buildRefinePrompt({
+        todayDate: getLocalDate(),
+        factSheet,
+        previousDraft: payload.previousDraft,
+        instruction,
+        instructions,
+      })
+      log.set({ instruction, refinePrompt })
       const result = await claude.generate({
-        prompt: buildRefinePrompt({
-          todayDate: getLocalDate(),
-          factSheet,
-          previousDraft: payload.previousDraft,
-          instruction,
-          instructions,
-        }),
+        prompt: refinePrompt,
         requestId,
         timeoutMs: 120_000,
         profile: 'write',
@@ -1278,6 +1351,7 @@ export function registerIpcHandlers(
         fallbackModel: WRITE_FALLBACK,
       })
       if (activeEodAiRequestId !== requestId) return
+      log.set({ write: { ok: result.ok, text: result.ok ? result.text : result.error } })
       if (!result.ok) return fail(result.error, result.code)
 
       const verified = verifyDraft(result.structured ?? extractJson(result.text), factSheet, declaredKeys)
@@ -1286,6 +1360,8 @@ export function registerIpcHandlers(
       }
 
       if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
+      log.set({ outcome: 'ok', draft: verified.draft, dropped: verified.dropped })
+      log.write()
       send('eod:ai-done', {
         draft: verified.draft,
         dropped: verified.dropped,

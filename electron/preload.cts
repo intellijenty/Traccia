@@ -281,8 +281,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener('eod:ai-done', fn)
   },
 
-  onEodAiError: (cb: (data: { requestId: string; error: string; code: string; raw?: string }) => void) => {
-    const fn = (_: unknown, data: { requestId: string; error: string; code: string; raw?: string }) => cb(data)
+  onEodAiError: (cb: (data: { requestId: string; error: string; code: string; raw?: string; logPath?: string }) => void) => {
+    const fn = (_: unknown, data: { requestId: string; error: string; code: string; raw?: string; logPath?: string }) => cb(data)
     ipcRenderer.on('eod:ai-error', fn)
     return () => ipcRenderer.removeListener('eod:ai-error', fn)
   },
