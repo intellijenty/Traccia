@@ -1,17 +1,30 @@
 // Deterministic post-processing for AI EOD generation: robust JSON extraction
 // from model output, defensive shape coercion, and the anti-hallucination
-// check (every ticket key in the draft must exist in the fact sheet).
+// checks.
+//
+// There are two of those checks, at two different stages, because there are two
+// different things the model can invent:
+//
+//   screenFactSheet  guards the GATHER phase against reporting a ticket that
+//                    exists in no evidence we collected. Without it the draft
+//                    verifier is checking the writer against the analyst and
+//                    nothing is ever checking the analyst — a stale key lifted
+//                    from the past-EOD title index gets rubber-stamped.
+//   verifyDraft      guards the WRITE phase against inventing a key the fact
+//                    sheet does not contain.
 
 import type { EodAiDraft, EodFactSheet, EodFactTicket } from '../src/lib/eod-ai-types'
-
-const TICKET_KEY_RX = /^([A-Z][A-Z0-9]{1,9}-\d{1,6})\b/
+import { extractTicketKeys } from './eod-ai-keys'
 
 // ── JSON extraction ───────────────────────────────────────────────────────────
 
 /**
  * Pull the first complete JSON object out of model output. Handles fenced
  * blocks, leading/trailing prose, and braces inside string values (a naive
- * /\{[\s\S]*\}/ regex breaks on all of those).
+ * greedy brace regex breaks on all of those).
+ *
+ * Only a fallback now that both phases run with --json-schema and get validated
+ * output back; kept for older CLI builds that ignore the flag.
  */
 export function extractJson(raw: string): unknown | null {
   if (typeof raw !== 'string' || !raw.trim()) return null
@@ -124,25 +137,79 @@ export function coerceFactSheet(parsed: unknown): EodFactSheet | null {
   return { tickets, meetings, unmatchedWork }
 }
 
-// ── Draft verification ────────────────────────────────────────────────────────
+// ── Fact sheet screening (gather phase) ───────────────────────────────────────
+
+export interface ScreenOptions {
+  /** Keys that literally appear in the session digests or git evidence. */
+  evidenceKeys: ReadonlySet<string>
+  /** Keys the user declared in instructions or notes. */
+  declaredKeys: readonly string[]
+  /** Whether the analyst actually invoked a Jira/Atlassian tool this run. */
+  jiraConsulted: boolean
+  /** Project codes learned from the user's own history — see eod-ai-keys. */
+  knownPrefixes?: ReadonlySet<string>
+}
+
+export interface ScreenResult {
+  factSheet: EodFactSheet
+  /** "KEY - title" for every ticket removed for lack of any evidence. */
+  droppedTickets: string[]
+}
+
+/**
+ * Drop fact-sheet tickets that no evidence supports.
+ *
+ * A ticket survives when its key appears in the evidence we gathered ourselves,
+ * when the user declared it, or when the analyst says it came from Jira AND a
+ * Jira tool was genuinely invoked this run. That last clause is deliberate:
+ * work done entirely inside Jira (a status transition, a comment, manual QA)
+ * leaves no local trace and is still real work. It is also the weakest link —
+ * `titleSource` is self-reported, so a model that queried Jira at all could
+ * still attach the label to a stale key. Requiring a real tool call closes the
+ * common case (MCP unavailable, so every "jira" claim is provably false)
+ * without discarding legitimate Jira-only work.
+ */
+export function screenFactSheet(factSheet: EodFactSheet, opts: ScreenOptions): ScreenResult {
+  const declared = new Set(opts.declaredKeys.map(k => k.toUpperCase()))
+  const tickets: EodFactTicket[] = []
+  const droppedTickets: string[] = []
+
+  for (const ticket of factSheet.tickets) {
+    const key = ticket.key.toUpperCase()
+    const backed =
+      opts.evidenceKeys.has(key) ||
+      declared.has(key) ||
+      (opts.jiraConsulted && ticket.titleSource === 'jira')
+    if (backed) tickets.push(ticket)
+    else droppedTickets.push(`${ticket.key} - ${ticket.title}`)
+  }
+
+  return { factSheet: { ...factSheet, tickets }, droppedTickets }
+}
+
+// ── Draft verification (write phase) ──────────────────────────────────────────
 
 export interface VerifyResult {
   draft: EodAiDraft
-  /** Task texts removed because their ticket key has no evidence backing. */
+  /** Lines removed because they name a ticket the fact sheet does not contain. */
   dropped: string[]
 }
 
 /**
  * Coerce the write phase's output into a valid draft and enforce the
- * anti-hallucination rule: any task line starting with a ticket key that is
- * absent from the fact sheet is dropped (and reported). Keys the user declared
- * themselves (instructions/notes) are passed as extraAllowedKeys — a user
- * declaration counts as evidence, so those can never be dropped.
+ * anti-hallucination rule: any line naming a ticket key that is absent from the
+ * fact sheet is dropped (and reported). Keys the user declared themselves are
+ * passed as extraAllowedKeys — a user declaration counts as evidence.
+ *
+ * Every key on a line is checked, not just one at the start: "Continued work on
+ * ATON-9999 quota" is exactly the shape stale history leaks in as, and an
+ * anchored check never saw it.
  */
 export function verifyDraft(
   parsed: unknown,
   factSheet: EodFactSheet,
-  extraAllowedKeys: string[] = [],
+  extraAllowedKeys: readonly string[] = [],
+  knownPrefixes?: ReadonlySet<string>,
 ): VerifyResult | null {
   if (!parsed || typeof parsed !== 'object') return null
   const obj = parsed as Record<string, unknown>
@@ -153,6 +220,10 @@ export function verifyDraft(
   ])
   const dropped: string[] = []
   const seenTaskTexts = new Set<string>()
+
+  /** Keys on this line that nothing backs. Empty means the line is safe. */
+  const unbackedKeys = (text: string): string[] =>
+    extractTicketKeys(text, knownPrefixes).filter(k => !allowedKeys.has(k))
 
   const projects: EodAiDraft['projects'] = []
   if (Array.isArray(obj.projects)) {
@@ -168,8 +239,7 @@ export function verifyDraft(
           const text = asString(task.text)
           if (!text) continue
 
-          const keyMatch = TICKET_KEY_RX.exec(text.toUpperCase())
-          if (keyMatch && !allowedKeys.has(keyMatch[1])) {
+          if (unbackedKeys(text).length > 0) {
             dropped.push(text)
             continue
           }
@@ -177,21 +247,35 @@ export function verifyDraft(
           if (seenTaskTexts.has(dedupeKey)) continue
           seenTaskTexts.add(dedupeKey)
 
-          tasksCompleted.push({
-            text,
-            subBullets: asItems(task.subBullets),
-          })
+          // A sub-bullet can name a stale ticket on its own; drop just the
+          // sub-bullet rather than the whole task it hangs off.
+          const subBullets: Array<{ text: string }> = []
+          for (const sub of asItems(task.subBullets)) {
+            if (unbackedKeys(sub.text).length > 0) dropped.push(sub.text)
+            else subBullets.push(sub)
+          }
+
+          tasksCompleted.push({ text, subBullets })
         }
       }
 
       const name = asString(proj.name)
       if (!name && tasksCompleted.length === 0) continue
 
+      const rawNote = typeof proj.statusNote === 'string' && proj.statusNote.trim()
+        ? proj.statusNote.trim()
+        : null
+      let statusNote = rawNote
+      if (rawNote && unbackedKeys(rawNote).length > 0) {
+        dropped.push(rawNote)
+        statusNote = null
+      }
+
       const statusRaw = asString(proj.status)
       projects.push({
         name: name || 'Project',
         status: statusRaw === 'yellow' || statusRaw === 'red' || statusRaw === 'none' ? statusRaw : 'green',
-        statusNote: typeof proj.statusNote === 'string' && proj.statusNote.trim() ? proj.statusNote.trim() : null,
+        statusNote,
         tasksCompleted,
       })
     }
@@ -200,9 +284,9 @@ export function verifyDraft(
   // Drop projects left with neither tasks nor a meaningful note
   const cleanedProjects = projects.filter(p => p.tasksCompleted.length > 0 || p.statusNote !== null)
 
-  // Apply the same anti-hallucination ticket-key check to simple sections.
-  // A nextDayPlan item like "Working on ATON-7632 quota work" that has no
-  // factSheet backing is stale history leaking in from the past-EOD index.
+  // Simple sections get the same treatment. A nextDayPlan item like "Working on
+  // ATON-7632 quota work" with no fact-sheet backing is stale history leaking
+  // in from the past-EOD index.
   function filterSection(
     raw: unknown,
     defaultNA: boolean,
@@ -210,12 +294,8 @@ export function verifyDraft(
     const sec = asSection(raw, defaultNA)
     const kept: Array<{ text: string }> = []
     for (const item of sec.items) {
-      const keyMatch = TICKET_KEY_RX.exec(item.text.toUpperCase())
-      if (keyMatch && !allowedKeys.has(keyMatch[1])) {
-        dropped.push(item.text)
-      } else {
-        kept.push(item)
-      }
+      if (unbackedKeys(item.text).length > 0) dropped.push(item.text)
+      else kept.push(item)
     }
     return { items: kept, isNA: kept.length === 0 ? sec.isNA : false }
   }

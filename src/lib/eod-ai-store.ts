@@ -27,6 +27,8 @@ export interface EodAiState {
   rawDraft: EodAiDraft | null
   factSheet: EodFactSheet | null
   dropped: string[]
+  /** Tickets the analysis reported that today's evidence does not support. */
+  droppedTickets: string[]
   error: { message: string; code: string; raw?: string } | null
   lastRefine: string | null
   /** Picker selection — ids of tasks/subs/section items in `result`. */
@@ -94,7 +96,8 @@ function today(): string {
 function idle(): EodAiState {
   return {
     status: 'idle', runMode: 'generate', stepIdx: 0, startedAt: null, generatedAt: null,
-    result: null, rawDraft: null, factSheet: null, dropped: [], error: null, lastRefine: null,
+    result: null, rawDraft: null, factSheet: null, dropped: [], droppedTickets: [],
+    error: null, lastRefine: null,
     selectedIds: [], addedIds: [], jiraUnavailable: false,
   }
 }
@@ -106,7 +109,8 @@ function restoreInitial(): EodAiState {
     if (!raw) return base
     const p = JSON.parse(raw) as {
       date?: string; rawDraft?: EodAiDraft; result?: EodFormState; factSheet?: EodFactSheet | null
-      dropped?: string[]; generatedAt?: number; selectedIds?: string[]; addedIds?: string[]
+      dropped?: string[]; droppedTickets?: string[]; generatedAt?: number
+      selectedIds?: string[]; addedIds?: string[]
     }
     if (p && p.date === today() && p.rawDraft) {
       // Restore the persisted `result` so its ids still match selectedIds/addedIds
@@ -119,6 +123,7 @@ function restoreInitial(): EodAiState {
         result,
         factSheet: p.factSheet ?? null,
         dropped: Array.isArray(p.dropped) ? p.dropped : [],
+        droppedTickets: Array.isArray(p.droppedTickets) ? p.droppedTickets : [],
         generatedAt: typeof p.generatedAt === 'number' ? p.generatedAt : null,
         selectedIds: Array.isArray(p.selectedIds) ? p.selectedIds : allSelectableIds(result),
         addedIds: Array.isArray(p.addedIds) ? p.addedIds : [],
@@ -152,6 +157,7 @@ function persistDone(): void {
       result: state.result,
       factSheet: state.factSheet,
       dropped: state.dropped,
+      droppedTickets: state.droppedTickets,
       generatedAt: state.generatedAt,
       selectedIds: state.selectedIds,
       addedIds: state.addedIds,
@@ -196,6 +202,9 @@ function ensureListening(): void {
       result,
       factSheet: d.factSheet,
       dropped: Array.isArray(d.dropped) ? d.dropped : [],
+      // Screening happens in the gather phase, which a refine run skips — keep
+      // the existing list rather than clearing it on every tweak.
+      droppedTickets: Array.isArray(d.droppedTickets) ? d.droppedTickets : state.droppedTickets,
       generatedAt: Date.now(),
       selectedIds: allSelectableIds(result),
       addedIds: [],
@@ -227,7 +236,8 @@ export async function startGeneration(input: StartGenerationInput): Promise<void
   requestId = null
   setState({
     status: 'running', runMode: 'generate', stepIdx: 0, startedAt: Date.now(),
-    result: null, rawDraft: null, factSheet: null, dropped: [], error: null, lastRefine: null,
+    result: null, rawDraft: null, factSheet: null, dropped: [], droppedTickets: [],
+    error: null, lastRefine: null,
     selectedIds: [], addedIds: [],
   })
 

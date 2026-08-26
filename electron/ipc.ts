@@ -68,9 +68,13 @@ import {
   buildWritePrompt,
   buildRefinePrompt,
   extractTicketIndex,
-  extractDeclaredKeys,
 } from './eod-ai-prompt'
-import { extractJson, coerceFactSheet, verifyDraft } from './eod-ai-verify'
+import {
+  collectEvidenceKeys,
+  extractDeclaredKeys,
+  learnProjectPrefixes,
+} from './eod-ai-keys'
+import { extractJson, coerceFactSheet, screenFactSheet, verifyDraft } from './eod-ai-verify'
 import { makeProjectFilter } from './eod-ai-filter'
 import { FACT_SHEET_SCHEMA, EOD_DRAFT_SCHEMA } from './eod-ai-schema'
 import type {
@@ -1100,7 +1104,16 @@ export function registerIpcHandlers(
       } catch { /* non-fatal */ }
 
       const todayDate = getLocalDate()
-      const declaredKeys = extractDeclaredKeys(instructions + '\n' + notes)
+      // Past EODs write tickets as "KEY - title", which makes them a
+      // high-precision source of the project codes this user actually uses.
+      // Those codes are then exempt from the "looks like a standard, not a
+      // ticket" filter (UTF-8, SHA-256, ...) everywhere else.
+      const ticketIndex = extractTicketIndex(pastEods)
+      const knownPrefixes = learnProjectPrefixes(ticketIndex.map(t => t.key))
+      const declaredKeys = extractDeclaredKeys(instructions + '\n' + notes, knownPrefixes)
+      // Ground truth for screening the analyst's output: keys that literally
+      // appear in evidence we collected ourselves.
+      const evidenceKeys = collectEvidenceKeys(digests, git, knownPrefixes)
 
       if (digests.length === 0 && git.length === 0 && meetings.length === 0 &&
           notes.trim().length === 0 && declaredKeys.length === 0) {
@@ -1117,7 +1130,7 @@ export function registerIpcHandlers(
         digests,
         git,
         meetings,
-        ticketIndex: extractTicketIndex(pastEods),
+        ticketIndex,
         notes,
         instructions,
       })
@@ -1139,9 +1152,29 @@ export function registerIpcHandlers(
 
       // Schema-enforced output arrives pre-parsed; text extraction is only a
       // fallback for an older CLI that ignored --json-schema.
-      const factSheet = coerceFactSheet(gatherResult.structured ?? extractJson(gatherResult.text))
-      if (!factSheet) {
+      const rawFactSheet = coerceFactSheet(gatherResult.structured ?? extractJson(gatherResult.text))
+      if (!rawFactSheet) {
         return fail('Could not extract a usable fact sheet from the analysis step.', 'parse', gatherResult.text.slice(0, 4000))
+      }
+
+      // Screen the analyst before the writer ever sees its output — otherwise
+      // verification only ever checks the writer against the analyst, and a
+      // stale key the analyst lifted from the past-EOD title index sails
+      // through both.
+      const { factSheet, droppedTickets } = screenFactSheet(rawFactSheet, {
+        evidenceKeys,
+        declaredKeys,
+        jiraConsulted: jiraToolCalled,
+        knownPrefixes,
+      })
+      if (factSheet.tickets.length === 0 && factSheet.unmatchedWork.length === 0 &&
+          factSheet.meetings.length === 0) {
+        return fail(
+          droppedTickets.length > 0
+            ? `Every ticket the analysis reported is unsupported by today's evidence (${droppedTickets.join(', ')}). Nothing left to write.`
+            : 'The analysis found no work to report for today.',
+          'no-evidence',
+        )
       }
 
       // 3. Write in the user's voice (plain call, no tool use expected)
@@ -1161,7 +1194,7 @@ export function registerIpcHandlers(
 
       // 4. Deterministic verification (anti-hallucination + shape coercion).
       // User-declared keys count as evidence and can never be dropped.
-      const verified = verifyDraft(writeResult.structured ?? extractJson(writeResult.text), factSheet, declaredKeys)
+      const verified = verifyDraft(writeResult.structured ?? extractJson(writeResult.text), factSheet, declaredKeys, knownPrefixes)
       if (!verified) {
         return fail('Could not parse the generated EOD draft.', 'parse', writeResult.text.slice(0, 4000))
       }
@@ -1170,6 +1203,7 @@ export function registerIpcHandlers(
       send('eod:ai-done', {
         draft: verified.draft,
         dropped: verified.dropped,
+        droppedTickets,
         durationMs: Date.now() - startedAt,
         factSheet,
         seenProjects,

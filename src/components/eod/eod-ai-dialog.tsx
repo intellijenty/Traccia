@@ -432,6 +432,11 @@ export function EodAiDialog({ open, onOpenChange, history, onAddSelected }: EodA
                 {s.dropped.length} task{s.dropped.length > 1 ? 's' : ''} removed — no evidence for: {s.dropped.join(' · ')}
               </div>
             )}
+            {s.droppedTickets.length > 0 && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+                {s.droppedTickets.length} ticket{s.droppedTickets.length > 1 ? 's' : ''} ignored — nothing in today&apos;s sessions, git or Jira backs {s.droppedTickets.length > 1 ? 'them' : 'it'}: {s.droppedTickets.join(' · ')}. Mention {s.droppedTickets.length > 1 ? 'them' : 'it'} in your notes if the work was real.
+              </div>
+            )}
             {s.lastRefine && (
               <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
                 <p className="min-w-0 truncate text-xs text-muted-foreground">Applied: &ldquo;{s.lastRefine}&rdquo;</p>

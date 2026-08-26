@@ -19,20 +19,6 @@ const MAX_SESSION_BUDGET = 8_000
 const PAST_EOD_BUDGET = 6_000
 const TICKET_INDEX_MAX = 60
 
-// ── User-declared ticket keys ─────────────────────────────────────────────────
-
-/** Ticket keys mentioned anywhere in user-authored text (instructions/notes).
- *  A user declaration counts as evidence, so these join the verifier's allowed
- *  set. Case-insensitive: people type "aton-5555". */
-export function extractDeclaredKeys(text: string): string[] {
-  if (typeof text !== 'string' || !text) return []
-  const keys = new Set<string>()
-  for (const m of text.matchAll(/\b([A-Za-z][A-Za-z0-9]{1,9}-\d{1,6})\b/g)) {
-    keys.add(m[1].toUpperCase())
-  }
-  return Array.from(keys)
-}
-
 // ── Ticket-title index from past EODs ─────────────────────────────────────────
 
 export interface TicketIndexEntry {

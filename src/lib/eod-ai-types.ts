@@ -30,8 +30,11 @@ export interface EodAiDraft {
 export interface EodAiDoneEvent {
   requestId: string
   draft: EodAiDraft
-  /** Task lines removed by verification (ticket key absent from evidence). */
+  /** Task lines removed by verification (ticket key absent from the fact sheet). */
   dropped: string[]
+  /** "KEY - title" for tickets the analysis reported that no evidence supports.
+   *  Absent on refine runs, which do not re-run the analysis. */
+  droppedTickets?: string[]
   durationMs: number
   /** Evidence behind the draft — drives the evidence view and refine reruns. */
   factSheet: EodFactSheet

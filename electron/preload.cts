@@ -275,8 +275,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener('eod:ai-phase', fn)
   },
 
-  onEodAiDone: (cb: (data: { requestId: string; draft: unknown; dropped: string[]; durationMs: number }) => void) => {
-    const fn = (_: unknown, data: { requestId: string; draft: unknown; dropped: string[]; durationMs: number }) => cb(data)
+  onEodAiDone: (cb: (data: { requestId: string; draft: unknown; dropped: string[]; droppedTickets?: string[]; durationMs: number }) => void) => {
+    const fn = (_: unknown, data: { requestId: string; draft: unknown; dropped: string[]; droppedTickets?: string[]; durationMs: number }) => cb(data)
     ipcRenderer.on('eod:ai-done', fn)
     return () => ipcRenderer.removeListener('eod:ai-done', fn)
   },
