@@ -85,10 +85,14 @@ function formatSession(s: SessionDigest, index: number, budget: number): string 
     for (const p of s.userPrompts) lines.push(`- ${p.replace(/\s*\n\s*/g, ' ')}`)
   }
   if (s.assistantSummaries.length > 0) {
-    lines.push('Assistant reported:')
+    lines.push('Assistant reported (one outcome statement per turn):')
     for (const a of s.assistantSummaries) lines.push(`- ${a.replace(/\s*\n\s*/g, ' ')}`)
   }
-  if (s.filesTouched.length > 0) lines.push(`Files touched: ${s.filesTouched.join(', ')}`)
+  if (s.delegations.length > 0) {
+    lines.push('Delegated to subagents:')
+    for (const d of s.delegations) lines.push(`- ${d}`)
+  }
+  if (s.filesChanged.length > 0) lines.push(`Files changed: ${s.filesChanged.join(', ')}`)
   if (s.commands.length > 0) lines.push(`Commands run: ${s.commands.join(' ; ')}`)
   return trimToBudget(lines.join('\n'), budget)
 }
@@ -102,7 +106,7 @@ function formatGitEvidence(repos: RepoEvidence[]): string {
         lines.push('Commits today:')
         for (const c of r.commitsToday) lines.push(`- ${c}`)
       }
-      if (r.uncommitted) lines.push(`Uncommitted changes: ${r.uncommitted}`)
+      if (r.uncommitted) lines.push(`Uncommitted work: ${r.uncommitted}`)
       return lines.join('\n')
     })
     .join('\n\n')

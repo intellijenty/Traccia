@@ -18,9 +18,14 @@ export interface SessionDigest {
   startedAt: string // ISO timestamp of first kept message
   endedAt: string   // ISO timestamp of last kept message
   userPrompts: string[]
+  /** One outcome statement per turn - see keepTurnSummary. */
   assistantSummaries: string[]
-  filesTouched: string[]
+  /** Files actually MODIFIED (not merely read) during the session. */
+  filesChanged: string[]
   commands: string[]
+  /** Work handed to subagents, whose own transcript lines are sidechains and
+   *  therefore invisible to this digest. */
+  delegations: string[]
 }
 
 export interface DigestResult {
@@ -54,9 +59,14 @@ const USER_PROMPT_CAP = 400
 const ASSISTANT_TEXT_CAP = 600
 const MAX_USER_PROMPTS = 25
 const MAX_ASSISTANT_SUMMARIES = 40
-const MAX_FILES_TOUCHED = 25
+const MAX_FILES_CHANGED = 25
 const MAX_COMMANDS = 15
 const COMMAND_CAP = 120
+const MAX_DELEGATIONS = 12
+const DELEGATION_CAP = 200
+// Below this, an assistant message is an acknowledgement ("Done.", "Let me
+// check that."), not a report of what was accomplished.
+const MIN_SUMMARY_LEN = 40
 
 // When a session overflows a cap, keep this many items from the start (enough
 // to establish what the session was about) and fill the rest of the budget
@@ -67,11 +77,45 @@ const ASSISTANT_SUMMARY_HEAD = 10
 const FILES_HEAD = 8
 const COMMANDS_HEAD = 5
 
+/** Tools that change a file. Reads are deliberately excluded: a file glanced at
+ *  is not work done, and read paths outnumber written ones by an order of
+ *  magnitude. */
+const MUTATING_TOOLS = new Set(['edit', 'write', 'multiedit', 'notebookedit'])
+
+/** Shell commands that only inspect state. They say nothing about what was
+ *  accomplished and crowd out the commands that do. */
+const NOISE_COMMANDS = new Set([
+  'ls', 'cat', 'head', 'tail', 'pwd', 'cd', 'echo', 'wc', 'find', 'grep', 'rg',
+  'which', 'where', 'type', 'file', 'stat', 'tree', 'less', 'more', 'dir', 'clear',
+])
+const NOISE_GIT_SUBCOMMANDS = new Set([
+  'status', 'log', 'diff', 'show', 'branch', 'remote', 'config', 'rev-parse',
+  'ls-files', 'blame', 'describe',
+])
+
+/** True for read-only inspection commands. */
+export function isNoiseCommand(command: string): boolean {
+  // Strip a leading `cd <dir> &&` so the real command is classified
+  const stripped = command.trim().replace(/^cd\s+[^&|;]+(&&|;)\s*/i, '').trim()
+  const tokens = stripped.split(/\s+/)
+  const head = (tokens[0] ?? '').toLowerCase()
+  if (!head) return true
+  if (head === 'git') return NOISE_GIT_SUBCOMMANDS.has((tokens[1] ?? '').toLowerCase())
+  return NOISE_COMMANDS.has(head)
+}
+
 type ContentBlock = {
   type?: string
   text?: string
   name?: string
-  input?: { file_path?: string; notebook_path?: string; command?: string }
+  input?: {
+    file_path?: string
+    notebook_path?: string
+    command?: string
+    /** Task tool: short label + full brief for a delegated subagent. */
+    description?: string
+    prompt?: string
+  }
 }
 
 type TranscriptLine = {
@@ -131,8 +175,9 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
     endedAt: '',
     userPrompts: [],
     assistantSummaries: [],
-    filesTouched: [],
+    filesChanged: [],
     commands: [],
+    delegations: [],
   }
   // Collected uncapped, then head+tail sampled after the loop so recent work
   // survives (a FIFO cap during collection would drop it).
@@ -140,6 +185,17 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
   const assistantSummaries: string[] = []
   const files = new Set<string>()
   const commands = new Set<string>()
+  const delegations = new Set<string>()
+
+  // Within one turn the assistant narrates ("Let me check...", "Now I'll...")
+  // before reporting the outcome. Only the LAST text of a turn states what was
+  // actually accomplished, which is the only thing an EOD can be built from;
+  // keeping all of them is what made the gather prompt mostly narration.
+  let pendingSummary: string | null = null
+  const flushTurn = (): void => {
+    if (pendingSummary) assistantSummaries.push(pendingSummary)
+    pendingSummary = null
+  }
 
   for (const rawLine of content.split('\n')) {
     const trimmed = rawLine.trim()
@@ -179,6 +235,7 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
       if (text && !isNoisePrompt(text)) {
         // Whole session is one of our own generation runs — discard it entirely.
         if (text.trimStart().startsWith(TRACCIA_EOD_SENTINEL)) return null
+        flushTurn() // a real prompt ends the previous turn
         userPrompts.push(truncate(text, USER_PROMPT_CAP))
       }
       continue
@@ -189,17 +246,29 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
     for (const block of content) {
       if (!block || typeof block !== 'object') continue
       if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
-        assistantSummaries.push(truncate(block.text, ASSISTANT_TEXT_CAP))
+        if (block.text.trim().length >= MIN_SUMMARY_LEN) {
+          pendingSummary = truncate(block.text, ASSISTANT_TEXT_CAP)
+        }
       } else if (block.type === 'tool_use') {
         const input = block.input
-        const filePath = input?.file_path ?? input?.notebook_path
-        if (typeof filePath === 'string' && filePath) files.add(filePath)
-        if (typeof input?.command === 'string' && input.command.trim()) {
+        const tool = (block.name ?? '').toLowerCase()
+        if (MUTATING_TOOLS.has(tool)) {
+          const filePath = input?.file_path ?? input?.notebook_path
+          if (typeof filePath === 'string' && filePath) files.add(filePath)
+        }
+        if (tool === 'task' || tool === 'agent') {
+          const label = typeof input?.description === 'string' ? input.description.trim() : ''
+          const brief = typeof input?.prompt === 'string' ? input.prompt.trim() : ''
+          const text = label && brief ? `${label}: ${brief}` : label || brief
+          if (text) delegations.add(truncate(text.replace(/\s*\n\s*/g, ' '), DELEGATION_CAP))
+        }
+        if (typeof input?.command === 'string' && input.command.trim() && !isNoiseCommand(input.command)) {
           commands.add(truncate(input.command, COMMAND_CAP))
         }
       }
     }
   }
+  flushTurn()
 
   if (userPrompts.length === 0 && assistantSummaries.length === 0) {
     return null // nothing from today in this file
@@ -220,10 +289,11 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
     ...as.tail,
   ]
   // Files/commands are an unordered context list — head+tail without a marker.
-  const ft = splitHeadTail(Array.from(files), MAX_FILES_TOUCHED, FILES_HEAD)
-  digest.filesTouched = [...ft.head, ...ft.tail]
+  const ft = splitHeadTail(Array.from(files), MAX_FILES_CHANGED, FILES_HEAD)
+  digest.filesChanged = [...ft.head, ...ft.tail]
   const cm = splitHeadTail(Array.from(commands), MAX_COMMANDS, COMMANDS_HEAD)
   digest.commands = [...cm.head, ...cm.tail]
+  digest.delegations = Array.from(delegations).slice(0, MAX_DELEGATIONS)
   return digest
 }
 
