@@ -60,6 +60,12 @@ export function startRunLog(requestId: string, kind: 'generate' | 'refine'): Run
     appVersion: (() => { try { return app.getVersion() } catch { return 'unknown' } })(),
   }
 
+  // Writes are serialised. A run writes at least twice - once the prompt is
+  // built, once at the end - and two unsequenced writes can land in either
+  // order, which would leave the earlier snapshot on disk and lose exactly the
+  // failure detail the log exists to capture.
+  let queue: Promise<void> = Promise.resolve()
+
   return {
     path,
     set(patch) {
@@ -67,7 +73,8 @@ export function startRunLog(requestId: string, kind: 'generate' | 'refine'): Run
     },
     write() {
       const payload = JSON.stringify({ ...data, writtenAt: new Date().toISOString() }, null, 2)
-      void fs.writeFile(path, payload, 'utf8')
+      queue = queue
+        .then(() => fs.writeFile(path, payload, 'utf8'))
         .then(() => prune(dir))
         .catch(() => { /* diagnostics are never worth failing a run for */ })
     },
