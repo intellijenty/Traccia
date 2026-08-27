@@ -79,16 +79,10 @@ function asItems(v: unknown): Array<{ text: string }> {
     .filter(i => i.text.length > 0)
 }
 
-/**
- * isNA is derived, never trusted: it means "nothing to report", so it is exactly
- * `items.length === 0`. The model regularly disagrees with itself here, and
- * filtering can empty a section that arrived marked not-N/A, leaving a section
- * that renders as present but blank.
- */
-function asSection(v: unknown): { items: Array<{ text: string }>; isNA: boolean } {
+/** The items of a simple section, whatever shape the model wrapped them in. */
+function sectionItems(v: unknown): Array<{ text: string }> {
   const obj = (v && typeof v === 'object' ? v : {}) as { items?: unknown }
-  const items = asItems(obj.items)
-  return { items, isNA: items.length === 0 }
+  return asItems(obj.items)
 }
 
 // ── Fact sheet coercion ───────────────────────────────────────────────────────
@@ -295,9 +289,16 @@ export function verifyDraft(
   // Simple sections get the same treatment. A nextDayPlan item like "Working on
   // ATON-7632 quota work" with no fact-sheet backing is stale history leaking
   // in from the past-EOD index.
+  /**
+   * isNA is derived, never trusted: it means "nothing to report", so it is
+   * exactly `items.length === 0`. The model regularly contradicts itself here,
+   * and filtering can empty a section that arrived marked not-N/A, which would
+   * otherwise render as a section that is present but blank. Computed in this
+   * one place so the two cannot drift.
+   */
   function filterSection(raw: unknown): { items: Array<{ text: string }>; isNA: boolean } {
     const kept: Array<{ text: string }> = []
-    for (const item of asSection(raw).items) {
+    for (const item of sectionItems(raw)) {
       if (unbackedKeys(item.text).length > 0) dropped.push(item.text)
       else kept.push(item)
     }
