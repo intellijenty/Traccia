@@ -3,12 +3,12 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" },
-    { "path": "./tsconfig.electron.json" }
+    { "path": "./tsconfig.electron.json" },
+    { "path": "./tsconfig.test.json" }
   ],
   "compilerOptions": {
     "esModuleInterop": true,
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
