@@ -14,7 +14,7 @@
     "build": "tsc -b && tsc -p tsconfig.preload.json && vite build",
     "build:renderer": "vite build",
     "build:electron": "tsc -p tsconfig.preload.json",
-    "lint": "eslint .",
+    "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
@@ -25,7 +25,8 @@
     "dist": "npm run build:renderer && npm run build:electron && electron-builder --win",
     "release:patch": "npm version patch && git push --follow-tags",
     "release:minor": "npm version minor && git push --follow-tags",
-    "release:major": "npm version major && git push --follow-tags"
+    "release:major": "npm version major && git push --follow-tags",
+    "lint:types": "oxlint --type-aware"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -74,7 +75,6 @@
     "web-haptics": "^0.0.6"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
@@ -82,14 +82,11 @@
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^41.1.1",
     "electron-builder": "^26.8.1",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^16.5.0",
+    "oxlint": "^1.80.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "typescript": "^7.0.2",
-    "typescript-eslint": "^8.57.1",
     "vite": "^7.3.1",
     "vite-plugin-electron": "^0.29.1",
     "vite-plugin-electron-renderer": "^0.14.6",
