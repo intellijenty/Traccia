@@ -10,6 +10,28 @@ export function getToken(): string | null { return token }
 export function setToken(t: string | null): void { token = t }
 export function getUserId(): number | null { return userId }
 
+/**
+ * Every HRMS endpoint answers with the same envelope. `response.json()` is
+ * typed `unknown`, so each call site casts to this instead of re-deriving the
+ * shape; fields are optional because the API omits them per endpoint and per
+ * outcome.
+ */
+type HrmsEnvelope<T> = {
+  code?: number
+  token?: string
+  message?: string
+  data?: T
+}
+
+export interface HrmsWorkingHoursEntry {
+  empid: number
+  logdate: string
+  intime: string
+  outtime: string | null
+  workingmins: number | null
+  ismanual: number
+}
+
 function getBaseUrl(): string {
   return getSetting("hrmsBaseUrl") || "https://roimaint.in:7000/api"
 }
@@ -97,7 +119,10 @@ export async function hrmsLogin(
       }
     }
 
-    const result = await response.json()
+    const result = (await response.json()) as HrmsEnvelope<{
+      user_id: number
+      name: string
+    }>
 
     if (result.code === 1 && result.token && result.data) {
       token = result.token
@@ -105,7 +130,7 @@ export async function hrmsLogin(
       userName = result.data.name
 
       // Persist name so getHrmsConnectionStatus returns it immediately on restart
-      setSetting("hrmsUserName", userName)
+      setSetting("hrmsUserName", result.data.name)
 
       // Store credentials on explicit login
       if (email && password) {
@@ -202,7 +227,9 @@ export async function hrmsGetWorkingHours(
       return { ...empty, message: `HTTP ${response.status}` }
     }
 
-    const result = await response.json()
+    const result = (await response.json()) as HrmsEnvelope<
+      HrmsWorkingHoursEntry[]
+    >
 
     // Refresh token from response
     if (result.token) {

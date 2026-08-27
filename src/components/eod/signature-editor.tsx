@@ -53,7 +53,8 @@ export function SignatureEditor({ value, onChange }: Props) {
     if (!editor || value === prevValue.current) return
     prevValue.current = value
     const { from, to } = editor.state.selection
-    editor.commands.setContent(value, false)
+    // See rich-editor.tsx: `false` was a no-op under Tiptap 3's options object.
+    editor.commands.setContent(value, {})
     try { editor.commands.setTextSelection({ from, to }) } catch { /* ignore out-of-bounds */ }
   }, [editor, value])
 

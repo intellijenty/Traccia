@@ -48,7 +48,7 @@ export interface WeeklyTargetResult {
 export function useWeeklyTarget(
   todayLiveMinutes = 0,
   todayCustomTarget?: DayTarget | null,
-  todayWorkWindowStart?: string | null
+  _todayWorkWindowStart?: string | null
 ): WeeklyTargetResult {
   const today = getLocalDate()
   const weekDays = getDaysOfWeek(getWeekRange(today).start)

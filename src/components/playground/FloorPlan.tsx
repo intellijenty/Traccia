@@ -11,7 +11,7 @@ const C = {
 };
 
 /* ── Icons (Hugeicons, 24px stroke) ────────────────────────────── */
-const svgProps = {
+const svgProps: React.SVGProps<SVGSVGElement> = {
   viewBox: "0 0 24 24",
   fill: "none",
   stroke: "currentColor",
@@ -20,7 +20,7 @@ const svgProps = {
   strokeLinejoin: "round",
 };
 
-const HotelIcon = (p) => (
+const HotelIcon = (p: React.SVGProps<SVGSVGElement>) => (
   <svg {...svgProps} {...p}>
     <path d="M3 7V18C3 19.8856 3 20.8284 3.58579 21.4142C4.17157 22 5.11438 22 7 22H17C18.8856 22 19.8284 22 20.4142 21.4142C21 20.8284 21 19.8856 21 18V7" />
     <path d="M17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7" />
@@ -32,7 +32,7 @@ const HotelIcon = (p) => (
   </svg>
 );
 
-const DoorIcon = (p) => (
+const DoorIcon = (p: React.SVGProps<SVGSVGElement>) => (
   <svg {...svgProps} {...p}>
     <path d="M5 22V8C5 5.17157 5 3.75736 5.87868 2.87868C6.75736 2 8.17157 2 11 2H13C15.8284 2 17.2426 2 18.1213 2.87868C19 3.75736 19 5.17157 19 8V22" />
     <path d="M3 22H21" />
@@ -40,7 +40,7 @@ const DoorIcon = (p) => (
   </svg>
 );
 
-const CodeIcon = (p) => (
+const CodeIcon = (p: React.SVGProps<SVGSVGElement>) => (
   <svg {...svgProps} {...p}>
     <path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" />
     <path d="M9.5 9.5L7.96682 10.8215C7.32228 11.377 7 11.6548 7 12C7 12.3452 7.32227 12.623 7.96682 13.1785L9.5 14.5" />
@@ -48,7 +48,7 @@ const CodeIcon = (p) => (
   </svg>
 );
 
-const CoffeeIcon = (p) => (
+const CoffeeIcon = (p: React.SVGProps<SVGSVGElement>) => (
   <svg {...svgProps} {...p}>
     <path d="M18.2505 10.5H19.6403C21.4918 10.5 22.0421 10.7655 21.9975 12.0838C21.9237 14.2674 20.939 16.8047 17 17.5" />
     <path d="M5.94627 20.6145C2.57185 18.02 2.07468 14.3401 2.00143 10.5001C1.96979 8.8413 2.45126 8.5 4.65919 8.5H15.3408C17.5487 8.5 18.0302 8.8413 17.9986 10.5001C17.9253 14.3401 17.4281 18.02 14.0537 20.6145C13.0934 21.3528 12.2831 21.5 10.9194 21.5H9.08064C7.71686 21.5 6.90658 21.3528 5.94627 20.6145Z" />

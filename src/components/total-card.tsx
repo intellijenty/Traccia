@@ -34,7 +34,6 @@ interface TotalCardProps {
 export function TotalCard({
   totalSeconds,
   workingSeconds,
-  isIn,
   targetMinutes = 480,
   breakSeconds = 0,
 }: TotalCardProps) {

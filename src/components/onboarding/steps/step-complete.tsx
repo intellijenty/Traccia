@@ -23,14 +23,14 @@ function ConfigItem({
   label,
   done,
 }: {
-  icon: React.ComponentType
+  icon: Parameters<typeof HugeiconsIcon>[0]["icon"]
   label: string
   done: boolean
 }) {
   return (
     <div className="flex items-center gap-2.5">
       <HugeiconsIcon
-        icon={icon as Parameters<typeof HugeiconsIcon>[0]["icon"]}
+        icon={icon}
         size={14}
         className={done ? "text-foreground" : "text-muted-foreground/30"}
       />

@@ -21,15 +21,6 @@ type StepId = "welcome" | "portal" | "work-hours" | "notifications" | "hotkey" |
 
 const STEPS: StepId[] = ["welcome", "portal", "work-hours", "notifications", "hotkey", "complete"]
 
-const STEP_TITLES: Record<StepId, string> = {
-  welcome: "Welcome",
-  portal: "Portal",
-  "work-hours": "Work Hours",
-  notifications: "Notifications",
-  hotkey: "Hotkey",
-  complete: "Done",
-}
-
 const SKIPPABLE: StepId[] = ["portal", "work-hours", "notifications", "hotkey"]
 
 interface OnboardingDialogProps {

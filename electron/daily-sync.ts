@@ -65,7 +65,8 @@ const store = new ElectronStore()
 async function runEodTempCleanup(): Promise<void> {
   try {
     const now = Date.now()
-    const pending: string[] = store.get('pendingEodTempDirs') || []
+    const pending: string[] =
+      (store.get('pendingEodTempDirs') as string[] | undefined) || []
     const newPending: string[] = []
 
     // Attempt cleanup of pending dirs older than 5 minutes

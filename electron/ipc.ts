@@ -368,7 +368,8 @@ async function openViaOutlookCOM(payload: OutlookPayload): Promise<void> {
       }
     }
     try {
-      const pending: string[] = electronStore.get('pendingEodTempDirs') || []
+      const pending: string[] =
+        (electronStore.get('pendingEodTempDirs') as string[] | undefined) || []
       if (!pending.includes(dir)) {
         pending.push(dir)
         electronStore.set('pendingEodTempDirs', pending)

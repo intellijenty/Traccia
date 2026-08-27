@@ -49,7 +49,7 @@ const glowVariants = {
     scale: 2,
     transition: {
       opacity: { duration: 0.5 },
-      scale: { duration: 0.5, type: "spring", stiffness: 300, damping: 25 },
+      scale: { duration: 0.5, type: "spring" as const, stiffness: 300, damping: 25 },
     },
   },
 }

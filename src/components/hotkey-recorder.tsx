@@ -6,26 +6,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
 
 const MODIFIER_KEYS = new Set(["Control", "Alt", "Shift", "Meta"])
 
-const KEY_DISPLAY: Record<string, string> = {
-  " ": "Space",
-  Control: "Ctrl",
-  Meta: "Super",
-  Alt: "Alt",
-  Shift: "Shift",
-  Escape: "Esc",
-  Enter: "↵",
-  Backspace: "⌫",
-  ArrowUp: "↑",
-  ArrowDown: "↓",
-  ArrowLeft: "←",
-  ArrowRight: "→",
-  Tab: "Tab",
-}
-
-function getKeyLabel(key: string): string {
-  return KEY_DISPLAY[key] ?? (key.length === 1 ? key.toUpperCase() : key)
-}
-
 /** Build ordered display parts from a KeyboardEvent */
 function eventToKeys(e: KeyboardEvent): string[] {
   const parts: string[] = []

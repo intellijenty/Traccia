@@ -119,7 +119,12 @@ export async function fetchLeaveApplications(
       return { ...empty, message: `HTTP ${response.status}` }
     }
 
-    const result = await response.json()
+    const result = (await response.json()) as {
+      code?: number
+      token?: string
+      message?: string
+      data?: LeaveApplicationRaw[]
+    }
 
     // Rotate token if server sends a fresh one
     if (result.token) setToken(result.token)

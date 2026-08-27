@@ -119,8 +119,11 @@ export function insertIntoDest(dstContainer: string, overId: string, srcMeta: Dr
 
 export function reorderWithinContainer(src: ItemMeta, overId: string, state: EodFormState): EodFormState {
   if (src.container.startsWith('tasks:')) {
-    return mapProject(state, src.projectId, p => {
-      const oldIdx = p.tasksCompleted.findIndex(t => t.id === src.taskId)
+    // The container prefix, not `type`, is the discriminant here, so narrow the
+    // union by hand the same way the subs:/section: branches below do.
+    const taskSrc = src as Extract<ItemMeta, { type: 'task' }>
+    return mapProject(state, taskSrc.projectId, p => {
+      const oldIdx = p.tasksCompleted.findIndex(t => t.id === taskSrc.taskId)
       const newIdx = p.tasksCompleted.findIndex(t => t.id === overId)
       if (oldIdx < 0 || newIdx < 0 || oldIdx === newIdx) return p
       return { ...p, tasksCompleted: arrayMove(p.tasksCompleted, oldIdx, newIdx) }
@@ -128,7 +131,7 @@ export function reorderWithinContainer(src: ItemMeta, overId: string, state: Eod
   }
   if (src.container.startsWith('subs:')) {
     const subSrc = src as Extract<ItemMeta, { type: 'sub' }>
-    return mapProject(state, src.projectId, p => ({
+    return mapProject(state, subSrc.projectId, p => ({
       ...p,
       tasksCompleted: p.tasksCompleted.map(t => {
         if (t.id !== subSrc.taskId) return t

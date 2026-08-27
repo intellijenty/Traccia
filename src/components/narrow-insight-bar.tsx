@@ -32,7 +32,7 @@ export function NarrowBalanceChips() {
   const { summaries: monthSummaries } = usePortalRange(monthDays)
   const { dayMarks } = useDayMarks()
 
-  const { weekBalance, monthBalance } = useMemo(() => {
+  const { weekBalance } = useMemo(() => {
     // Week balance
     const weekDays = getDaysOfWeek(weekRange.start)
     const wb = computeWeeklyBalance(weekDays, weekSummaries, today, dayMarks)

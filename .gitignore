@@ -30,3 +30,5 @@ release
 .claude/
 tmp/
 .playwright-mcp/
+# tsc incremental state
+*.tsbuildinfo
