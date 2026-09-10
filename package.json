@@ -79,7 +79,7 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "electron": "^41.1.1",
     "electron-builder": "^26.8.1",
     "oxlint": "^1.80.0",
@@ -87,9 +87,11 @@
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "typescript": "^7.0.2",
-    "vite": "^7.3.1",
-    "vite-plugin-electron": "^0.29.1",
-    "vite-plugin-electron-renderer": "^0.14.6",
+    "vite": "^8.3.0",
+    "vite-plugin-electron": "^1.1.2",
     "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "@babel/plugin-transform-runtime": "^7.29.0"
   }
 }
