@@ -198,8 +198,6 @@ export function FormEditor({ value, onChange, mode = 'comfortable' }: FormEditor
     // Block cross-project drag (guard 2: subs: container)
     if ((src.type === 'task' || src.type === 'sub') && dstContainer.startsWith('subs:')) {
       const destTaskMeta = findItemMeta(dstContainer.slice(5))
-      // Section items carry no projectId; reading it off them yielded undefined
-      // and blocked the drag, so keep that by comparing undefined explicitly.
       const destProjectId =
         destTaskMeta && 'projectId' in destTaskMeta ? destTaskMeta.projectId : undefined
       if (destTaskMeta && destProjectId !== src.projectId) return

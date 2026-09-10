@@ -10,12 +10,6 @@ export function getToken(): string | null { return token }
 export function setToken(t: string | null): void { token = t }
 export function getUserId(): number | null { return userId }
 
-/**
- * Every HRMS endpoint answers with the same envelope. `response.json()` is
- * typed `unknown`, so each call site casts to this instead of re-deriving the
- * shape; fields are optional because the API omits them per endpoint and per
- * outcome.
- */
 type HrmsEnvelope<T> = {
   code?: number
   token?: string

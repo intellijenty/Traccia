@@ -177,9 +177,6 @@ export const RichEditor = forwardRef<RichEditorHandle, object>(function RichEdit
   })
 
   useImperativeHandle(ref, () => ({
-    // Tiptap 3 replaced the v2 `emitUpdate` boolean with an options object.
-    // `false` destructured to all-undefined, so updates were being emitted
-    // regardless; `{}` keeps that behaviour rather than silently changing it.
     setContent: (html: string) => editor?.commands.setContent(html, {}),
     getHtml: () => editor?.getHTML() ?? '',
     getText: () => editor?.getText() ?? '',

@@ -119,8 +119,6 @@ export function insertIntoDest(dstContainer: string, overId: string, srcMeta: Dr
 
 export function reorderWithinContainer(src: ItemMeta, overId: string, state: EodFormState): EodFormState {
   if (src.container.startsWith('tasks:')) {
-    // The container prefix, not `type`, is the discriminant here, so narrow the
-    // union by hand the same way the subs:/section: branches below do.
     const taskSrc = src as Extract<ItemMeta, { type: 'task' }>
     return mapProject(state, taskSrc.projectId, p => {
       const oldIdx = p.tasksCompleted.findIndex(t => t.id === taskSrc.taskId)

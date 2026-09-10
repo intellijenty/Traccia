@@ -1,12 +1,5 @@
 {
   "compilerOptions": {
-    /* Type-check only. The main-process bundle is produced by
-       vite-plugin-electron (see vite.config.ts), not by tsc — this config
-       previously claimed CommonJS and emitted loose files into dist-electron
-       that the bundled main.js never loaded. The sources are ESM
-       (`import.meta.url` in main.ts / tray.ts) and Vite emits ESM, so the
-       module settings here now describe what actually ships.
-       preload.cts is still genuinely emitted, by tsconfig.preload.json. */
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
