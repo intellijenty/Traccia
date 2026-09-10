@@ -177,7 +177,7 @@ export const RichEditor = forwardRef<RichEditorHandle, object>(function RichEdit
   })
 
   useImperativeHandle(ref, () => ({
-    setContent: (html: string) => editor?.commands.setContent(html, {}),
+    setContent: (html: string) => editor?.commands.setContent(html, { emitUpdate: false }),
     getHtml: () => editor?.getHTML() ?? '',
     getText: () => editor?.getText() ?? '',
   }), [editor])

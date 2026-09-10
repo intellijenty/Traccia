@@ -6,8 +6,6 @@
     "dist-electron/**/*"
   ],
   "extraResources": [
-    "dist-electron/preload.js",
-    "src/assets/**",
     {
       "from": "resources",
       "to": "."

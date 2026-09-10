@@ -29,7 +29,7 @@
     ],
     "typescript/no-explicit-any": "error",
     "typescript/no-require-imports": "error",
-    "no-empty": ["error", { "allowEmptyCatch": false }],
+    "no-empty": ["error", { "allowEmptyCatch": true }],
     "react/only-export-components": ["error", { "allowConstantExport": true }]
   },
   "overrides": [
@@ -41,6 +41,12 @@
       "files": ["**/*.cts"],
       "rules": {
         "typescript/no-require-imports": "off"
+      }
+    },
+    {
+      "files": ["src/components/ui/**"],
+      "rules": {
+        "react/only-export-components": "off"
       }
     }
   ]

@@ -335,7 +335,8 @@ export function PlaygroundLadder({
         if (e.key === "3") { e.stopPropagation(); e.preventDefault(); cb.onSetGate(punch.id, "cafeteria"); return }
         if (e.key === " ") {
           e.stopPropagation(); e.preventDefault()
-          e.shiftKey ? cb.onSetGate(punch.id, null) : cb.onCycleGate(punch.id)
+          if (e.shiftKey) cb.onSetGate(punch.id, null)
+          else cb.onCycleGate(punch.id)
         }
       }
 
@@ -427,7 +428,8 @@ export function PlaygroundLadder({
                       const localEv = visibleLocalEvents[cursor.index]
                       if (localEv) {
                         const existing = wires.find(w => w.localTime === localEv.time)
-                        existing ? onRemoveWire(existing.draftTime) : onAddWire(punch.time, localEv.time)
+                        if (existing) onRemoveWire(existing.draftTime)
+                        else onAddWire(punch.time, localEv.time)
                       }
                       return
                     }
@@ -501,7 +503,8 @@ export function PlaygroundLadder({
                       const draftPunch = active[cursor.index]
                       if (draftPunch) {
                         const existing = wires.find(w => w.draftTime === draftPunch.time)
-                        existing ? onRemoveWire(existing.draftTime) : onAddWire(draftPunch.time, ev.time)
+                        if (existing) onRemoveWire(existing.draftTime)
+                        else onAddWire(draftPunch.time, ev.time)
                       }
                       return
                     }

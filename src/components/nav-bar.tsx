@@ -10,7 +10,7 @@ const LABEL_WIDTH_COMPACT = 60
 const navItems: {
   id: Page
   label: string
-  icon: any
+  icon: Parameters<typeof HugeiconsIcon>[0]["icon"]
 }[] = [
   { id: "home", label: "Home", icon: Home01Icon },
   { id: "eod", label: "EOD Draft", icon: Edit01Icon },

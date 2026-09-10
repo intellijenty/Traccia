@@ -53,7 +53,7 @@ export function SignatureEditor({ value, onChange }: Props) {
     if (!editor || value === prevValue.current) return
     prevValue.current = value
     const { from, to } = editor.state.selection
-    editor.commands.setContent(value, {})
+    editor.commands.setContent(value, { emitUpdate: false })
     try { editor.commands.setTextSelection({ from, to }) } catch { /* ignore out-of-bounds */ }
   }, [editor, value])
 

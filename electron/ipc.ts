@@ -641,7 +641,8 @@ export function registerIpcHandlers(
   ipcMain.handle("window:maximize-toggle", (event) => {
     const win = BrowserWindow.fromWebContents(event.sender) || getWindow()
     if (!win) return
-    win.isMaximized() ? win.unmaximize() : win.maximize()
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
   })
 
   ipcMain.handle("window:close", (event) => {
@@ -983,7 +984,6 @@ export function registerIpcHandlers(
   // Streaming: starts generation and returns requestId immediately.
   // Text arrives via 'ai:chunk' push events; completion via 'ai:done' or 'ai:error'.
   ipcMain.handle('ai:stream', (event, options: GenerateOptions) => {
-    const { randomUUID } = require('crypto') as typeof import('crypto')
     const requestId: string = options.requestId ?? randomUUID()
 
     void claude.stream({ ...options, requestId }, {
