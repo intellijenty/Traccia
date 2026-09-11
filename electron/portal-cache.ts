@@ -15,7 +15,7 @@ export function isDatePermanent(date: string): boolean {
 
 export interface CacheEntry {
   // Portal data stored as parsed JSON; typed as any since this is a generic storage layer
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   data: any
   cachedAt: string
   permanent: boolean
@@ -37,14 +37,13 @@ export function getFromCache(date: string): CacheEntry | null {
     | undefined
   if (!row) return null
   return {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     data: JSON.parse(row.data),
     cachedAt: row.cached_at,
     permanent: row.is_permanent === 1,
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export function setToCache(date: string, data: any): void {
   const permanent = isDatePermanent(date) ? 1 : 0
   getDb()

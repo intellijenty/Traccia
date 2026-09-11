@@ -103,7 +103,6 @@ function buildSettingsResponse(raw: Record<string, string>) {
     dailyTargetMinutes: parseInt(raw.dailyTargetMinutes || "480", 10),
     autoStart: raw.autoStart === "true",
     startMinimized: raw.startMinimized === "true",
-    debounceSeconds: parseInt(raw.debounceSeconds || "15", 10),
     heartbeatSeconds: parseInt(raw.heartbeatSeconds || "60", 10),
     closeToTray: raw.closeToTray === "true",
     hotkeyCombo: raw.hotkeyCombo || "Alt+Space",
@@ -820,7 +819,7 @@ export function registerIpcHandlers(
     date: string,
     force: boolean
   ): Promise<{
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     data: any | null
     fromCache: boolean
     permanent: boolean

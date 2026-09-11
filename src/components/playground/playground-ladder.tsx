@@ -184,7 +184,7 @@ export function PlaygroundLadder({
     }
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const paths: { key: string; d: string }[] = []
     for (const wire of wires) {
@@ -511,7 +511,7 @@ export function PlaygroundLadder({
           : `M ${p1.x} ${p1.y} C ${p1.x - t} ${p1.y} ${cx + t} ${cy} ${cx} ${cy}`
       trailingPathRef.current.setAttribute("d", d)
     },
-    [pending] // eslint-disable-line react-hooks/exhaustive-deps
+    [pending]
   )
 
   return (

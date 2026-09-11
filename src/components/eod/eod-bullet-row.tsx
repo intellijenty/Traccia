@@ -38,10 +38,10 @@ interface BulletRowProps {
   onRemove: () => void
   removeAriaLabel: string
   /** dnd-kit useSortable().attributes — spread onto grip handle */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   dragAttributes?: any
   /** dnd-kit useSortable().listeners — spread onto grip handle */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   dragListeners?: any
   /** Outer wrapper class (controls padding variants per use site) */
   className?: string
@@ -123,7 +123,7 @@ export interface BulletKeyHandlers {
   onCtrlC?: () => void
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+// oxlint-disable-next-line react/only-export-components
 export function bulletKeyDown(text: string, h: BulletKeyHandlers) {
   return (e: React.KeyboardEvent) => {
     // Ctrl+Enter only takes a special path when explicitly handled.

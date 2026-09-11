@@ -40,7 +40,7 @@ export function usePortalDay(date?: string): UsePortalDayResult {
   useEffect(() => {
     if (!store.connected || isFuture) return
     store.refreshDay(targetDate)
-  }, [targetDate, store.connected, isFuture]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [targetDate, store.connected, isFuture]) // oxlint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!store.connected || !isToday || isFuture) return
@@ -49,7 +49,7 @@ export function usePortalDay(date?: string): UsePortalDayResult {
       REFRESH_INTERVAL_MS
     )
     return () => clearInterval(id)
-  }, [targetDate, isToday, store.connected, isFuture]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [targetDate, isToday, store.connected, isFuture]) // oxlint-disable-line react-hooks/exhaustive-deps
 
   const entry = store.cache[targetDate]
 
@@ -70,7 +70,7 @@ export function usePortalDay(date?: string): UsePortalDayResult {
       activeSessionMinutes,
       totalMinutes: data.totalMinutes + diff,
     }
-  }, [entry, isToday, store.liveTick]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [entry, isToday, store.liveTick]) // oxlint-disable-line react-hooks/exhaustive-deps
 
   const isSyncing = store.syncing.has(targetDate)
   const hasData = !!entry

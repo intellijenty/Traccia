@@ -161,7 +161,6 @@ export function initDatabase(): void {
     dailyTargetMinutes: "480",
     autoStart: "true",
     startMinimized: "true",
-    debounceSeconds: "15",
     heartbeatSeconds: "60",
     closeToTray: "true",
     hrmsBaseUrl: "https://roimaint.in:7000/api",

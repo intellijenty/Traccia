@@ -250,7 +250,7 @@ export function EodAiDialog({
     }
     window.addEventListener("keydown", onEsc, true)
     return () => window.removeEventListener("keydown", onEsc, true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   function updateReplaceMode(on: boolean) {

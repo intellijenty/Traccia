@@ -57,7 +57,7 @@ export function usePortalRange(dates: string[]): UsePortalRangeResult {
   useEffect(() => {
     if (!store.connected || validDates.length === 0) return
     store.refreshRange(validDates)
-  }, [validDatesKey, store.connected]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [validDatesKey, store.connected]) // oxlint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!store.connected || !rangeIncludesToday || validDates.length === 0)
@@ -67,7 +67,7 @@ export function usePortalRange(dates: string[]): UsePortalRangeResult {
       REFRESH_INTERVAL_MS
     )
     return () => clearInterval(id)
-  }, [validDatesKey, rangeIncludesToday, store.connected]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [validDatesKey, rangeIncludesToday, store.connected]) // oxlint-disable-line react-hooks/exhaustive-deps
 
   const summaries = useMemo<WeekDaySummary[]>(() => {
     return dates
@@ -77,7 +77,7 @@ export function usePortalRange(dates: string[]): UsePortalRangeResult {
         return portalDataToSummary(date, entry.data)
       })
       .filter((s): s is WeekDaySummary => s !== null)
-  }, [datesKey, store.cache]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [datesKey, store.cache]) // oxlint-disable-line react-hooks/exhaustive-deps
 
   const loading = dates.some((d) => !store.cache[d] && store.syncing.has(d))
 

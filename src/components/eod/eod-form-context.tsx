@@ -28,7 +28,7 @@ import {
 
 export const EodProjectContext = createContext<string | null>(null)
 
-// eslint-disable-next-line react-refresh/only-export-components
+// oxlint-disable-next-line react/only-export-components
 export function useProjectId(): string {
   const id = use(EodProjectContext)
   if (!id)
@@ -92,14 +92,14 @@ const EodDndStateContext = createContext<{ activeId: string | null }>({
   activeId: null,
 })
 
-// eslint-disable-next-line react-refresh/only-export-components
+// oxlint-disable-next-line react/only-export-components
 export function useEodApi(): EodApi {
   const v = use(EodApiContext)
   if (!v) throw new Error("useEodApi must be used inside <EodFormProvider>")
   return v
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+// oxlint-disable-next-line react/only-export-components
 export function useEodDndState() {
   return use(EodDndStateContext)
 }

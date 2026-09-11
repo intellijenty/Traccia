@@ -256,7 +256,7 @@ export function EodPage() {
     if (localStorage.getItem(KEYS.lastSent)) {
       localStorage.removeItem(KEYS.lastSent)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Auto-save form state (debounced 500ms) + keep latest snapshot in ref for sync handler
@@ -415,7 +415,7 @@ export function EodPage() {
 
   useEffect(() => {
     void runMeetingSync()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── State updaters ──────────────────────────────────────────────────────────

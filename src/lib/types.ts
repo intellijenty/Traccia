@@ -51,7 +51,6 @@ export interface AppSettings {
   dailyTargetMinutes: number
   autoStart: boolean
   startMinimized: boolean
-  debounceSeconds: number
   heartbeatSeconds: number
   closeToTray: boolean
   hotkeyCombo: string

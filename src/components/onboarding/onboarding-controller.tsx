@@ -60,7 +60,7 @@ export function OnboardingController({ isWide }: OnboardingControllerProps) {
       }
     }
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // License activation event listener
