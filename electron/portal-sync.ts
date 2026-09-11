@@ -1,5 +1,9 @@
 import { hrmsGetWorkingHours } from "./hrms"
-import { getNonPermanentCachedDates, setToCache, isDatePermanent } from "./portal-cache"
+import {
+  getNonPermanentCachedDates,
+  setToCache,
+  isDatePermanent,
+} from "./portal-cache"
 
 export interface DaySyncResult {
   date: string
@@ -29,7 +33,9 @@ export async function syncNonPermanentDays(): Promise<SyncSummary> {
   // Today is never stored in SQLite — exclude it even if somehow present
   const dates = getNonPermanentCachedDates().filter((d) => d !== today)
 
-  console.log(`[portal-sync] Starting sync for ${dates.length} non-permanent date(s): ${dates.join(", ") || "none"}`)
+  console.log(
+    `[portal-sync] Starting sync for ${dates.length} non-permanent date(s): ${dates.join(", ") || "none"}`
+  )
 
   const results: DaySyncResult[] = []
 
@@ -43,7 +49,12 @@ export async function syncNonPermanentDays(): Promise<SyncSummary> {
         setToCache(date, data)
         results.push({ date, success: true, promoted: willBePromoted })
       } else {
-        results.push({ date, success: false, promoted: false, error: data.message })
+        results.push({
+          date,
+          success: false,
+          promoted: false,
+          error: data.message,
+        })
       }
     } catch (err) {
       results.push({
@@ -59,9 +70,13 @@ export async function syncNonPermanentDays(): Promise<SyncSummary> {
   const promoted = results.filter((r) => r.promoted).length
   const failed = results.filter((r) => !r.success).length
 
-  console.log(`[portal-sync] Done - synced: ${synced}, promoted: ${promoted}, failed: ${failed}`)
+  console.log(
+    `[portal-sync] Done - synced: ${synced}, promoted: ${promoted}, failed: ${failed}`
+  )
   if (failed > 0) {
-    const errors = results.filter((r) => !r.success).map((r) => `${r.date}: ${r.error}`)
+    const errors = results
+      .filter((r) => !r.success)
+      .map((r) => `${r.date}: ${r.error}`)
     console.warn(`[portal-sync] Failures:\n${errors.join("\n")}`)
   }
 

@@ -1,9 +1,26 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import type { DraftPunch, Gate, LocalSession, Wire } from "@/lib/playground"
-import { activePunches, formatClock, formatMins, isInTimeRange } from "@/lib/playground"
+import {
+  activePunches,
+  formatClock,
+  formatMins,
+  isInTimeRange,
+} from "@/lib/playground"
 import { TimePopover, TimeRangePopover } from "./playground-time-popover"
 import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -61,16 +78,21 @@ function fmtHHMM(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number)
   const ampm = h < 12 ? "AM" : "PM"
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return m === 0 ? `${h12} ${ampm}` : `${h12}:${String(m).padStart(2, "0")} ${ampm}`
+  return m === 0
+    ? `${h12} ${ampm}`
+    : `${h12}:${String(m).padStart(2, "0")} ${ampm}`
 }
 
 function localEventList(sessions: LocalSession[]) {
   const events: { time: string; trigger: string; role: "in" | "out" }[] = []
   for (const s of sessions) {
     events.push({ time: s.inTime, trigger: s.inTrigger ?? "", role: "in" })
-    if (s.outTime) events.push({ time: s.outTime, trigger: s.outTrigger ?? "", role: "out" })
+    if (s.outTime)
+      events.push({ time: s.outTime, trigger: s.outTrigger ?? "", role: "out" })
   }
-  return events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+  return events.sort(
+    (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+  )
 }
 
 const TIP_DELAY = 500
@@ -79,7 +101,9 @@ function Tip({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Tooltip delayDuration={TIP_DELAY}>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side="top" sideOffset={4}>{label}</TooltipContent>
+      <TooltipContent side="top" sideOffset={4}>
+        {label}
+      </TooltipContent>
     </Tooltip>
   )
 }
@@ -108,12 +132,19 @@ export function PlaygroundLadder({
   const active = activePunches(draft)
   const unbalanced = active.length % 2 === 1
 
-  const allLocalEvents = useMemo(() => localEventList(localSessions), [localSessions])
+  const allLocalEvents = useMemo(
+    () => localEventList(localSessions),
+    [localSessions]
+  )
   const visibleLocalEvents = useMemo(
     () =>
       allLocalEvents.filter((ev) => {
         if (hiddenLocalTimes.includes(ev.time)) return false
-        if (localTimeRange && !isInTimeRange(ev.time, localTimeRange.start, localTimeRange.end)) return false
+        if (
+          localTimeRange &&
+          !isInTimeRange(ev.time, localTimeRange.start, localTimeRange.end)
+        )
+          return false
         return true
       }),
     [allLocalEvents, hiddenLocalTimes, localTimeRange]
@@ -134,7 +165,10 @@ export function PlaygroundLadder({
   const containerRef = useRef<HTMLDivElement>(null)
   const portRefs = useRef<Map<string, HTMLElement>>(new Map())
   const editTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
-  const [pending, setPending] = useState<{ side: "draft" | "local"; time: string } | null>(null)
+  const [pending, setPending] = useState<{
+    side: "draft" | "local"
+    time: string
+  } | null>(null)
   const trailingPathRef = useRef<SVGPathElement>(null)
   const [wirePaths, setWirePaths] = useState<{ key: string; d: string }[]>([])
 
@@ -144,7 +178,10 @@ export function PlaygroundLadder({
     if (!el || !container) return null
     const er = el.getBoundingClientRect()
     const cr = container.getBoundingClientRect()
-    return { x: er.left + er.width / 2 - cr.left, y: er.top + er.height / 2 - cr.top }
+    return {
+      x: er.left + er.width / 2 - cr.left,
+      y: er.top + er.height / 2 - cr.top,
+    }
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,22 +213,55 @@ export function PlaygroundLadder({
 
   // ── Keyboard state ref — synced each render, read by the stable handler ───
 
-  const kbdState = useRef({ cursor, pending, active, visibleLocalEvents, wires })
+  const kbdState = useRef({
+    cursor,
+    pending,
+    active,
+    visibleLocalEvents,
+    wires,
+  })
   kbdState.current = { cursor, pending, active, visibleLocalEvents, wires }
 
-  const callbacksRef = useRef({ onAddWire, onRemoveWire, onCopyLocal, onHideLocalEvent, onRemovePunch, onCycleGate, onSetGate, onShowShortcuts })
-  callbacksRef.current = { onAddWire, onRemoveWire, onCopyLocal, onHideLocalEvent, onRemovePunch, onCycleGate, onSetGate, onShowShortcuts }
+  const callbacksRef = useRef({
+    onAddWire,
+    onRemoveWire,
+    onCopyLocal,
+    onHideLocalEvent,
+    onRemovePunch,
+    onCycleGate,
+    onSetGate,
+    onShowShortcuts,
+  })
+  callbacksRef.current = {
+    onAddWire,
+    onRemoveWire,
+    onCopyLocal,
+    onHideLocalEvent,
+    onRemovePunch,
+    onCycleGate,
+    onSetGate,
+    onShowShortcuts,
+  }
 
   // ── Document-capture keyboard handler ────────────────────────────────────
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
-      const { cursor, pending, active, visibleLocalEvents, wires } = kbdState.current
+      const { cursor, pending, active, visibleLocalEvents, wires } =
+        kbdState.current
       const cb = callbacksRef.current
 
       const target = e.target as HTMLElement
-      const inInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
-      const isArrow = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
+      const inInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      const isArrow = [
+        "ArrowUp",
+        "ArrowDown",
+        "ArrowLeft",
+        "ArrowRight",
+      ].includes(e.key)
 
       // ── Arrow keys: suppress global day/week nav while playground is open ──
       if (isArrow && !inInput) {
@@ -200,7 +270,8 @@ export function PlaygroundLadder({
         if (cursor === null) {
           // Lazy activation — first arrow activates cursor
           if (active.length > 0) setCursor({ lane: "draft", index: 0 })
-          else if (visibleLocalEvents.length > 0) setCursor({ lane: "local", index: 0 })
+          else if (visibleLocalEvents.length > 0)
+            setCursor({ lane: "local", index: 0 })
           return
         }
 
@@ -209,14 +280,24 @@ export function PlaygroundLadder({
         const localLen = visibleLocalEvents.length
 
         if (e.key === "ArrowUp") {
-          setCursor(c => c ? { ...c, index: Math.max(0, c.index - 1) } : c)
+          setCursor((c) => (c ? { ...c, index: Math.max(0, c.index - 1) } : c))
         } else if (e.key === "ArrowDown") {
           const len = cursor.lane === "draft" ? draftLen : localLen
-          setCursor(c => c ? { ...c, index: Math.min(len - 1, c.index + 1) } : c)
+          setCursor((c) =>
+            c ? { ...c, index: Math.min(len - 1, c.index + 1) } : c
+          )
         } else if (e.key === "ArrowLeft" && cursor.lane === "local") {
-          if (draftLen > 0) setCursor({ lane: "draft", index: Math.min(cursor.index, draftLen - 1) })
+          if (draftLen > 0)
+            setCursor({
+              lane: "draft",
+              index: Math.min(cursor.index, draftLen - 1),
+            })
         } else if (e.key === "ArrowRight" && cursor.lane === "draft") {
-          if (localLen > 0) setCursor({ lane: "local", index: Math.min(cursor.index, localLen - 1) })
+          if (localLen > 0)
+            setCursor({
+              lane: "local",
+              index: Math.min(cursor.index, localLen - 1),
+            })
         }
         return
       }
@@ -236,7 +317,8 @@ export function PlaygroundLadder({
 
       // ── ? : show shortcuts (suppress global dialog — works even without cursor) ──
       if (e.key === "?") {
-        e.stopPropagation(); e.preventDefault()
+        e.stopPropagation()
+        e.preventDefault()
         cb.onShowShortcuts?.()
         return
       }
@@ -246,41 +328,63 @@ export function PlaygroundLadder({
       // ── W: wire initiate / disconnect ─────────────────────────────────────
       if (e.key === "w" || e.key === "W") {
         if (pending) return
-        e.stopPropagation(); e.preventDefault()
+        e.stopPropagation()
+        e.preventDefault()
 
         if (cursor.lane === "draft") {
           const punch = active[cursor.index]
           if (!punch) return
-          const existing = wires.find(w => w.draftTime === punch.time)
-          if (existing) { cb.onRemoveWire(existing.draftTime); return }
+          const existing = wires.find((w) => w.draftTime === punch.time)
+          if (existing) {
+            cb.onRemoveWire(existing.draftTime)
+            return
+          }
           setPending({ side: "draft", time: punch.time })
           wireSourceRef.current = { ...cursor }
           const localLen = visibleLocalEvents.length
-          if (localLen > 0) setCursor({ lane: "local", index: Math.min(cursor.index, localLen - 1) })
+          if (localLen > 0)
+            setCursor({
+              lane: "local",
+              index: Math.min(cursor.index, localLen - 1),
+            })
         } else {
           const ev = visibleLocalEvents[cursor.index]
           if (!ev) return
-          const existing = wires.find(w => w.localTime === ev.time)
-          if (existing) { cb.onRemoveWire(existing.draftTime); return }
+          const existing = wires.find((w) => w.localTime === ev.time)
+          if (existing) {
+            cb.onRemoveWire(existing.draftTime)
+            return
+          }
           setPending({ side: "local", time: ev.time })
           wireSourceRef.current = { ...cursor }
           const draftLen = active.length
-          if (draftLen > 0) setCursor({ lane: "draft", index: Math.min(cursor.index, draftLen - 1) })
+          if (draftLen > 0)
+            setCursor({
+              lane: "draft",
+              index: Math.min(cursor.index, draftLen - 1),
+            })
         }
         return
       }
 
       // ── Enter: complete wire / copy local / open edit ────────────────────
       if (e.key === "Enter") {
-        e.stopPropagation(); e.preventDefault()
+        e.stopPropagation()
+        e.preventDefault()
 
         if (pending) {
           const isOpposite =
             (pending.side === "draft" && cursor.lane === "local") ||
             (pending.side === "local" && cursor.lane === "draft")
           if (isOpposite) {
-            const draftTime = pending.side === "draft" ? pending.time : active[cursor.index]?.time
-            const localTime = pending.side === "local" ? pending.time : visibleLocalEvents[cursor.index]?.time
+            const draftTime =
+              pending.side === "draft"
+                ? pending.time
+                : active[cursor.index]?.time
+            const localTime =
+              pending.side === "local"
+                ? pending.time
+                : visibleLocalEvents[cursor.index]?.time
             if (draftTime && localTime) {
               cb.onAddWire(draftTime, localTime)
               setPending(null)
@@ -307,19 +411,24 @@ export function PlaygroundLadder({
 
       // ── Delete / Backspace: remove punch or hide local event ─────────────
       if (e.key === "Delete" || e.key === "Backspace") {
-        e.stopPropagation(); e.preventDefault()
+        e.stopPropagation()
+        e.preventDefault()
 
         if (cursor.lane === "draft") {
           const punch = active[cursor.index]
           if (punch?.origin !== "anchor") {
             cb.onRemovePunch(punch.id)
-            setCursor(c => c ? { ...c, index: Math.max(0, c.index - 1) } : c)
+            setCursor((c) =>
+              c ? { ...c, index: Math.max(0, c.index - 1) } : c
+            )
           }
         } else {
           const ev = visibleLocalEvents[cursor.index]
           if (ev) {
             cb.onHideLocalEvent(ev.time)
-            setCursor(c => c ? { ...c, index: Math.max(0, c.index - 1) } : c)
+            setCursor((c) =>
+              c ? { ...c, index: Math.max(0, c.index - 1) } : c
+            )
           }
         }
         return
@@ -330,20 +439,36 @@ export function PlaygroundLadder({
         const punch = active[cursor.index]
         if (!punch) return
 
-        if (e.key === "1") { e.stopPropagation(); e.preventDefault(); cb.onSetGate(punch.id, "room1"); return }
-        if (e.key === "2") { e.stopPropagation(); e.preventDefault(); cb.onSetGate(punch.id, "room2"); return }
-        if (e.key === "3") { e.stopPropagation(); e.preventDefault(); cb.onSetGate(punch.id, "cafeteria"); return }
+        if (e.key === "1") {
+          e.stopPropagation()
+          e.preventDefault()
+          cb.onSetGate(punch.id, "room1")
+          return
+        }
+        if (e.key === "2") {
+          e.stopPropagation()
+          e.preventDefault()
+          cb.onSetGate(punch.id, "room2")
+          return
+        }
+        if (e.key === "3") {
+          e.stopPropagation()
+          e.preventDefault()
+          cb.onSetGate(punch.id, "cafeteria")
+          return
+        }
         if (e.key === " ") {
-          e.stopPropagation(); e.preventDefault()
+          e.stopPropagation()
+          e.preventDefault()
           if (e.shiftKey) cb.onSetGate(punch.id, null)
           else cb.onCycleGate(punch.id)
         }
       }
-
     }
 
     document.addEventListener("keydown", handler, { capture: true })
-    return () => document.removeEventListener("keydown", handler, { capture: true })
+    return () =>
+      document.removeEventListener("keydown", handler, { capture: true })
   }, []) // empty deps — reads from kbdState + callbacksRef
 
   // ── Port click (mouse) ────────────────────────────────────────────────────
@@ -353,13 +478,19 @@ export function PlaygroundLadder({
       const existing = wires.find((w) =>
         side === "draft" ? w.draftTime === time : w.localTime === time
       )
-      if (existing) { onRemoveWire(existing.draftTime); return }
+      if (existing) {
+        onRemoveWire(existing.draftTime)
+        return
+      }
       setPending({ side, time })
       return
     }
-    if (pending.side === side) { setPending(null); return }
+    if (pending.side === side) {
+      setPending(null)
+      return
+    }
     const draftTime = pending.side === "draft" ? pending.time : time
-    const localTime  = pending.side === "local"  ? pending.time : time
+    const localTime = pending.side === "local" ? pending.time : time
     onAddWire(draftTime, localTime)
     setPending(null)
   }
@@ -394,11 +525,31 @@ export function PlaygroundLadder({
       }}
     >
       {/* SVG overlay */}
-      <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+        aria-hidden="true"
+      >
         {wirePaths.map(({ key, d }) => (
-          <path key={key} d={d} fill="none" stroke="rgb(168 85 247)" strokeWidth={1.5} strokeOpacity={0.65} strokeLinecap="round" />
+          <path
+            key={key}
+            d={d}
+            fill="none"
+            stroke="rgb(168 85 247)"
+            strokeWidth={1.5}
+            strokeOpacity={0.65}
+            strokeLinecap="round"
+          />
         ))}
-        <path ref={trailingPathRef} fill="none" stroke="rgb(168 85 247)" strokeWidth={1.5} strokeOpacity={0.45} strokeDasharray="4 3" strokeLinecap="round" d="" />
+        <path
+          ref={trailingPathRef}
+          fill="none"
+          stroke="rgb(168 85 247)"
+          strokeWidth={1.5}
+          strokeOpacity={0.45}
+          strokeDasharray="4 3"
+          strokeLinecap="round"
+          d=""
+        />
       </svg>
 
       {/* ── Draft lane ── */}
@@ -412,11 +563,16 @@ export function PlaygroundLadder({
               const role: "in" | "out" = i % 2 === 0 ? "in" : "out"
               const prev = i > 0 ? active[i - 1] : null
               const connMin = prev
-                ? Math.floor((new Date(punch.time).getTime() - new Date(prev.time).getTime()) / 60000)
+                ? Math.floor(
+                    (new Date(punch.time).getTime() -
+                      new Date(prev.time).getTime()) /
+                      60000
+                  )
                 : null
               const prevIsIn = i > 0 && (i - 1) % 2 === 0
               const isWired = wires.some((w) => w.draftTime === punch.time)
-              const isPending = pending?.side === "draft" && pending.time === punch.time
+              const isPending =
+                pending?.side === "draft" && pending.time === punch.time
               const isCursor = cursor?.lane === "draft" && cursor.index === i
 
               return (
@@ -427,7 +583,9 @@ export function PlaygroundLadder({
                     if (e.altKey && cursor?.lane === "local") {
                       const localEv = visibleLocalEvents[cursor.index]
                       if (localEv) {
-                        const existing = wires.find(w => w.localTime === localEv.time)
+                        const existing = wires.find(
+                          (w) => w.localTime === localEv.time
+                        )
                         if (existing) onRemoveWire(existing.draftTime)
                         else onAddWire(punch.time, localEv.time)
                       }
@@ -438,7 +596,10 @@ export function PlaygroundLadder({
                 >
                   {connMin !== null && (
                     <div className="pointer-events-none absolute inset-x-0 -top-4 z-10 flex justify-center">
-                      <FloatingBadge kind={prevIsIn ? "work" : "gap"} minutes={connMin} />
+                      <FloatingBadge
+                        kind={prevIsIn ? "work" : "gap"}
+                        minutes={connMin}
+                      />
                     </div>
                   )}
                   <PunchRow
@@ -464,7 +625,11 @@ export function PlaygroundLadder({
                 </div>
               )
             })}
-            {unbalanced && <div className="relative mt-1.5"><MissingRow /></div>}
+            {unbalanced && (
+              <div className="relative mt-1.5">
+                <MissingRow />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -481,17 +646,30 @@ export function PlaygroundLadder({
         {allLocalEvents.length === 0 ? (
           <Empty text="No local evidence for this day." />
         ) : visibleLocalEvents.length === 0 ? (
-          <AllHiddenEmpty onRestore={() => onSetTimeRange(workWindow ? { start: workWindow.start, end: workWindow.end } : null)} />
+          <AllHiddenEmpty
+            onRestore={() =>
+              onSetTimeRange(
+                workWindow
+                  ? { start: workWindow.start, end: workWindow.end }
+                  : null
+              )
+            }
+          />
         ) : (
           <div>
             {visibleLocalEvents.map((ev, i) => {
               const prev = i > 0 ? visibleLocalEvents[i - 1] : null
               const connMin = prev
-                ? Math.round((new Date(ev.time).getTime() - new Date(prev.time).getTime()) / 60000)
+                ? Math.round(
+                    (new Date(ev.time).getTime() -
+                      new Date(prev.time).getTime()) /
+                      60000
+                  )
                 : null
               const prevIsIn = prev?.role === "in"
               const isWired = wires.some((w) => w.localTime === ev.time)
-              const isPending = pending?.side === "local" && pending.time === ev.time
+              const isPending =
+                pending?.side === "local" && pending.time === ev.time
               const isCursor = cursor?.lane === "local" && cursor.index === i
 
               return (
@@ -502,7 +680,9 @@ export function PlaygroundLadder({
                     if (e.altKey && cursor?.lane === "draft") {
                       const draftPunch = active[cursor.index]
                       if (draftPunch) {
-                        const existing = wires.find(w => w.draftTime === draftPunch.time)
+                        const existing = wires.find(
+                          (w) => w.draftTime === draftPunch.time
+                        )
                         if (existing) onRemoveWire(existing.draftTime)
                         else onAddWire(draftPunch.time, ev.time)
                       }
@@ -513,7 +693,10 @@ export function PlaygroundLadder({
                 >
                   {connMin !== null && (
                     <div className="pointer-events-none absolute inset-x-0 -top-4 z-10 flex justify-center">
-                      <FloatingBadge kind={prevIsIn ? "work" : "gap"} minutes={connMin} />
+                      <FloatingBadge
+                        kind={prevIsIn ? "work" : "gap"}
+                        minutes={connMin}
+                      />
                     </div>
                   )}
                   <LocalEventRow
@@ -565,7 +748,7 @@ function LocalLaneHeader({
   onSetTimeRange: (range: { start: string; end: string } | null) => void
 }) {
   const fallbackStart = workWindow?.start ?? "09:00"
-  const fallbackEnd   = workWindow?.end   ?? "18:00"
+  const fallbackEnd = workWindow?.end ?? "18:00"
 
   return (
     <div className="mb-2 flex h-7 items-center gap-2">
@@ -574,20 +757,22 @@ function LocalLaneHeader({
 
       <div className="ml-auto flex items-center gap-2">
         {hiddenCount > 0 && (
-          <span className="text-[10px] tabular-nums text-muted-foreground/50">
+          <span className="text-[10px] text-muted-foreground/50 tabular-nums">
             {totalCount - hiddenCount}/{totalCount}
           </span>
         )}
 
-        <div className={cn(
-          "inline-flex items-center rounded-md border text-[11px] transition-colors",
-          localTimeRange
-            ? "border-blue-500/30 bg-blue-500/10"
-            : "border-border/50 bg-muted/30"
-        )}>
+        <div
+          className={cn(
+            "inline-flex items-center rounded-md border text-[11px] transition-colors",
+            localTimeRange
+              ? "border-blue-500/30 bg-blue-500/10"
+              : "border-border/50 bg-muted/30"
+          )}
+        >
           <TimeRangePopover
             initialStart={localTimeRange?.start ?? fallbackStart}
-            initialEnd={localTimeRange?.end   ?? fallbackEnd}
+            initialEnd={localTimeRange?.end ?? fallbackEnd}
             align="end"
             onSubmit={(start, end) => onSetTimeRange({ start, end })}
             trigger={
@@ -595,7 +780,9 @@ function LocalLaneHeader({
                 type="button"
                 className={cn(
                   "px-2 py-1 transition-colors",
-                  localTimeRange ? "text-blue-400 hover:text-blue-300" : "text-muted-foreground/60 hover:text-muted-foreground"
+                  localTimeRange
+                    ? "text-blue-400 hover:text-blue-300"
+                    : "text-muted-foreground/60 hover:text-muted-foreground"
                 )}
               >
                 {localTimeRange
@@ -631,7 +818,9 @@ function Empty({ text }: { text: string }) {
 function AllHiddenEmpty({ onRestore }: { onRestore: () => void }) {
   return (
     <div className="rounded-xl border border-dashed border-border/50 px-3 py-5 text-center">
-      <p className="text-[11px] text-muted-foreground/60">All events hidden by filters.</p>
+      <p className="text-[11px] text-muted-foreground/60">
+        All events hidden by filters.
+      </p>
       <button
         type="button"
         onClick={onRestore}
@@ -645,30 +834,46 @@ function AllHiddenEmpty({ onRestore }: { onRestore: () => void }) {
 
 function RoleBadge({ role }: { role: "in" | "out" }) {
   return (
-    <span className={cn(
-      "inline-flex w-9 shrink-0 items-center justify-center rounded-md px-1 py-0.5 text-[10px] font-semibold tracking-wide",
-      role === "in" ? "bg-emerald-400/15 text-emerald-400" : "bg-red-400/15 text-red-400"
-    )}>
+    <span
+      className={cn(
+        "inline-flex w-9 shrink-0 items-center justify-center rounded-md px-1 py-0.5 text-[10px] font-semibold tracking-wide",
+        role === "in"
+          ? "bg-emerald-400/15 text-emerald-400"
+          : "bg-red-400/15 text-red-400"
+      )}
+    >
       {role === "in" ? "IN" : "OUT"}
     </span>
   )
 }
 
-function FloatingBadge({ kind, minutes }: { kind: "work" | "gap"; minutes: number }) {
+function FloatingBadge({
+  kind,
+  minutes,
+}: {
+  kind: "work" | "gap"
+  minutes: number
+}) {
   return (
-    <span className={cn(
-      "rounded-full border bg-card px-3 py-1.5 text-xs font-semibold tabular-nums shadow-sm backdrop-blur-sm",
-      kind === "work"
-        ? "border-blue-500/25 text-blue-400/75"
-        : "border-amber-500/25 text-amber-400/75"
-    )}>
+    <span
+      className={cn(
+        "rounded-full border bg-card px-3 py-1.5 text-xs font-semibold tabular-nums shadow-sm backdrop-blur-sm",
+        kind === "work"
+          ? "border-blue-500/25 text-blue-400/75"
+          : "border-amber-500/25 text-amber-400/75"
+      )}
+    >
       {formatMins(minutes)} {kind === "work" ? "session" : "break"}
     </span>
   )
 }
 
 function Port({
-  portRef, side, isWired, isPending, onPortClick,
+  portRef,
+  side,
+  isWired,
+  isPending,
+  onPortClick,
 }: {
   portRef: (el: HTMLElement | null) => void
   side: "draft" | "local"
@@ -676,22 +881,31 @@ function Port({
   isPending: boolean
   onPortClick: () => void
 }) {
-  const tipLabel = isPending ? "Cancel (Esc)" : isWired ? "Disconnect" : "Link to Evidence"
+  const tipLabel = isPending
+    ? "Cancel (Esc)"
+    : isWired
+      ? "Disconnect"
+      : "Link to Evidence"
   return (
     <Tip label={tipLabel}>
       <button
         ref={portRef}
         data-port="true"
         type="button"
-        onClick={(e) => { e.stopPropagation(); onPortClick() }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onPortClick()
+        }}
         className={cn(
           "absolute top-1/2 z-20 size-2.5 -translate-y-1/2 cursor-pointer rounded-full border-2 transition-all duration-150",
-          side === "draft" ? "right-0 translate-x-1/2" : "left-0 -translate-x-1/2",
+          side === "draft"
+            ? "right-0 translate-x-1/2"
+            : "left-0 -translate-x-1/2",
           isPending
-            ? "animate-pulse scale-125 border-purple-400 bg-purple-400/40"
+            ? "scale-125 animate-pulse border-purple-400 bg-purple-400/40"
             : isWired
-            ? "scale-110 border-purple-500 bg-purple-500"
-            : "border-muted-foreground/25 bg-transparent hover:border-purple-400/60 hover:bg-purple-400/10"
+              ? "scale-110 border-purple-500 bg-purple-500"
+              : "border-muted-foreground/25 bg-transparent hover:border-purple-400/60 hover:bg-purple-400/10"
         )}
         aria-label={tipLabel}
       />
@@ -700,7 +914,17 @@ function Port({
 }
 
 function PunchRow({
-  punch, role, isWired, isPending, isCursor, portRef, editTriggerRef, onPortClick, onEdit, onRemove, onCycleGate,
+  punch,
+  role,
+  isWired,
+  isPending,
+  isCursor,
+  portRef,
+  editTriggerRef,
+  onPortClick,
+  onEdit,
+  onRemove,
+  onCycleGate,
 }: {
   punch: DraftPunch
   role: "in" | "out"
@@ -717,25 +941,40 @@ function PunchRow({
   const isAnchor = punch.origin === "anchor"
   const init = minOfDay(punch.time)
   return (
-    <div className={cn(
-      "group relative flex h-12 items-center gap-3 rounded-lg border px-3 transition-colors hover:bg-card/40",
-      isWired ? "border-purple-500/30" : !isAnchor ? "border-emerald-400/30" : "border-border/60",
-      isAnchor ? "bg-card/20" : "bg-emerald-400/[0.06]",
-      isCursor && "ring-1 ring-inset ring-ring/60"
-    )}>
+    <div
+      className={cn(
+        "group relative flex h-12 items-center gap-3 rounded-lg border px-3 transition-colors hover:bg-card/40",
+        isWired
+          ? "border-purple-500/30"
+          : !isAnchor
+            ? "border-emerald-400/30"
+            : "border-border/60",
+        isAnchor ? "bg-card/20" : "bg-emerald-400/[0.06]",
+        isCursor && "ring-1 ring-ring/60 ring-inset"
+      )}
+    >
       <RoleBadge role={role} />
       <Tip label={fmt24(punch.time)}>
-        <span className="font-mono text-base font-medium tabular-nums">{formatClock(punch.time)}</span>
+        <span className="font-mono text-base font-medium tabular-nums">
+          {formatClock(punch.time)}
+        </span>
       </Tip>
-      <span className={cn(
-        "rounded px-1.5 py-0.5 text-[10px] font-medium",
-        isAnchor ? "bg-blue-400/15 text-blue-400" : "bg-emerald-400/15 text-emerald-400"
-      )}>
+      <span
+        className={cn(
+          "rounded px-1.5 py-0.5 text-[10px] font-medium",
+          isAnchor
+            ? "bg-blue-400/15 text-blue-400"
+            : "bg-emerald-400/15 text-emerald-400"
+        )}
+      >
         {isAnchor ? "portal" : "added"}
       </span>
 
       <div className="ml-auto flex items-center gap-1">
-        <GateButton gate={punch.gate ?? null} onClick={() => onCycleGate(punch.id)} />
+        <GateButton
+          gate={punch.gate ?? null}
+          onClick={() => onCycleGate(punch.id)}
+        />
         {!isAnchor && (
           <>
             <Tooltip delayDuration={TIP_DELAY}>
@@ -761,10 +1000,19 @@ function PunchRow({
                   </TooltipTrigger>
                 }
               />
-              <TooltipContent side="top" sideOffset={4}>Edit time</TooltipContent>
+              <TooltipContent side="top" sideOffset={4}>
+                Edit time
+              </TooltipContent>
             </Tooltip>
             <Tip label="Delete punch">
-              <Button type="button" variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-red-400" onClick={() => onRemove(punch.id)} aria-label="Delete punch">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-red-400"
+                onClick={() => onRemove(punch.id)}
+                aria-label="Delete punch"
+              >
                 <HugeiconsIcon icon={Delete02Icon} size={15} />
               </Button>
             </Tip>
@@ -772,21 +1020,31 @@ function PunchRow({
         )}
       </div>
 
-      <Port portRef={portRef} side="draft" isWired={isWired} isPending={isPending} onPortClick={onPortClick} />
+      <Port
+        portRef={portRef}
+        side="draft"
+        isWired={isWired}
+        isPending={isPending}
+        onPortClick={onPortClick}
+      />
     </div>
   )
 }
 
 function GateButton({ gate, onClick }: { gate: Gate; onClick: () => void }) {
   const { icon, label } =
-    gate === "room1"     ? { icon: Hotel02Icon,    label: "Gate 1" }
-    : gate === "room2"   ? { icon: CodeSquareIcon, label: "Gate 2" }
-    : gate === "cafeteria" ? { icon: Coffee02Icon, label: "Gate 3" }
-    : { icon: Door02Icon, label: "Set gate" }
+    gate === "room1"
+      ? { icon: Hotel02Icon, label: "Gate 1" }
+      : gate === "room2"
+        ? { icon: CodeSquareIcon, label: "Gate 2" }
+        : gate === "cafeteria"
+          ? { icon: Coffee02Icon, label: "Gate 3" }
+          : { icon: Door02Icon, label: "Set gate" }
 
-  const className = gate === null
-    ? "text-transparent group-hover:text-foreground/40 hover:!text-foreground/70"
-    : "text-foreground/70 hover:text-foreground"
+  const className =
+    gate === null
+      ? "text-transparent group-hover:text-foreground/40 hover:!text-foreground/70"
+      : "text-foreground/70 hover:text-foreground"
 
   return (
     <Tip label={label}>
@@ -805,7 +1063,14 @@ function GateButton({ gate, onClick }: { gate: Gate; onClick: () => void }) {
 }
 
 function LocalEventRow({
-  ev, isWired, isPending, isCursor, portRef, onPortClick, onCopy, onHide,
+  ev,
+  isWired,
+  isPending,
+  isCursor,
+  portRef,
+  onPortClick,
+  onCopy,
+  onHide,
 }: {
   ev: { time: string; trigger: string; role: "in" | "out" }
   isWired: boolean
@@ -817,31 +1082,55 @@ function LocalEventRow({
   onHide: () => void
 }) {
   return (
-    <div className={cn(
-      "group relative flex h-12 items-center gap-3 rounded-lg border bg-card/20 px-3 transition-colors hover:bg-card/40",
-      isWired ? "border-purple-500/30" : "border-border/60",
-      isCursor && "ring-1 ring-inset ring-ring/60"
-    )}>
+    <div
+      className={cn(
+        "group relative flex h-12 items-center gap-3 rounded-lg border bg-card/20 px-3 transition-colors hover:bg-card/40",
+        isWired ? "border-purple-500/30" : "border-border/60",
+        isCursor && "ring-1 ring-ring/60 ring-inset"
+      )}
+    >
       <RoleBadge role={ev.role} />
       <Tip label={fmt24(ev.time)}>
-        <span className="font-mono text-base font-medium tabular-nums">{formatClock(ev.time)}</span>
+        <span className="font-mono text-base font-medium tabular-nums">
+          {formatClock(ev.time)}
+        </span>
       </Tip>
       <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground/60">
         {(ev.trigger || "").replace("via ", "")}
       </span>
       <div className="ml-auto flex items-center gap-1">
         <Tip label="Hide event">
-          <Button type="button" variant="ghost" size="icon-sm" onClick={onHide} className="text-transparent transition-colors group-hover:text-foreground/40 hover:!text-foreground/70" aria-label="Hide event">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onHide}
+            className="text-transparent transition-colors group-hover:text-foreground/40 hover:!text-foreground/70"
+            aria-label="Hide event"
+          >
             <HugeiconsIcon icon={ViewOffSlashIcon} size={13} />
           </Button>
         </Tip>
         <Tip label="Add to draft">
-          <Button type="button" variant="ghost" size="icon-sm" onClick={onCopy} className="text-muted-foreground hover:text-foreground" aria-label="Add to draft">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onCopy}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Add to draft"
+          >
             <HugeiconsIcon icon={Add01Icon} size={15} />
           </Button>
         </Tip>
       </div>
-      <Port portRef={portRef} side="local" isWired={isWired} isPending={isPending} onPortClick={onPortClick} />
+      <Port
+        portRef={portRef}
+        side="local"
+        isWired={isWired}
+        isPending={isPending}
+        onPortClick={onPortClick}
+      />
     </div>
   )
 }

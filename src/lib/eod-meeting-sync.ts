@@ -1,11 +1,18 @@
-import type { EodFormState, EodSectionItem } from './eod-types'
-import { makeId } from './eod-types'
-import type { OutlookMeeting } from './outlook-meetings'
-import type { EodMeetingsSettings, MeetingRule, MeetingRouteTarget } from './eod-meetings-settings'
+import type { EodFormState, EodSectionItem } from "./eod-types"
+import { makeId } from "./eod-types"
+import type { OutlookMeeting } from "./outlook-meetings"
+import type {
+  EodMeetingsSettings,
+  MeetingRule,
+  MeetingRouteTarget,
+} from "./eod-meetings-settings"
 
 // Sections that can hold system-imported meeting items
 const ALL_MEETING_SECTIONS = [
-  'otherTasks', 'concerns', 'nextDayPlan', 'upcomingHolidays',
+  "otherTasks",
+  "concerns",
+  "nextDayPlan",
+  "upcomingHolidays",
 ] as const satisfies ReadonlyArray<keyof EodFormState>
 
 // ── Identity ──────────────────────────────────────────────────────────────────
@@ -14,9 +21,9 @@ const ALL_MEETING_SECTIONS = [
  *  The same recurring meeting on different days produces the same key. */
 export function deriveMeetingKey(m: OutlookMeeting): string {
   const d = new Date(m.start)
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mm = String(d.getMinutes()).padStart(2, '0')
-  const title = m.title.trim().toLowerCase().replace(/\s+/g, ' ')
+  const hh = String(d.getHours()).padStart(2, "0")
+  const mm = String(d.getMinutes()).padStart(2, "0")
+  const title = m.title.trim().toLowerCase().replace(/\s+/g, " ")
   return `${hh}:${mm}@${m.duration}@${title}`
 }
 
@@ -26,12 +33,12 @@ const CANCELED_PREFIX_RX = /^canceled\s*:\s*/i
 
 export function filterMeetings(meetings: OutlookMeeting[]): OutlookMeeting[] {
   if (!Array.isArray(meetings)) return []
-  return meetings.filter(m => {
+  return meetings.filter((m) => {
     if (m.responseStatus === 4) return false
     if (m.isAllDay) return false
     if (m.duration < 5) return false
     if (m.duration >= 480) return false
-    const title = m.title?.trim() ?? ''
+    const title = m.title?.trim() ?? ""
     if (!title) return false
     if (CANCELED_PREFIX_RX.test(title)) return false
     return true
@@ -44,7 +51,10 @@ function formatHours(minutes: number): string {
   return String(Math.round((minutes / 60) * 4) / 4)
 }
 
-export function formatMeetingText(m: OutlookMeeting, attachDuration: boolean): string {
+export function formatMeetingText(
+  m: OutlookMeeting,
+  attachDuration: boolean
+): string {
   const base = `Attended meeting: ${m.title.trim()}`
   if (!attachDuration) return base
   return `${base} (${formatHours(m.duration)} Hr)`
@@ -57,16 +67,19 @@ type ClassificationResult = {
   projectName?: string
 }
 
-export function classifyMeeting(title: string, rules: MeetingRule[]): ClassificationResult {
+export function classifyMeeting(
+  title: string,
+  rules: MeetingRule[]
+): ClassificationResult {
   const lower = title.trim().toLowerCase()
   for (const rule of rules) {
-    const matched = rule.keywords.some(kw => {
+    const matched = rule.keywords.some((kw) => {
       const k = kw.trim().toLowerCase()
       return k && lower.includes(k)
     })
     if (matched) return { target: rule.target, projectName: rule.projectName }
   }
-  return { target: 'otherTasks' }
+  return { target: "otherTasks" }
 }
 
 // ── Cross-section key inventory ───────────────────────────────────────────────
@@ -74,10 +87,10 @@ export function classifyMeeting(title: string, rules: MeetingRule[]): Classifica
 function getAllMeetingKeys(state: EodFormState): Set<string> {
   const keys = new Set<string>()
   for (const sk of ALL_MEETING_SECTIONS) {
-    state[sk].items.forEach(i => i.meetingKey && keys.add(i.meetingKey))
+    state[sk].items.forEach((i) => i.meetingKey && keys.add(i.meetingKey))
   }
-  state.projects.forEach(p =>
-    p.tasksCompleted.forEach(t => t.meetingKey && keys.add(t.meetingKey))
+  state.projects.forEach((p) =>
+    p.tasksCompleted.forEach((t) => t.meetingKey && keys.add(t.meetingKey))
   )
   return keys
 }
@@ -87,12 +100,17 @@ function getAllMeetingKeys(state: EodFormState): Set<string> {
 export function applyMeetingSync(
   state: EodFormState,
   rawIncoming: OutlookMeeting[],
-  settings: Pick<EodMeetingsSettings, 'attachDuration' | 'excludeKeywords' | 'rules'>,
+  settings: Pick<
+    EodMeetingsSettings,
+    "attachDuration" | "excludeKeywords" | "rules"
+  >
 ): EodFormState {
-  const excludes = settings.excludeKeywords.map(k => k.trim().toLowerCase()).filter(Boolean)
-  const incoming = filterMeetings(rawIncoming).filter(m => {
+  const excludes = settings.excludeKeywords
+    .map((k) => k.trim().toLowerCase())
+    .filter(Boolean)
+  const incoming = filterMeetings(rawIncoming).filter((m) => {
     const lower = m.title.trim().toLowerCase()
-    return !excludes.some(kw => lower.includes(kw))
+    return !excludes.some((kw) => lower.includes(kw))
   })
   const incomingKeys = new Set(incoming.map(deriveMeetingKey))
 
@@ -103,15 +121,19 @@ export function applyMeetingSync(
       ...next,
       [sk]: {
         ...next[sk],
-        items: next[sk].items.filter(i => !i.meetingKey || incomingKeys.has(i.meetingKey)),
+        items: next[sk].items.filter(
+          (i) => !i.meetingKey || incomingKeys.has(i.meetingKey)
+        ),
       },
     }
   }
   next = {
     ...next,
-    projects: next.projects.map(p => ({
+    projects: next.projects.map((p) => ({
       ...p,
-      tasksCompleted: p.tasksCompleted.filter(t => !t.meetingKey || incomingKeys.has(t.meetingKey)),
+      tasksCompleted: p.tasksCompleted.filter(
+        (t) => !t.meetingKey || incomingKeys.has(t.meetingKey)
+      ),
     })),
   }
 
@@ -120,7 +142,7 @@ export function applyMeetingSync(
 
   // Step 3: add new meetings to their classified destinations, sorted by start time
   const toAdd = incoming
-    .filter(m => !presentKeys.has(deriveMeetingKey(m)))
+    .filter((m) => !presentKeys.has(deriveMeetingKey(m)))
     .sort((a, b) => a.start.localeCompare(b.start))
 
   for (const m of toAdd) {
@@ -128,30 +150,47 @@ export function applyMeetingSync(
     const text = formatMeetingText(m, settings.attachDuration)
     const cls = classifyMeeting(m.title, settings.rules)
 
-    if (cls.target === 'project') {
+    if (cls.target === "project") {
       const pName = cls.projectName?.trim()
       const targetProject = pName
-        ? next.projects.find(p => p.name.trim().toLowerCase() === pName.toLowerCase())
+        ? next.projects.find(
+            (p) => p.name.trim().toLowerCase() === pName.toLowerCase()
+          )
         : next.projects.length === 1
           ? next.projects[0]
-          : undefined  // multiple projects + no name → fallback to otherTasks
+          : undefined // multiple projects + no name → fallback to otherTasks
 
       if (!targetProject) {
         const newItem: EodSectionItem = { id: makeId(), text, meetingKey: key }
-        next = { ...next, otherTasks: { isNA: false, items: [...next.otherTasks.items, newItem] } }
+        next = {
+          ...next,
+          otherTasks: {
+            isNA: false,
+            items: [...next.otherTasks.items, newItem],
+          },
+        }
       } else {
         next = {
           ...next,
-          projects: next.projects.map(p =>
+          projects: next.projects.map((p) =>
             p.id === targetProject.id
-              ? { ...p, tasksCompleted: [...p.tasksCompleted, { id: makeId(), text, subBullets: [], meetingKey: key }] }
+              ? {
+                  ...p,
+                  tasksCompleted: [
+                    ...p.tasksCompleted,
+                    { id: makeId(), text, subBullets: [], meetingKey: key },
+                  ],
+                }
               : p
           ),
         }
       }
     } else {
       const newItem: EodSectionItem = { id: makeId(), text, meetingKey: key }
-      next = { ...next, otherTasks: { isNA: false, items: [...next.otherTasks.items, newItem] } }
+      next = {
+        ...next,
+        otherTasks: { isNA: false, items: [...next.otherTasks.items, newItem] },
+      }
     }
   }
 

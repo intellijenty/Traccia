@@ -1,60 +1,101 @@
-import { arrayMove } from '@dnd-kit/sortable'
-import { closestCenter, type CollisionDetection } from '@dnd-kit/core'
-import { makeId } from '@/lib/eod-types'
-import type { EodFormState, EodProject, EodTask, EodSubBullet, EodSectionItem } from '@/lib/eod-types'
+import { arrayMove } from "@dnd-kit/sortable"
+import { closestCenter, type CollisionDetection } from "@dnd-kit/core"
+import { makeId } from "@/lib/eod-types"
+import type {
+  EodFormState,
+  EodProject,
+  EodTask,
+  EodSubBullet,
+  EodSectionItem,
+} from "@/lib/eod-types"
 
 // ── Shared UI type ────────────────────────────────────────────────────────────
 
-export type FormLayoutMode = 'comfortable' | 'focused' | 'zen'
+export type FormLayoutMode = "comfortable" | "focused" | "zen"
 
 // ── Section keys ──────────────────────────────────────────────────────────────
 
-export type SectionKey = 'otherTasks' | 'concerns' | 'nextDayPlan' | 'upcomingHolidays'
+export type SectionKey =
+  | "otherTasks"
+  | "concerns"
+  | "nextDayPlan"
+  | "upcomingHolidays"
 
-export const SECTION_KEYS: SectionKey[] = ['otherTasks', 'concerns', 'nextDayPlan', 'upcomingHolidays']
+export const SECTION_KEYS: SectionKey[] = [
+  "otherTasks",
+  "concerns",
+  "nextDayPlan",
+  "upcomingHolidays",
+]
 
 // ── Item metadata (discriminated union) ───────────────────────────────────────
 
 export type MoveTarget =
-  | { type: 'task';    projectId: string; taskId: string }
-  | { type: 'sub';     projectId: string; taskId: string; subId: string }
-  | { type: 'section'; sk: SectionKey; itemId: string }
+  | { type: "task"; projectId: string; taskId: string }
+  | { type: "sub"; projectId: string; taskId: string; subId: string }
+  | { type: "section"; sk: SectionKey; itemId: string }
 
 export type ItemMeta =
-  | { type: 'task';         container: `tasks:${string}`;   projectId: string; taskId: string;                text: string }
-  | { type: 'sub';          container: `subs:${string}`;    projectId: string; taskId: string; subId: string; text: string }
-  | { type: 'section-item'; container: `section:${string}`; sk: SectionKey;    itemId: string;                text: string }
+  | {
+      type: "task"
+      container: `tasks:${string}`
+      projectId: string
+      taskId: string
+      text: string
+    }
+  | {
+      type: "sub"
+      container: `subs:${string}`
+      projectId: string
+      taskId: string
+      subId: string
+      text: string
+    }
+  | {
+      type: "section-item"
+      container: `section:${string}`
+      sk: SectionKey
+      itemId: string
+      text: string
+    }
 
 // ── Internal helper ───────────────────────────────────────────────────────────
 
 function mapProject(
   state: EodFormState,
   projectId: string,
-  fn: (p: EodProject) => EodProject,
+  fn: (p: EodProject) => EodProject
 ): EodFormState {
-  return { ...state, projects: state.projects.map(p => p.id === projectId ? fn(p) : p) }
+  return {
+    ...state,
+    projects: state.projects.map((p) => (p.id === projectId ? fn(p) : p)),
+  }
 }
 
 // ── Pure state transformations ────────────────────────────────────────────────
 
-export function removeFromSource(src: ItemMeta, state: EodFormState): EodFormState {
-  if (src.type === 'task') {
-    return mapProject(state, src.projectId, p => ({
-      ...p, tasksCompleted: p.tasksCompleted.filter(t => t.id !== src.taskId),
+export function removeFromSource(
+  src: ItemMeta,
+  state: EodFormState
+): EodFormState {
+  if (src.type === "task") {
+    return mapProject(state, src.projectId, (p) => ({
+      ...p,
+      tasksCompleted: p.tasksCompleted.filter((t) => t.id !== src.taskId),
     }))
   }
-  if (src.type === 'sub') {
-    return mapProject(state, src.projectId, p => ({
+  if (src.type === "sub") {
+    return mapProject(state, src.projectId, (p) => ({
       ...p,
-      tasksCompleted: p.tasksCompleted.map(t =>
+      tasksCompleted: p.tasksCompleted.map((t) =>
         t.id === src.taskId
-          ? { ...t, subBullets: t.subBullets.filter(s => s.id !== src.subId) }
+          ? { ...t, subBullets: t.subBullets.filter((s) => s.id !== src.subId) }
           : t
       ),
     }))
   }
   const section = state[src.sk]
-  const items = section.items.filter(i => i.id !== src.itemId)
+  const items = section.items.filter((i) => i.id !== src.itemId)
   return { ...state, [src.sk]: { items, isNA: items.length === 0 } }
 }
 
@@ -64,34 +105,45 @@ export interface DragSrcMeta {
   leaveKey?: string
 }
 
-export function insertIntoDest(dstContainer: string, overId: string, srcMeta: DragSrcMeta, state: EodFormState): EodFormState {
+export function insertIntoDest(
+  dstContainer: string,
+  overId: string,
+  srcMeta: DragSrcMeta,
+  state: EodFormState
+): EodFormState {
   const id = makeId()
   const { text, meetingKey, leaveKey } = srcMeta
 
-  if (dstContainer.startsWith('tasks:')) {
+  if (dstContainer.startsWith("tasks:")) {
     const projectId = dstContainer.slice(6)
-    const newTask: EodTask = meetingKey ? { id, text, subBullets: [], meetingKey } : { id, text, subBullets: [] }
-    return mapProject(state, projectId, p => {
-      if (overId === dstContainer) return { ...p, tasksCompleted: [...p.tasksCompleted, newTask] }
-      const idx = p.tasksCompleted.findIndex(t => t.id === overId)
+    const newTask: EodTask = meetingKey
+      ? { id, text, subBullets: [], meetingKey }
+      : { id, text, subBullets: [] }
+    return mapProject(state, projectId, (p) => {
+      if (overId === dstContainer)
+        return { ...p, tasksCompleted: [...p.tasksCompleted, newTask] }
+      const idx = p.tasksCompleted.findIndex((t) => t.id === overId)
       const tasks = [...p.tasksCompleted]
       tasks.splice(idx >= 0 ? idx + 1 : tasks.length, 0, newTask)
       return { ...p, tasksCompleted: tasks }
     })
   }
 
-  if (dstContainer.startsWith('subs:')) {
+  if (dstContainer.startsWith("subs:")) {
     const taskId = dstContainer.slice(5)
     const newSub: EodSubBullet = { id, text }
     // find which project owns this task
-    const project = state.projects.find(p => p.tasksCompleted.some(t => t.id === taskId))
+    const project = state.projects.find((p) =>
+      p.tasksCompleted.some((t) => t.id === taskId)
+    )
     if (!project) return state
-    return mapProject(state, project.id, p => ({
+    return mapProject(state, project.id, (p) => ({
       ...p,
-      tasksCompleted: p.tasksCompleted.map(t => {
+      tasksCompleted: p.tasksCompleted.map((t) => {
         if (t.id !== taskId) return t
-        if (overId === dstContainer) return { ...t, subBullets: [...t.subBullets, newSub] }
-        const idx = t.subBullets.findIndex(s => s.id === overId)
+        if (overId === dstContainer)
+          return { ...t, subBullets: [...t.subBullets, newSub] }
+        const idx = t.subBullets.findIndex((s) => s.id === overId)
         const subs = [...t.subBullets]
         subs.splice(idx >= 0 ? idx + 1 : subs.length, 0, newSub)
         return { ...t, subBullets: subs }
@@ -99,16 +151,19 @@ export function insertIntoDest(dstContainer: string, overId: string, srcMeta: Dr
     }))
   }
 
-  if (dstContainer.startsWith('section:')) {
+  if (dstContainer.startsWith("section:")) {
     const sk = dstContainer.slice(8) as SectionKey
     const newItem: EodSectionItem = { id, text }
     if (meetingKey) newItem.meetingKey = meetingKey
     if (leaveKey) newItem.leaveKey = leaveKey
     const section = state[sk]
     if (overId === dstContainer || section.isNA) {
-      return { ...state, [sk]: { isNA: false, items: [...section.items, newItem] } }
+      return {
+        ...state,
+        [sk]: { isNA: false, items: [...section.items, newItem] },
+      }
     }
-    const idx = section.items.findIndex(i => i.id === overId)
+    const idx = section.items.findIndex((i) => i.id === overId)
     const items = [...section.items]
     items.splice(idx >= 0 ? idx + 1 : items.length, 0, newItem)
     return { ...state, [sk]: { isNA: false, items } }
@@ -117,37 +172,47 @@ export function insertIntoDest(dstContainer: string, overId: string, srcMeta: Dr
   return state
 }
 
-export function reorderWithinContainer(src: ItemMeta, overId: string, state: EodFormState): EodFormState {
-  if (src.container.startsWith('tasks:')) {
-    const taskSrc = src as Extract<ItemMeta, { type: 'task' }>
-    return mapProject(state, taskSrc.projectId, p => {
-      const oldIdx = p.tasksCompleted.findIndex(t => t.id === taskSrc.taskId)
-      const newIdx = p.tasksCompleted.findIndex(t => t.id === overId)
+export function reorderWithinContainer(
+  src: ItemMeta,
+  overId: string,
+  state: EodFormState
+): EodFormState {
+  if (src.container.startsWith("tasks:")) {
+    const taskSrc = src as Extract<ItemMeta, { type: "task" }>
+    return mapProject(state, taskSrc.projectId, (p) => {
+      const oldIdx = p.tasksCompleted.findIndex((t) => t.id === taskSrc.taskId)
+      const newIdx = p.tasksCompleted.findIndex((t) => t.id === overId)
       if (oldIdx < 0 || newIdx < 0 || oldIdx === newIdx) return p
-      return { ...p, tasksCompleted: arrayMove(p.tasksCompleted, oldIdx, newIdx) }
+      return {
+        ...p,
+        tasksCompleted: arrayMove(p.tasksCompleted, oldIdx, newIdx),
+      }
     })
   }
-  if (src.container.startsWith('subs:')) {
-    const subSrc = src as Extract<ItemMeta, { type: 'sub' }>
-    return mapProject(state, subSrc.projectId, p => ({
+  if (src.container.startsWith("subs:")) {
+    const subSrc = src as Extract<ItemMeta, { type: "sub" }>
+    return mapProject(state, subSrc.projectId, (p) => ({
       ...p,
-      tasksCompleted: p.tasksCompleted.map(t => {
+      tasksCompleted: p.tasksCompleted.map((t) => {
         if (t.id !== subSrc.taskId) return t
-        const oldIdx = t.subBullets.findIndex(s => s.id === subSrc.subId)
-        const newIdx = t.subBullets.findIndex(s => s.id === overId)
+        const oldIdx = t.subBullets.findIndex((s) => s.id === subSrc.subId)
+        const newIdx = t.subBullets.findIndex((s) => s.id === overId)
         if (oldIdx < 0 || newIdx < 0 || oldIdx === newIdx) return t
         return { ...t, subBullets: arrayMove(t.subBullets, oldIdx, newIdx) }
       }),
     }))
   }
-  if (src.container.startsWith('section:')) {
+  if (src.container.startsWith("section:")) {
     const sk = src.container.slice(8) as SectionKey
-    const secSrc = src as Extract<ItemMeta, { type: 'section-item' }>
+    const secSrc = src as Extract<ItemMeta, { type: "section-item" }>
     const section = state[sk]
-    const oldIdx = section.items.findIndex(i => i.id === secSrc.itemId)
-    const newIdx = section.items.findIndex(i => i.id === overId)
+    const oldIdx = section.items.findIndex((i) => i.id === secSrc.itemId)
+    const newIdx = section.items.findIndex((i) => i.id === overId)
     if (oldIdx < 0 || newIdx < 0 || oldIdx === newIdx) return state
-    return { ...state, [sk]: { ...section, items: arrayMove(section.items, oldIdx, newIdx) } }
+    return {
+      ...state,
+      [sk]: { ...section, items: arrayMove(section.items, oldIdx, newIdx) },
+    }
   }
   return state
 }
@@ -157,38 +222,55 @@ export function reorderWithinContainer(src: ItemMeta, overId: string, state: Eod
 export const INDENT_THRESHOLD = 32
 
 export function computeProjectedDepth(src: ItemMeta, deltaX: number): 0 | 1 {
-  if (src.type === 'sub' && deltaX < -INDENT_THRESHOLD) return 0
-  if (src.type !== 'sub' && deltaX > INDENT_THRESHOLD) return 1
-  return src.type === 'sub' ? 1 : 0
+  if (src.type === "sub" && deltaX < -INDENT_THRESHOLD) return 0
+  if (src.type !== "sub" && deltaX > INDENT_THRESHOLD) return 1
+  return src.type === "sub" ? 1 : 0
 }
 
 // ── Custom collision detection ────────────────────────────────────────────────
 // Pick smallest droppable containing the pointer (most specific hit).
 // Falls back to closestCenter for keyboard sensor compatibility.
 
-function isInRect(pt: { x: number; y: number }, r: { left: number; right: number; top: number; bottom: number }) {
+function isInRect(
+  pt: { x: number; y: number },
+  r: { left: number; right: number; top: number; bottom: number }
+) {
   return pt.x >= r.left && pt.x <= r.right && pt.y >= r.top && pt.y <= r.bottom
 }
 
 function isDndContainerId(id: string) {
-  return id.startsWith('tasks:') || id.startsWith('subs:') || id.startsWith('section:')
+  return (
+    id.startsWith("tasks:") ||
+    id.startsWith("subs:") ||
+    id.startsWith("section:")
+  )
 }
 
 export const customCollision: CollisionDetection = (args) => {
   const { droppableContainers, droppableRects, pointerCoordinates } = args
   if (!pointerCoordinates) return closestCenter(args)
 
-  type Hit = { id: string; area: number; isContainer: boolean; raw: (typeof droppableContainers)[0] }
+  type Hit = {
+    id: string
+    area: number
+    isContainer: boolean
+    raw: (typeof droppableContainers)[0]
+  }
   const hits: Hit[] = []
   for (const dc of droppableContainers) {
     const rect = droppableRects.get(dc.id)
     if (rect && isInRect(pointerCoordinates, rect)) {
-      hits.push({ id: String(dc.id), area: rect.width * rect.height, isContainer: isDndContainerId(String(dc.id)), raw: dc })
+      hits.push({
+        id: String(dc.id),
+        area: rect.width * rect.height,
+        isContainer: isDndContainerId(String(dc.id)),
+        raw: dc,
+      })
     }
   }
   if (hits.length === 0) return closestCenter(args)
 
-  const items = hits.filter(h => !h.isContainer)
+  const items = hits.filter((h) => !h.isContainer)
   const candidates = items.length > 0 ? items : hits
   candidates.sort((a, b) => a.area - b.area)
   const winner = candidates[0]

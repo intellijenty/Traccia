@@ -4,16 +4,18 @@ import { useNotificationSettings } from "@/hooks/use-notification-settings"
 export function StepNotifications() {
   const { prefs, save, loading } = useNotificationSettings()
 
-  if (loading) return <div className="h-32 animate-pulse rounded-lg bg-muted/30" />
+  if (loading)
+    return <div className="h-32 animate-pulse rounded-lg bg-muted/30" />
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Get notified when you hit your daily target or when it's time to wrap up. You can fine-tune timing and messages in Settings later.
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Get notified when you hit your daily target or when it's time to wrap
+        up. You can fine-tune timing and messages in Settings later.
       </p>
 
       <div className="space-y-2">
-        <div className="flex items-start justify-between rounded-lg border border-border/40 bg-muted/20 px-3.5 py-3 gap-4">
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/40 bg-muted/20 px-3.5 py-3">
           <div>
             <p className="text-xs font-medium">Daily target alert</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground/60">
@@ -28,7 +30,7 @@ export function StepNotifications() {
           />
         </div>
 
-        <div className="flex items-start justify-between rounded-lg border border-border/40 bg-muted/20 px-3.5 py-3 gap-4">
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/40 bg-muted/20 px-3.5 py-3">
           <div>
             <p className="text-xs font-medium">EOD reminder</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground/60">

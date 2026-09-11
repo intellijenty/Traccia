@@ -22,10 +22,7 @@ export function getMonthLabel(yearMonth: string): string {
   })
 }
 
-export function shiftMonth(
-  selectedDate: string,
-  direction: -1 | 1
-): string {
+export function shiftMonth(selectedDate: string, direction: -1 | 1): string {
   const d = new Date(selectedDate + "T00:00:00")
   const targetDay = d.getDate()
   const newMonth = d.getMonth() + direction
@@ -59,10 +56,7 @@ export function getWeeksOfMonth(yearMonth: string): string[][] {
   return weeks
 }
 
-export function getWeekdaysInMonth(
-  yearMonth: string,
-  upTo: string
-): string[] {
+export function getWeekdaysInMonth(yearMonth: string, upTo: string): string[] {
   const { start, end } = getMonthRange(yearMonth)
   const cap = end <= upTo ? end : upTo
   const dates: string[] = []

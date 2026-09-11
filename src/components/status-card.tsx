@@ -37,10 +37,12 @@ export function StatusCard({ status }: StatusCardProps) {
       }`}
     >
       <CardContent className="p-5 pb-2">
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider opacity-80">
+        <div className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase opacity-80">
           <span
             className={`inline-block h-2 w-2 rounded-full ${
-              isIn ? "bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.5)]" : "bg-muted-foreground/50"
+              isIn
+                ? "bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.5)]"
+                : "bg-muted-foreground/50"
             }`}
           />
           Status
@@ -54,10 +56,10 @@ export function StatusCard({ status }: StatusCardProps) {
           </p>
         )}
         <div className="mt-3 border-t border-white/10 pt-3">
-          <p className="text-xs uppercase tracking-wider opacity-60">
+          <p className="text-xs tracking-wider uppercase opacity-60">
             {hasWorkWindow ? "Working time" : "Time in today"}
           </p>
-          <p className="mt-0.5 font-mono text-2xl font-semibold tabular-nums tracking-tight">
+          <p className="mt-0.5 font-mono text-2xl font-semibold tracking-tight tabular-nums">
             {formatTimer(displaySeconds)}
           </p>
           {/* {hasWorkWindow && status.totalSecondsToday !== status.workingSecondsToday && (

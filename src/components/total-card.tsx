@@ -59,7 +59,11 @@ export function TotalCard({
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>0h</span>
             <span>{percentage}%</span>
-            <span>{targetMinutes % 60 === 0 ? `${Math.floor(targetMinutes / 60)}h` : `${Math.floor(targetMinutes / 60)}h ${targetMinutes % 60}m`}</span>
+            <span>
+              {targetMinutes % 60 === 0
+                ? `${Math.floor(targetMinutes / 60)}h`
+                : `${Math.floor(targetMinutes / 60)}h ${targetMinutes % 60}m`}
+            </span>
           </div>
           <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
@@ -84,10 +88,8 @@ export function TotalCard({
         {/* Break time */}
         {breakSeconds >= 60 && (
           <div className="mt-3 flex items-center gap-2">
-            <p className="text-xs tracking-wider uppercase opacity-35">
-              Break
-            </p>
-            <span className="font-mono font-semibold tabular-nums text-amber-400/70">
+            <p className="text-xs tracking-wider uppercase opacity-35">Break</p>
+            <span className="font-mono font-semibold text-amber-400/70 tabular-nums">
               {formatBreakDuration(breakSeconds)}
             </span>
           </div>

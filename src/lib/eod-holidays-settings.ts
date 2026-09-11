@@ -4,7 +4,7 @@ export interface EodHolidaysSettings {
   windowDays: number
 }
 
-const KEY = 'traccia:eod-holidays-settings'
+const KEY = "traccia:eod-holidays-settings"
 
 const DEFAULTS: EodHolidaysSettings = {
   enabled: true,
@@ -17,10 +17,11 @@ export function loadHolidaysSettings(): EodHolidaysSettings {
     if (!raw) return { ...DEFAULTS }
     const p = JSON.parse(raw) as Record<string, unknown>
     return {
-      enabled: typeof p.enabled === 'boolean' ? p.enabled : DEFAULTS.enabled,
-      windowDays: typeof p.windowDays === 'number' && p.windowDays >= 1
-        ? Math.min(90, Math.max(1, Math.round(p.windowDays)))
-        : DEFAULTS.windowDays,
+      enabled: typeof p.enabled === "boolean" ? p.enabled : DEFAULTS.enabled,
+      windowDays:
+        typeof p.windowDays === "number" && p.windowDays >= 1
+          ? Math.min(90, Math.max(1, Math.round(p.windowDays)))
+          : DEFAULTS.windowDays,
     }
   } catch {
     return { ...DEFAULTS }

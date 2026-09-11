@@ -71,16 +71,22 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
       role="dialog"
       aria-modal="true"
       aria-label="Fix miss-punch"
-      className="absolute inset-0 z-30 flex flex-col overflow-hidden bg-background duration-200 animate-in fade-in"
+      className="absolute inset-0 z-30 flex animate-in flex-col overflow-hidden bg-background duration-200 fade-in"
     >
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-base font-medium">
-            <HugeiconsIcon icon={SparklesIcon} size={16} className="text-amber-400" />
+            <HugeiconsIcon
+              icon={SparklesIcon}
+              size={16}
+              className="text-amber-400"
+            />
             Fix miss-punch
           </h2>
-          <p className="text-sm text-muted-foreground">{formatDateDisplay(date)}</p>
+          <p className="text-sm text-muted-foreground">
+            {formatDateDisplay(date)}
+          </p>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -96,7 +102,10 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
         </div>
       </div>
 
-      <PlaygroundShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <PlaygroundShortcutsDialog
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
+      />
 
       {/* Notice banner */}
       {pg.notice && (
@@ -104,12 +113,17 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
           <HugeiconsIcon icon={AlertCircleIcon} size={14} />
           {pg.notice.appliedTimes.length > 0 ? (
             <span>
-              Portal now includes {pg.notice.appliedTimes.join(", ")} — your request was applied.
+              Portal now includes {pg.notice.appliedTimes.join(", ")} — your
+              request was applied.
             </span>
           ) : (
             <span>Portal data changed since you last edited this day.</span>
           )}
-          <button type="button" onClick={pg.dismissNotice} className="ml-auto underline">
+          <button
+            type="button"
+            onClick={pg.dismissNotice}
+            className="ml-auto underline"
+          >
             Dismiss
           </button>
         </div>
@@ -167,8 +181,17 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
                     align="end"
                     onSubmit={pg.addPunch}
                     trigger={
-                      <Button ref={addPunchTriggerRef} type="button" variant="outline" size="sm">
-                        <HugeiconsIcon icon={PlusSignCircleIcon} size={13} className="mr-" />
+                      <Button
+                        ref={addPunchTriggerRef}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                      >
+                        <HugeiconsIcon
+                          icon={PlusSignCircleIcon}
+                          size={13}
+                          className="mr-"
+                        />
                         Add punch
                       </Button>
                     }
@@ -219,7 +242,7 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
               </div>
 
               {/* Scrollable ladder */}
-              <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
+              <div className="scrollbar-hide flex-1 overflow-y-auto p-6">
                 <PlaygroundLadder
                   draft={pg.draft}
                   localSessions={pg.localSessionsList}
@@ -255,4 +278,3 @@ export function PlaygroundOverlay({ date, onClose }: PlaygroundOverlayProps) {
     </div>
   )
 }
-

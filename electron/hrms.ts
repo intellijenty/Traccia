@@ -6,9 +6,15 @@ let userId: number | null = null
 let userName: string | null = null
 
 // Exported accessors — allow other modules (e.g. leave-api) to share auth state
-export function getToken(): string | null { return token }
-export function setToken(t: string | null): void { token = t }
-export function getUserId(): number | null { return userId }
+export function getToken(): string | null {
+  return token
+}
+export function setToken(t: string | null): void {
+  token = t
+}
+export function getUserId(): number | null {
+  return userId
+}
 
 type HrmsEnvelope<T> = {
   code?: number
@@ -93,8 +99,7 @@ export async function hrmsLogin(
   userName?: string
   userId?: number
 }> {
-  const creds =
-    email && password ? { email, password } : getStoredCredentials()
+  const creds = email && password ? { email, password } : getStoredCredentials()
   if (!creds) return { success: false, message: "No credentials configured" }
 
   const baseUrl = getBaseUrl()
@@ -281,7 +286,9 @@ export async function hrmsGetWeekHours(
 ): Promise<WeekDayPortalSummary[]> {
   const today = new Date().toLocaleDateString("en-CA")
 
-  console.log(`----------------------------------------------------------------------`)
+  console.log(
+    `----------------------------------------------------------------------`
+  )
   console.log(`[portal] Fetching working hours for week: ${dates.join(", ")}`)
 
   const results = await Promise.all(
@@ -323,7 +330,9 @@ export async function hrmsGetWeekHours(
     })
   )
 
-  console.log(`----------------------------------------------------------------------`)
+  console.log(
+    `----------------------------------------------------------------------`
+  )
 
   return results
 }

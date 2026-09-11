@@ -159,11 +159,35 @@ function handleStartupRecovery(): void {
     // Session crossed midnight — close previous day at 23:59:59, open new day at 00:00:00, then close at estimated time
     const eodTs = new Date(`${loginDate}T23:59:59.999`).toISOString()
     const sodTs = new Date(`${estimatedDate}T00:00:00.000`).toISOString()
-    insertEntry("LOGOUT", "estimated", "via estimated", eodTs, "Auto-closed at midnight — session continued past midnight")
-    insertEntry("LOGIN", "estimated", "via estimated", sodTs, "Auto-opened at midnight — session continued from previous day")
-    insertEntry("LOGOUT", "estimated", "via estimated", estimatedTime, "Session ended unexpectedly. Logout time estimated from last heartbeat.")
+    insertEntry(
+      "LOGOUT",
+      "estimated",
+      "via estimated",
+      eodTs,
+      "Auto-closed at midnight — session continued past midnight"
+    )
+    insertEntry(
+      "LOGIN",
+      "estimated",
+      "via estimated",
+      sodTs,
+      "Auto-opened at midnight — session continued from previous day"
+    )
+    insertEntry(
+      "LOGOUT",
+      "estimated",
+      "via estimated",
+      estimatedTime,
+      "Session ended unexpectedly. Logout time estimated from last heartbeat."
+    )
   } else {
-    insertEntry("LOGOUT", "estimated", "via estimated", estimatedTime, "Session ended unexpectedly. Logout time estimated from last heartbeat.")
+    insertEntry(
+      "LOGOUT",
+      "estimated",
+      "via estimated",
+      estimatedTime,
+      "Session ended unexpectedly. Logout time estimated from last heartbeat."
+    )
   }
 }
 
@@ -172,7 +196,15 @@ let midnightTimer: ReturnType<typeof setTimeout> | null = null
 function scheduleMidnightSplit(): void {
   if (midnightTimer) clearTimeout(midnightTimer)
   const now = new Date()
-  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0)
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    0,
+    0,
+    0,
+    0
+  )
   midnightTimer = setTimeout(() => {
     handleMidnightSplit()
     scheduleMidnightSplit()
@@ -191,7 +223,13 @@ function handleMidnightSplit(): void {
   const eodTs = new Date(`${prevDate}T23:59:59.999`).toISOString()
   const sodTs = new Date(`${today}T00:00:00.000`).toISOString()
 
-  insertEntry("LOGOUT", "auto", "via midnight", eodTs, "Auto-closed at midnight")
+  insertEntry(
+    "LOGOUT",
+    "auto",
+    "via midnight",
+    eodTs,
+    "Auto-closed at midnight"
+  )
   insertEntry("LOGIN", "auto", "via midnight", sodTs, "Auto-opened at midnight")
   notifyRenderer()
 }
@@ -242,10 +280,18 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on("maximize", () => mainWindow?.webContents.send("window:maximized", true))
-  mainWindow.on("unmaximize", () => mainWindow?.webContents.send("window:maximized", false))
-  mainWindow.on("focus", () => mainWindow?.webContents.send("window:focus", true))
-  mainWindow.on("blur", () => mainWindow?.webContents.send("window:focus", false))
+  mainWindow.on("maximize", () =>
+    mainWindow?.webContents.send("window:maximized", true)
+  )
+  mainWindow.on("unmaximize", () =>
+    mainWindow?.webContents.send("window:maximized", false)
+  )
+  mainWindow.on("focus", () =>
+    mainWindow?.webContents.send("window:focus", true)
+  )
+  mainWindow.on("blur", () =>
+    mainWindow?.webContents.send("window:focus", false)
+  )
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -322,7 +368,10 @@ app.on("before-quit", () => {
   isQuitting = true
   unregisterHotkey()
 
-  if (midnightTimer) { clearTimeout(midnightTimer); midnightTimer = null }
+  if (midnightTimer) {
+    clearTimeout(midnightTimer)
+    midnightTimer = null
+  }
 
   const lastEntry = getLastEntry()
   if (lastEntry?.type === "LOGIN") {

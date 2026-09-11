@@ -117,7 +117,9 @@ export function PortalLog({ entries }: PortalLogProps) {
                 <div key={i} className="relative">
                   {/* Badge on the boundary */}
                   {breakMins !== null && breakMins > 0 && (
-                    <span className={`text-center pointer-events-none absolute ${breakMins < 9 ? "right-29" : "right-28"} -top-4 z-20 rounded-full border border-amber-500/25 bg-amber-500/0 px-2.5 py-1 text-[10px] font-semibold text-amber-400/75 shadow-sm backdrop-blur-sm`}>
+                    <span
+                      className={`pointer-events-none absolute text-center ${breakMins < 9 ? "right-29" : "right-28"} -top-4 z-20 rounded-full border border-amber-500/25 bg-amber-500/0 px-2.5 py-1 text-[10px] font-semibold text-amber-400/75 shadow-sm backdrop-blur-sm`}
+                    >
                       {formatBreakMins(breakMins)} break
                     </span>
                   )}

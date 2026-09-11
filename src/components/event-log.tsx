@@ -26,7 +26,10 @@ interface EventLogProps {
   workMode?: "holiday" | "all" | "window"
   onDelete: (id: number) => Promise<void>
   onDeletePair: (id1: number, id2: number) => Promise<void>
-  onEdit: (id: number, updates: { timestamp?: string; notes?: string }) => Promise<void>
+  onEdit: (
+    id: number,
+    updates: { timestamp?: string; notes?: string }
+  ) => Promise<void>
 }
 
 function findCorruptedIds(sorted: PunchEntry[]): Set<number> {
@@ -50,7 +53,9 @@ function formatDuration(seconds: number): string {
 
 function formatTime(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString("en-US", {
-    hour: "numeric", minute: "2-digit", hour12: true,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
   })
 }
 
@@ -65,7 +70,9 @@ function InterEntryBadge({
   onDeletePair: () => Promise<void>
 }) {
   const durationSecs = Math.floor(
-    (new Date(upper.timestamp).getTime() - new Date(lower.timestamp).getTime()) / 1000
+    (new Date(upper.timestamp).getTime() -
+      new Date(lower.timestamp).getTime()) /
+      1000
   )
 
   const isSession = upper.type === "LOGOUT" && lower.type === "LOGIN"
@@ -87,18 +94,12 @@ function InterEntryBadge({
       <AlertDialogTrigger asChild>
         <button
           aria-label={isSession ? "Delete session" : "Delete break"}
-          className={`
-            group/badge grid place-items-center cursor-pointer
-            rounded-full border bg-card px-3 py-1.5 text-xs font-semibold tabular-nums
-            shadow-sm backdrop-blur-sm
-            transition-[border-color,color] duration-300 ease-out
-            ${colorClass}
-          `}
+          className={`group/badge grid cursor-pointer place-items-center rounded-full border bg-card px-3 py-1.5 text-xs font-semibold tabular-nums shadow-sm backdrop-blur-sm transition-[border-color,color] duration-300 ease-out ${colorClass} `}
         >
           <span className="col-start-1 row-start-1 whitespace-nowrap transition-opacity duration-200 ease-out group-hover/badge:opacity-0">
             {label}
           </span>
-          <span className="col-start-1 row-start-1 opacity-0 transition-opacity duration-200 ease-out delay-75 group-hover/badge:opacity-100">
+          <span className="col-start-1 row-start-1 opacity-0 transition-opacity delay-75 duration-200 ease-out group-hover/badge:opacity-100">
             <HugeiconsIcon icon={Delete02Icon} size={16} />
           </span>
         </button>
@@ -106,16 +107,21 @@ function InterEntryBadge({
 
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {isSession ? "session" : "break entries"}</AlertDialogTitle>
+          <AlertDialogTitle>
+            Delete {isSession ? "session" : "break entries"}
+          </AlertDialogTitle>
           <AlertDialogDescription className="text-primary-foreground">
-            {deleteDescription} <br /> <span className="text-muted-foreground">This cannot be undone.</span>
+            {deleteDescription} <br />{" "}
+            <span className="text-muted-foreground">
+              This cannot be undone.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={onDeletePair}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
           >
             Delete both
           </AlertDialogAction>
@@ -131,14 +137,17 @@ function renderList(
   workMode: "holiday" | "all" | "window" | undefined,
   onDelete: (id: number) => Promise<void>,
   onDeletePair: (id1: number, id2: number) => Promise<void>,
-  onEdit: (id: number, updates: { timestamp?: string; notes?: string }) => Promise<void>
+  onEdit: (
+    id: number,
+    updates: { timestamp?: string; notes?: string }
+  ) => Promise<void>
 ) {
   return list.map((entry, i) => {
     const upper = i > 0 ? list[i - 1] : null
-    const hasBadge = upper !== null && (
-      (upper.type === "LOGOUT" && entry.type === "LOGIN") ||
-      (upper.type === "LOGIN"  && entry.type === "LOGOUT")
-    )
+    const hasBadge =
+      upper !== null &&
+      ((upper.type === "LOGOUT" && entry.type === "LOGIN") ||
+        (upper.type === "LOGIN" && entry.type === "LOGOUT"))
     return (
       <div key={entry.id} className={`relative ${i > 0 ? "mt-1.5" : ""}`}>
         {hasBadge && upper && (
@@ -165,11 +174,18 @@ function renderList(
 
 const COLLAPSED_COUNT = 2
 
-export function EventLog({ entries, workWindow, workMode, onDelete, onDeletePair, onEdit }: EventLogProps) {
+export function EventLog({
+  entries,
+  workWindow,
+  workMode,
+  onDelete,
+  onDeletePair,
+  onEdit,
+}: EventLogProps) {
   const [expanded, setExpanded] = useState(true)
 
-  const sortedAsc = [...entries].sort((a, b) =>
-    a.timestamp.localeCompare(b.timestamp) || a.id - b.id
+  const sortedAsc = [...entries].sort(
+    (a, b) => a.timestamp.localeCompare(b.timestamp) || a.id - b.id
   )
   const corruptedIds = findCorruptedIds(sortedAsc)
   const hasCorruption = corruptedIds.size > 0
@@ -189,8 +205,14 @@ export function EventLog({ entries, workWindow, workMode, onDelete, onDeletePair
           <div className="space-y-1.5">
             {hasCorruption && (
               <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-400">
-                <HugeiconsIcon icon={Alert01Icon} size={12} className="shrink-0" />
-                <span>Consecutive same-type entries detected. Edit or delete to fix.</span>
+                <HugeiconsIcon
+                  icon={Alert01Icon}
+                  size={12}
+                  className="shrink-0"
+                />
+                <span>
+                  Consecutive same-type entries detected. Edit or delete to fix.
+                </span>
               </div>
             )}
 
@@ -200,15 +222,27 @@ export function EventLog({ entries, workWindow, workMode, onDelete, onDeletePair
                   <div className="">
                     {renderList(
                       entries.slice(0, COLLAPSED_COUNT),
-                      corruptedIds, workWindow, workMode,
-                      onDelete, onDeletePair, onEdit
+                      corruptedIds,
+                      workWindow,
+                      workMode,
+                      onDelete,
+                      onDeletePair,
+                      onEdit
                     )}
                   </div>
                 )}
 
                 <CollapsibleContent>
                   <div className="scrollbar-hide mb-1.5 max-h-64 space-y-0 overflow-y-auto">
-                    {renderList(entries, corruptedIds, workWindow, workMode, onDelete, onDeletePair, onEdit)}
+                    {renderList(
+                      entries,
+                      corruptedIds,
+                      workWindow,
+                      workMode,
+                      onDelete,
+                      onDeletePair,
+                      onEdit
+                    )}
                   </div>
                 </CollapsibleContent>
 
@@ -222,7 +256,15 @@ export function EventLog({ entries, workWindow, workMode, onDelete, onDeletePair
               </Collapsible>
             ) : (
               <div className="">
-                {renderList(entries, corruptedIds, workWindow, workMode, onDelete, onDeletePair, onEdit)}
+                {renderList(
+                  entries,
+                  corruptedIds,
+                  workWindow,
+                  workMode,
+                  onDelete,
+                  onDeletePair,
+                  onEdit
+                )}
               </div>
             )}
           </div>

@@ -7,8 +7,8 @@
 // second one is what lets us verify the AI's fact sheet instead of taking it on
 // trust.
 
-import type { SessionDigest } from './eod-session-digest'
-import type { RepoEvidence } from './eod-git-evidence'
+import type { SessionDigest } from "./eod-session-digest"
+import type { RepoEvidence } from "./eod-git-evidence"
 
 /**
  * Jira-style key. Case-insensitive because branch names are usually lowercase
@@ -32,19 +32,52 @@ function hasTwoLetters(prefix: string): boolean {
  * this list.
  */
 const NON_PROJECT_PREFIXES = new Set([
-  'UTF', 'ISO', 'RFC', 'SHA', 'MD', 'AES', 'RSA', 'DES', 'GPT', 'COVID', 'CVE',
-  'ANSI', 'ASCII', 'IEEE', 'ISBN', 'PEP', 'ECMA', 'WCAG', 'TLS', 'SSL', 'UTC',
-  'GMT', 'HTTP', 'HTTPS', 'ES', 'IPV', 'BASE', 'MP', 'EC', 'WIN', 'PS', 'NET',
+  "UTF",
+  "ISO",
+  "RFC",
+  "SHA",
+  "MD",
+  "AES",
+  "RSA",
+  "DES",
+  "GPT",
+  "COVID",
+  "CVE",
+  "ANSI",
+  "ASCII",
+  "IEEE",
+  "ISBN",
+  "PEP",
+  "ECMA",
+  "WCAG",
+  "TLS",
+  "SSL",
+  "UTC",
+  "GMT",
+  "HTTP",
+  "HTTPS",
+  "ES",
+  "IPV",
+  "BASE",
+  "MP",
+  "EC",
+  "WIN",
+  "PS",
+  "NET",
 ])
 
 /** Every ticket-shaped key in `text`, upper-cased and de-duplicated. */
-export function extractTicketKeys(text: string, knownPrefixes?: ReadonlySet<string>): string[] {
-  if (typeof text !== 'string' || !text) return []
+export function extractTicketKeys(
+  text: string,
+  knownPrefixes?: ReadonlySet<string>
+): string[] {
+  if (typeof text !== "string" || !text) return []
   const keys = new Set<string>()
   for (const match of text.matchAll(KEY_RX)) {
     const prefix = match[1].toUpperCase()
     if (!hasTwoLetters(prefix)) continue
-    if (NON_PROJECT_PREFIXES.has(prefix) && !knownPrefixes?.has(prefix)) continue
+    if (NON_PROJECT_PREFIXES.has(prefix) && !knownPrefixes?.has(prefix))
+      continue
     keys.add(`${prefix}-${match[2]}`)
   }
   return Array.from(keys)
@@ -59,7 +92,7 @@ export function extractTicketKeys(text: string, knownPrefixes?: ReadonlySet<stri
 export function learnProjectPrefixes(keys: Iterable<string>): Set<string> {
   const prefixes = new Set<string>()
   for (const key of keys) {
-    const dash = key.indexOf('-')
+    const dash = key.indexOf("-")
     if (dash > 0) prefixes.add(key.slice(0, dash).toUpperCase())
   }
   return prefixes
@@ -70,7 +103,10 @@ export function learnProjectPrefixes(keys: Iterable<string>): Set<string> {
  * per-run notes, a refine instruction). A user declaration counts as evidence:
  * these can never be dropped by verification.
  */
-export function extractDeclaredKeys(text: string, knownPrefixes?: ReadonlySet<string>): string[] {
+export function extractDeclaredKeys(
+  text: string,
+  knownPrefixes?: ReadonlySet<string>
+): string[] {
   return extractTicketKeys(text, knownPrefixes)
 }
 
@@ -83,19 +119,20 @@ export function extractDeclaredKeys(text: string, knownPrefixes?: ReadonlySet<st
 export function collectEvidenceKeys(
   digests: SessionDigest[],
   git: RepoEvidence[],
-  knownPrefixes?: ReadonlySet<string>,
+  knownPrefixes?: ReadonlySet<string>
 ): Set<string> {
   const parts: string[] = []
   for (const d of digests) {
-    parts.push(d.cwd, d.gitBranch ?? '')
+    parts.push(d.cwd, d.gitBranch ?? "")
     parts.push(...d.userPrompts, ...d.assistantSummaries, ...d.delegations)
     parts.push(...d.filesChanged, ...d.commands)
   }
   for (const r of git) {
-    parts.push(r.repoPath, r.branch, r.uncommitted ?? '')
+    parts.push(r.repoPath, r.branch, r.uncommitted ?? "")
     parts.push(...r.commitsToday)
   }
   const keys = new Set<string>()
-  for (const key of extractTicketKeys(parts.join('\n'), knownPrefixes)) keys.add(key)
+  for (const key of extractTicketKeys(parts.join("\n"), knownPrefixes))
+    keys.add(key)
   return keys
 }

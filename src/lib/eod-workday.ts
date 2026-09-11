@@ -23,5 +23,5 @@ export function effectiveDayStart(now = new Date()): Date {
 
 /** YYYY-MM-DD label of the work day `now` falls in. */
 export function workDate(now = new Date()): string {
-  return effectiveDayStart(now).toLocaleDateString('en-CA')
+  return effectiveDayStart(now).toLocaleDateString("en-CA")
 }

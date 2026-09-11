@@ -248,7 +248,10 @@ export function PortalSection({
 
       {/* Fix miss-punch — shown for manual mp mark even before portal loads */}
       {showControls && (
-        <FixMissPunchButton date={date ?? today} entries={portalData?.entries ?? []} />
+        <FixMissPunchButton
+          date={date ?? today}
+          entries={portalData?.entries ?? []}
+        />
       )}
     </div>
   )
@@ -269,7 +272,13 @@ function hasMissPunch(entries: PortalEntry[]): boolean {
   return entries.some((e) => e.outtime === null)
 }
 
-function FixMissPunchButton({ date, entries }: { date: string; entries: PortalEntry[] }) {
+function FixMissPunchButton({
+  date,
+  entries,
+}: {
+  date: string
+  entries: PortalEntry[]
+}) {
   const { dayMarks } = useDayMarks()
   const ago = daysAgo(date)
   // Eligible on a real portal dangling punch OR a manual "mp" day-mark.

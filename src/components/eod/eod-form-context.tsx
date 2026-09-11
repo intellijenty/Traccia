@@ -1,11 +1,26 @@
 import {
-  createContext, use, useEffect, useLayoutEffect, useMemo, useRef,
+  createContext,
+  use,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
   type ReactNode,
-} from 'react'
-import { makeId, makeEmptyTask, makeEmptyProject } from '@/lib/eod-types'
-import type { EodFormState, EodTask, EodSectionItem, ProjectStatus } from '@/lib/eod-types'
-import { arrayMove } from '@dnd-kit/sortable'
-import { SECTION_KEYS, type FormLayoutMode, type MoveTarget, type SectionKey } from './eod-dnd'
+} from "react"
+import { makeId, makeEmptyTask, makeEmptyProject } from "@/lib/eod-types"
+import type {
+  EodFormState,
+  EodTask,
+  EodSectionItem,
+  ProjectStatus,
+} from "@/lib/eod-types"
+import { arrayMove } from "@dnd-kit/sortable"
+import {
+  SECTION_KEYS,
+  type FormLayoutMode,
+  type MoveTarget,
+  type SectionKey,
+} from "./eod-dnd"
 
 // ── Project scope context ─────────────────────────────────────────────────────
 // Wraps each ProjectCard so SortableTaskCard/SortableSub can read projectId
@@ -16,7 +31,10 @@ export const EodProjectContext = createContext<string | null>(null)
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProjectId(): string {
   const id = use(EodProjectContext)
-  if (!id) throw new Error('useProjectId must be used inside EodProjectContext.Provider')
+  if (!id)
+    throw new Error(
+      "useProjectId must be used inside EodProjectContext.Provider"
+    )
   return id
 }
 
@@ -36,7 +54,12 @@ export interface EodActions {
   removeTask: (projectId: string, id: string) => void
 
   addSub: (projectId: string, taskId: string, afterSubId?: string) => void
-  updateSub: (projectId: string, taskId: string, subId: string, text: string) => void
+  updateSub: (
+    projectId: string,
+    taskId: string,
+    subId: string,
+    text: string
+  ) => void
   removeSub: (projectId: string, taskId: string, subId: string) => void
 
   addSectionItem: (sk: SectionKey, afterId: string | null) => void
@@ -44,10 +67,10 @@ export interface EodActions {
   removeSectionItem: (sk: SectionKey, id: string) => void
   setSectionNA: (sk: SectionKey) => void
 
-  moveUp:        (target: MoveTarget) => void
-  moveDown:      (target: MoveTarget) => void
-  reorderUp:     (target: MoveTarget) => void
-  reorderDown:   (target: MoveTarget) => void
+  moveUp: (target: MoveTarget) => void
+  moveDown: (target: MoveTarget) => void
+  reorderUp: (target: MoveTarget) => void
+  reorderDown: (target: MoveTarget) => void
   duplicateItem: (target: MoveTarget) => void
 }
 
@@ -65,12 +88,14 @@ export interface EodApi {
 }
 
 const EodApiContext = createContext<EodApi | null>(null)
-const EodDndStateContext = createContext<{ activeId: string | null }>({ activeId: null })
+const EodDndStateContext = createContext<{ activeId: string | null }>({
+  activeId: null,
+})
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useEodApi(): EodApi {
   const v = use(EodApiContext)
-  if (!v) throw new Error('useEodApi must be used inside <EodFormProvider>')
+  if (!v) throw new Error("useEodApi must be used inside <EodFormProvider>")
   return v
 }
 
@@ -89,7 +114,13 @@ interface ProviderProps {
   children: ReactNode
 }
 
-export function EodFormProvider({ value, onChange, mode, activeId, children }: ProviderProps) {
+export function EodFormProvider({
+  value,
+  onChange,
+  mode,
+  activeId,
+  children,
+}: ProviderProps) {
   const valueRef = useRef(value)
   const onChangeRef = useRef(onChange)
   useLayoutEffect(() => {
@@ -116,7 +147,10 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
   const focusApi = useMemo<EodFocusApi>(() => {
     const focus = (key: string) => {
       const el = inputRefs.current.get(key)
-      if (!el) { pendingFocus.current = key; return }
+      if (!el) {
+        pendingFocus.current = key
+        return
+      }
       el.focus()
       if (el instanceof HTMLInputElement) {
         const len = el.value.length
@@ -128,13 +162,15 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
       const keys: string[] = []
       for (const project of v.projects) {
         keys.push(`project:${project.id}`)
-        if (project.statusNote !== null) keys.push(`project-status:${project.id}`)
+        if (project.statusNote !== null)
+          keys.push(`project-status:${project.id}`)
         if (project.tasksCompleted.length === 0) {
           keys.push(`na:tasks:${project.id}`)
         } else {
           for (const task of project.tasksCompleted) {
             keys.push(`task:${task.id}`)
-            for (const sub of task.subBullets) keys.push(`sub:${task.id}:${sub.id}`)
+            for (const sub of task.subBullets)
+              keys.push(`sub:${task.id}:${sub.id}`)
           }
         }
       }
@@ -169,13 +205,25 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
     const v = () => valueRef.current
 
     const getProjectTasks = (projectId: string): EodTask[] =>
-      v().projects.find(p => p.id === projectId)?.tasksCompleted ?? []
+      v().projects.find((p) => p.id === projectId)?.tasksCompleted ?? []
 
     const setProjectTasks = (projectId: string, tasks: EodTask[]) =>
-      commit({ ...v(), projects: v().projects.map(p => p.id === projectId ? { ...p, tasksCompleted: tasks } : p) })
+      commit({
+        ...v(),
+        projects: v().projects.map((p) =>
+          p.id === projectId ? { ...p, tasksCompleted: tasks } : p
+        ),
+      })
 
-    const mapTask = (projectId: string, taskId: string, fn: (t: EodTask) => EodTask) =>
-      setProjectTasks(projectId, getProjectTasks(projectId).map(t => t.id === taskId ? fn(t) : t))
+    const mapTask = (
+      projectId: string,
+      taskId: string,
+      fn: (t: EodTask) => EodTask
+    ) =>
+      setProjectTasks(
+        projectId,
+        getProjectTasks(projectId).map((t) => (t.id === taskId ? fn(t) : t))
+      )
 
     return {
       addProject: () => {
@@ -187,8 +235,8 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
       removeProject: (projectId) => {
         const projects = v().projects
         if (projects.length <= 1) return
-        const idx = projects.findIndex(p => p.id === projectId)
-        const remaining = projects.filter(p => p.id !== projectId)
+        const idx = projects.findIndex((p) => p.id === projectId)
+        const remaining = projects.filter((p) => p.id !== projectId)
         commit({ ...v(), projects: remaining })
         const focusTarget = remaining[Math.max(0, idx - 1)]
         if (focusTarget) pendingFocus.current = `project:${focusTarget.id}`
@@ -196,7 +244,7 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
 
       reorderProjectUp: (projectId) => {
         const projects = v().projects
-        const idx = projects.findIndex(p => p.id === projectId)
+        const idx = projects.findIndex((p) => p.id === projectId)
         if (idx > 0) {
           commit({ ...v(), projects: arrayMove(projects, idx, idx - 1) })
           pendingFocus.current = `project:${projectId}`
@@ -205,7 +253,7 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
 
       reorderProjectDown: (projectId) => {
         const projects = v().projects
-        const idx = projects.findIndex(p => p.id === projectId)
+        const idx = projects.findIndex((p) => p.id === projectId)
         if (idx < projects.length - 1) {
           commit({ ...v(), projects: arrayMove(projects, idx, idx + 1) })
           pendingFocus.current = `project:${projectId}`
@@ -213,14 +261,29 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
       },
 
       setProjectName: (projectId, text) =>
-        commit({ ...v(), projects: v().projects.map(p => p.id === projectId ? { ...p, name: text } : p) }),
+        commit({
+          ...v(),
+          projects: v().projects.map((p) =>
+            p.id === projectId ? { ...p, name: text } : p
+          ),
+        }),
 
       setProjectStatus: (projectId, s) =>
-        commit({ ...v(), projects: v().projects.map(p => p.id === projectId ? { ...p, status: s } : p) }),
+        commit({
+          ...v(),
+          projects: v().projects.map((p) =>
+            p.id === projectId ? { ...p, status: s } : p
+          ),
+        }),
 
       setProjectStatusNote: (projectId, note) => {
-        if (note === '') pendingFocus.current = `project-status:${projectId}`
-        commit({ ...v(), projects: v().projects.map(p => p.id === projectId ? { ...p, statusNote: note } : p) })
+        if (note === "") pendingFocus.current = `project-status:${projectId}`
+        commit({
+          ...v(),
+          projects: v().projects.map((p) =>
+            p.id === projectId ? { ...p, statusNote: note } : p
+          ),
+        })
       },
 
       addTaskAfter: (projectId, afterId) => {
@@ -230,47 +293,69 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
         if (afterId === null) {
           setProjectTasks(projectId, [...tasks, t])
         } else {
-          const idx = tasks.findIndex(x => x.id === afterId)
-          setProjectTasks(projectId, [...tasks.slice(0, idx + 1), t, ...tasks.slice(idx + 1)])
+          const idx = tasks.findIndex((x) => x.id === afterId)
+          setProjectTasks(projectId, [
+            ...tasks.slice(0, idx + 1),
+            t,
+            ...tasks.slice(idx + 1),
+          ])
         }
       },
 
-      updateTask: (projectId, id, text) => mapTask(projectId, id, t => ({ ...t, text })),
+      updateTask: (projectId, id, text) =>
+        mapTask(projectId, id, (t) => ({ ...t, text })),
 
-      removeTask: (projectId, id) => setProjectTasks(projectId, getProjectTasks(projectId).filter(t => t.id !== id)),
+      removeTask: (projectId, id) =>
+        setProjectTasks(
+          projectId,
+          getProjectTasks(projectId).filter((t) => t.id !== id)
+        ),
 
       addSub: (projectId, taskId, afterSubId) => {
         const subId = makeId()
         pendingFocus.current = `sub:${taskId}:${subId}`
-        mapTask(projectId, taskId, t => {
-          const newSub = { id: subId, text: '' }
-          if (!afterSubId) return { ...t, subBullets: [...t.subBullets, newSub] }
-          const idx = t.subBullets.findIndex(s => s.id === afterSubId)
+        mapTask(projectId, taskId, (t) => {
+          const newSub = { id: subId, text: "" }
+          if (!afterSubId)
+            return { ...t, subBullets: [...t.subBullets, newSub] }
+          const idx = t.subBullets.findIndex((s) => s.id === afterSubId)
           return {
             ...t,
-            subBullets: [...t.subBullets.slice(0, idx + 1), newSub, ...t.subBullets.slice(idx + 1)],
+            subBullets: [
+              ...t.subBullets.slice(0, idx + 1),
+              newSub,
+              ...t.subBullets.slice(idx + 1),
+            ],
           }
         })
       },
 
       updateSub: (projectId, taskId, subId, text) =>
-        mapTask(projectId, taskId, t => ({
+        mapTask(projectId, taskId, (t) => ({
           ...t,
-          subBullets: t.subBullets.map(s => (s.id === subId ? { ...s, text } : s)),
+          subBullets: t.subBullets.map((s) =>
+            s.id === subId ? { ...s, text } : s
+          ),
         })),
 
       removeSub: (projectId, taskId, subId) =>
-        mapTask(projectId, taskId, t => ({ ...t, subBullets: t.subBullets.filter(s => s.id !== subId) })),
+        mapTask(projectId, taskId, (t) => ({
+          ...t,
+          subBullets: t.subBullets.filter((s) => s.id !== subId),
+        })),
 
       addSectionItem: (sk, afterId) => {
         const newId = makeId()
         pendingFocus.current = `section:${sk}:${newId}`
         const section = v()[sk]
-        const newItem = { id: newId, text: '' }
+        const newItem = { id: newId, text: "" }
         if (afterId === null) {
-          commit({ ...v(), [sk]: { isNA: false, items: [...section.items, newItem] } })
+          commit({
+            ...v(),
+            [sk]: { isNA: false, items: [...section.items, newItem] },
+          })
         } else {
-          const idx = section.items.findIndex(i => i.id === afterId)
+          const idx = section.items.findIndex((i) => i.id === afterId)
           const items = [
             ...section.items.slice(0, idx + 1),
             newItem,
@@ -284,21 +369,24 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
         const section = v()[sk]
         commit({
           ...v(),
-          [sk]: { ...section, items: section.items.map(i => (i.id === id ? { ...i, text } : i)) },
+          [sk]: {
+            ...section,
+            items: section.items.map((i) => (i.id === id ? { ...i, text } : i)),
+          },
         })
       },
 
       removeSectionItem: (sk, id) => {
-        const items = v()[sk].items.filter(i => i.id !== id)
+        const items = v()[sk].items.filter((i) => i.id !== id)
         commit({ ...v(), [sk]: { items, isNA: items.length === 0 } })
       },
 
-      setSectionNA: sk => commit({ ...v(), [sk]: { items: [], isNA: true } }),
+      setSectionNA: (sk) => commit({ ...v(), [sk]: { items: [], isNA: true } }),
 
       moveUp: (target) => {
-        if (target.type === 'task') {
+        if (target.type === "task") {
           const tasks = getProjectTasks(target.projectId)
-          const idx = tasks.findIndex(t => t.id === target.taskId)
+          const idx = tasks.findIndex((t) => t.id === target.taskId)
           if (idx < 0) return
           const task = tasks[idx]
           if (idx > 0) {
@@ -311,49 +399,87 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
               setProjectTasks(
                 target.projectId,
                 tasks
-                  .filter(t => t.id !== target.taskId)
-                  .map(t => t.id === prev.id
-                    ? { ...t, subBullets: [...t.subBullets, { id: newSubId, text: task.text }] }
-                    : t)
+                  .filter((t) => t.id !== target.taskId)
+                  .map((t) =>
+                    t.id === prev.id
+                      ? {
+                          ...t,
+                          subBullets: [
+                            ...t.subBullets,
+                            { id: newSubId, text: task.text },
+                          ],
+                        }
+                      : t
+                  )
               )
               pendingFocus.current = `sub:${prev.id}:${newSubId}`
             }
           } else {
             // idx === 0: move entire task (with sub-bullets) to bottom of previous project
-            const projectIdx = v().projects.findIndex(p => p.id === target.projectId)
+            const projectIdx = v().projects.findIndex(
+              (p) => p.id === target.projectId
+            )
             if (projectIdx <= 0) return
-            commit({ ...v(), projects: v().projects.map((p, i) => {
-              if (i === projectIdx) return { ...p, tasksCompleted: tasks.filter(t => t.id !== target.taskId) }
-              if (i === projectIdx - 1) return { ...p, tasksCompleted: [...p.tasksCompleted, task] }
-              return p
-            })})
+            commit({
+              ...v(),
+              projects: v().projects.map((p, i) => {
+                if (i === projectIdx)
+                  return {
+                    ...p,
+                    tasksCompleted: tasks.filter((t) => t.id !== target.taskId),
+                  }
+                if (i === projectIdx - 1)
+                  return { ...p, tasksCompleted: [...p.tasksCompleted, task] }
+                return p
+              }),
+            })
             pendingFocus.current = `task:${target.taskId}`
           }
-        } else if (target.type === 'sub') {
+        } else if (target.type === "sub") {
           const tasks = getProjectTasks(target.projectId)
-          const task = tasks.find(t => t.id === target.taskId)
+          const task = tasks.find((t) => t.id === target.taskId)
           if (!task) return
-          const subIdx = task.subBullets.findIndex(s => s.id === target.subId)
+          const subIdx = task.subBullets.findIndex((s) => s.id === target.subId)
           if (subIdx > 0) {
-            mapTask(target.projectId, target.taskId, t => ({ ...t, subBullets: arrayMove(t.subBullets, subIdx, subIdx - 1) }))
+            mapTask(target.projectId, target.taskId, (t) => ({
+              ...t,
+              subBullets: arrayMove(t.subBullets, subIdx, subIdx - 1),
+            }))
             pendingFocus.current = `sub:${target.taskId}:${target.subId}`
           } else {
-            const taskIdx = tasks.findIndex(t => t.id === target.taskId)
+            const taskIdx = tasks.findIndex((t) => t.id === target.taskId)
             const sub = task.subBullets[subIdx]
             const newTaskId = makeId()
-            const updated = tasks.map(t =>
-              t.id === target.taskId ? { ...t, subBullets: t.subBullets.filter(s => s.id !== target.subId) } : t
+            const updated = tasks.map((t) =>
+              t.id === target.taskId
+                ? {
+                    ...t,
+                    subBullets: t.subBullets.filter(
+                      (s) => s.id !== target.subId
+                    ),
+                  }
+                : t
             )
-            updated.splice(taskIdx, 0, { id: newTaskId, text: sub.text, subBullets: [] })
+            updated.splice(taskIdx, 0, {
+              id: newTaskId,
+              text: sub.text,
+              subBullets: [],
+            })
             setProjectTasks(target.projectId, updated)
             pendingFocus.current = `task:${newTaskId}`
           }
         } else {
           const section = v()[target.sk]
-          const idx = section.items.findIndex(i => i.id === target.itemId)
+          const idx = section.items.findIndex((i) => i.id === target.itemId)
           if (idx < 0) return
           if (idx > 0) {
-            commit({ ...v(), [target.sk]: { ...section, items: arrayMove(section.items, idx, idx - 1) } })
+            commit({
+              ...v(),
+              [target.sk]: {
+                ...section,
+                items: arrayMove(section.items, idx, idx - 1),
+              },
+            })
             pendingFocus.current = `section:${target.sk}:${target.itemId}`
           } else {
             const skIdx = SECTION_KEYS.indexOf(target.sk)
@@ -362,15 +488,24 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
             const meetingKey = srcItem.meetingKey
             const leaveKey = srcItem.leaveKey
             const newId = makeId()
-            const newItems = section.items.filter(i => i.id !== target.itemId)
-            let next: EodFormState = { ...v(), [target.sk]: { items: newItems, isNA: newItems.length === 0 } }
+            const newItems = section.items.filter((i) => i.id !== target.itemId)
+            let next: EodFormState = {
+              ...v(),
+              [target.sk]: { items: newItems, isNA: newItems.length === 0 },
+            }
             if (skIdx > 0) {
               const prevSk = SECTION_KEYS[skIdx - 1]
               const prevSection = next[prevSk]
               const movedItem: EodSectionItem = { id: newId, text }
               if (meetingKey) movedItem.meetingKey = meetingKey
               if (leaveKey) movedItem.leaveKey = leaveKey
-              next = { ...next, [prevSk]: { isNA: false, items: [...prevSection.items, movedItem] } }
+              next = {
+                ...next,
+                [prevSk]: {
+                  isNA: false,
+                  items: [...prevSection.items, movedItem],
+                },
+              }
               commit(next)
               pendingFocus.current = `section:${prevSk}:${newId}`
             } else {
@@ -379,11 +514,14 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
               const movedTask: EodTask = meetingKey
                 ? { id: newId, text, subBullets: [], meetingKey }
                 : { id: newId, text, subBullets: [] }
-              next = { ...next, projects: next.projects.map(p =>
-                p.id === lastProject.id
-                  ? { ...p, tasksCompleted: [...p.tasksCompleted, movedTask] }
-                  : p
-              )}
+              next = {
+                ...next,
+                projects: next.projects.map((p) =>
+                  p.id === lastProject.id
+                    ? { ...p, tasksCompleted: [...p.tasksCompleted, movedTask] }
+                    : p
+                ),
+              }
               commit(next)
               pendingFocus.current = `task:${newId}`
             }
@@ -392,9 +530,9 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
       },
 
       moveDown: (target) => {
-        if (target.type === 'task') {
+        if (target.type === "task") {
           const tasks = getProjectTasks(target.projectId)
-          const idx = tasks.findIndex(t => t.id === target.taskId)
+          const idx = tasks.findIndex((t) => t.id === target.taskId)
           if (idx < 0) return
           const task = tasks[idx]
           if (idx < tasks.length - 1) {
@@ -407,67 +545,112 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
               setProjectTasks(
                 target.projectId,
                 tasks
-                  .filter(t => t.id !== target.taskId)
-                  .map(t => t.id === next.id
-                    ? { ...t, subBullets: [{ id: newSubId, text: task.text }, ...t.subBullets] }
-                    : t)
+                  .filter((t) => t.id !== target.taskId)
+                  .map((t) =>
+                    t.id === next.id
+                      ? {
+                          ...t,
+                          subBullets: [
+                            { id: newSubId, text: task.text },
+                            ...t.subBullets,
+                          ],
+                        }
+                      : t
+                  )
               )
               pendingFocus.current = `sub:${next.id}:${newSubId}`
             }
           } else {
             // last task — cross to next project or otherTasks
-            const projectIdx = v().projects.findIndex(p => p.id === target.projectId)
+            const projectIdx = v().projects.findIndex(
+              (p) => p.id === target.projectId
+            )
             const isLastProject = projectIdx === v().projects.length - 1
             if (!isLastProject) {
               // move entire task (with sub-bullets) to top of next project
-              commit({ ...v(), projects: v().projects.map((p, i) => {
-                if (i === projectIdx) return { ...p, tasksCompleted: tasks.filter(t => t.id !== target.taskId) }
-                if (i === projectIdx + 1) return { ...p, tasksCompleted: [task, ...p.tasksCompleted] }
-                return p
-              })})
+              commit({
+                ...v(),
+                projects: v().projects.map((p, i) => {
+                  if (i === projectIdx)
+                    return {
+                      ...p,
+                      tasksCompleted: tasks.filter(
+                        (t) => t.id !== target.taskId
+                      ),
+                    }
+                  if (i === projectIdx + 1)
+                    return { ...p, tasksCompleted: [task, ...p.tasksCompleted] }
+                  return p
+                }),
+              })
               pendingFocus.current = `task:${target.taskId}`
             } else if (task.subBullets.length === 0) {
               // last project, no subs: cross to otherTasks
               const firstSk = SECTION_KEYS[0]
               const newId = makeId()
-              const filtered = tasks.filter(t => t.id !== target.taskId)
+              const filtered = tasks.filter((t) => t.id !== target.taskId)
               const prevSection = v()[firstSk]
               const movedItem: EodSectionItem = { id: newId, text: task.text }
               if (task.meetingKey) movedItem.meetingKey = task.meetingKey
               commit({
                 ...v(),
-                projects: v().projects.map((p, i) => i === projectIdx ? { ...p, tasksCompleted: filtered } : p),
-                [firstSk]: { isNA: false, items: [movedItem, ...prevSection.items] },
+                projects: v().projects.map((p, i) =>
+                  i === projectIdx ? { ...p, tasksCompleted: filtered } : p
+                ),
+                [firstSk]: {
+                  isNA: false,
+                  items: [movedItem, ...prevSection.items],
+                },
               })
               pendingFocus.current = `section:${firstSk}:${newId}`
             }
             // last project + has subs: do nothing (can't move subs to sections)
           }
-        } else if (target.type === 'sub') {
+        } else if (target.type === "sub") {
           const tasks = getProjectTasks(target.projectId)
-          const task = tasks.find(t => t.id === target.taskId)
+          const task = tasks.find((t) => t.id === target.taskId)
           if (!task) return
-          const subIdx = task.subBullets.findIndex(s => s.id === target.subId)
+          const subIdx = task.subBullets.findIndex((s) => s.id === target.subId)
           if (subIdx < task.subBullets.length - 1) {
-            mapTask(target.projectId, target.taskId, t => ({ ...t, subBullets: arrayMove(t.subBullets, subIdx, subIdx + 1) }))
+            mapTask(target.projectId, target.taskId, (t) => ({
+              ...t,
+              subBullets: arrayMove(t.subBullets, subIdx, subIdx + 1),
+            }))
             pendingFocus.current = `sub:${target.taskId}:${target.subId}`
           } else {
-            const taskIdx = tasks.findIndex(t => t.id === target.taskId)
+            const taskIdx = tasks.findIndex((t) => t.id === target.taskId)
             const sub = task.subBullets[subIdx]
             const newTaskId = makeId()
-            const updated = tasks.map(t =>
-              t.id === target.taskId ? { ...t, subBullets: t.subBullets.filter(s => s.id !== target.subId) } : t
+            const updated = tasks.map((t) =>
+              t.id === target.taskId
+                ? {
+                    ...t,
+                    subBullets: t.subBullets.filter(
+                      (s) => s.id !== target.subId
+                    ),
+                  }
+                : t
             )
-            updated.splice(taskIdx + 1, 0, { id: newTaskId, text: sub.text, subBullets: [] })
+            updated.splice(taskIdx + 1, 0, {
+              id: newTaskId,
+              text: sub.text,
+              subBullets: [],
+            })
             setProjectTasks(target.projectId, updated)
             pendingFocus.current = `task:${newTaskId}`
           }
         } else {
           const section = v()[target.sk]
-          const idx = section.items.findIndex(i => i.id === target.itemId)
+          const idx = section.items.findIndex((i) => i.id === target.itemId)
           if (idx < 0) return
           if (idx < section.items.length - 1) {
-            commit({ ...v(), [target.sk]: { ...section, items: arrayMove(section.items, idx, idx + 1) } })
+            commit({
+              ...v(),
+              [target.sk]: {
+                ...section,
+                items: arrayMove(section.items, idx, idx + 1),
+              },
+            })
             pendingFocus.current = `section:${target.sk}:${target.itemId}`
           } else {
             const skIdx = SECTION_KEYS.indexOf(target.sk)
@@ -477,14 +660,23 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
             const meetingKey = srcItem.meetingKey
             const leaveKey = srcItem.leaveKey
             const newId = makeId()
-            const newItems = section.items.filter(i => i.id !== target.itemId)
-            let next: EodFormState = { ...v(), [target.sk]: { items: newItems, isNA: newItems.length === 0 } }
+            const newItems = section.items.filter((i) => i.id !== target.itemId)
+            let next: EodFormState = {
+              ...v(),
+              [target.sk]: { items: newItems, isNA: newItems.length === 0 },
+            }
             const nextSk = SECTION_KEYS[skIdx + 1]
             const nextSection = next[nextSk]
             const movedItem: EodSectionItem = { id: newId, text }
             if (meetingKey) movedItem.meetingKey = meetingKey
             if (leaveKey) movedItem.leaveKey = leaveKey
-            next = { ...next, [nextSk]: { isNA: false, items: [movedItem, ...nextSection.items] } }
+            next = {
+              ...next,
+              [nextSk]: {
+                isNA: false,
+                items: [movedItem, ...nextSection.items],
+              },
+            }
             commit(next)
             pendingFocus.current = `section:${nextSk}:${newId}`
           }
@@ -492,89 +684,134 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
       },
 
       reorderUp: (target) => {
-        if (target.type === 'task') {
+        if (target.type === "task") {
           const tasks = getProjectTasks(target.projectId)
-          const idx = tasks.findIndex(t => t.id === target.taskId)
+          const idx = tasks.findIndex((t) => t.id === target.taskId)
           if (idx > 0) {
             setProjectTasks(target.projectId, arrayMove(tasks, idx, idx - 1))
           } else {
-            const projectIdx = v().projects.findIndex(p => p.id === target.projectId)
+            const projectIdx = v().projects.findIndex(
+              (p) => p.id === target.projectId
+            )
             if (projectIdx <= 0) return
             const task = tasks[idx]
-            commit({ ...v(), projects: v().projects.map((p, i) => {
-              if (i === projectIdx) return { ...p, tasksCompleted: tasks.filter(t => t.id !== target.taskId) }
-              if (i === projectIdx - 1) return { ...p, tasksCompleted: [...p.tasksCompleted, task] }
-              return p
-            })})
+            commit({
+              ...v(),
+              projects: v().projects.map((p, i) => {
+                if (i === projectIdx)
+                  return {
+                    ...p,
+                    tasksCompleted: tasks.filter((t) => t.id !== target.taskId),
+                  }
+                if (i === projectIdx - 1)
+                  return { ...p, tasksCompleted: [...p.tasksCompleted, task] }
+                return p
+              }),
+            })
             pendingFocus.current = `task:${target.taskId}`
           }
-        } else if (target.type === 'sub') {
+        } else if (target.type === "sub") {
           const tasks = getProjectTasks(target.projectId)
-          const task = tasks.find(t => t.id === target.taskId)
+          const task = tasks.find((t) => t.id === target.taskId)
           if (!task) return
-          const subIdx = task.subBullets.findIndex(s => s.id === target.subId)
-          if (subIdx > 0) mapTask(target.projectId, target.taskId, t => ({ ...t, subBullets: arrayMove(t.subBullets, subIdx, subIdx - 1) }))
+          const subIdx = task.subBullets.findIndex((s) => s.id === target.subId)
+          if (subIdx > 0)
+            mapTask(target.projectId, target.taskId, (t) => ({
+              ...t,
+              subBullets: arrayMove(t.subBullets, subIdx, subIdx - 1),
+            }))
         } else {
           const section = v()[target.sk]
-          const idx = section.items.findIndex(i => i.id === target.itemId)
-          if (idx > 0) commit({ ...v(), [target.sk]: { ...section, items: arrayMove(section.items, idx, idx - 1) } })
+          const idx = section.items.findIndex((i) => i.id === target.itemId)
+          if (idx > 0)
+            commit({
+              ...v(),
+              [target.sk]: {
+                ...section,
+                items: arrayMove(section.items, idx, idx - 1),
+              },
+            })
         }
       },
 
       reorderDown: (target) => {
-        if (target.type === 'task') {
+        if (target.type === "task") {
           const tasks = getProjectTasks(target.projectId)
-          const idx = tasks.findIndex(t => t.id === target.taskId)
+          const idx = tasks.findIndex((t) => t.id === target.taskId)
           if (idx < tasks.length - 1) {
             setProjectTasks(target.projectId, arrayMove(tasks, idx, idx + 1))
           } else {
-            const projectIdx = v().projects.findIndex(p => p.id === target.projectId)
+            const projectIdx = v().projects.findIndex(
+              (p) => p.id === target.projectId
+            )
             if (projectIdx >= v().projects.length - 1) return
             const task = tasks[idx]
-            commit({ ...v(), projects: v().projects.map((p, i) => {
-              if (i === projectIdx) return { ...p, tasksCompleted: tasks.filter(t => t.id !== target.taskId) }
-              if (i === projectIdx + 1) return { ...p, tasksCompleted: [task, ...p.tasksCompleted] }
-              return p
-            })})
+            commit({
+              ...v(),
+              projects: v().projects.map((p, i) => {
+                if (i === projectIdx)
+                  return {
+                    ...p,
+                    tasksCompleted: tasks.filter((t) => t.id !== target.taskId),
+                  }
+                if (i === projectIdx + 1)
+                  return { ...p, tasksCompleted: [task, ...p.tasksCompleted] }
+                return p
+              }),
+            })
             pendingFocus.current = `task:${target.taskId}`
           }
-        } else if (target.type === 'sub') {
+        } else if (target.type === "sub") {
           const tasks = getProjectTasks(target.projectId)
-          const task = tasks.find(t => t.id === target.taskId)
+          const task = tasks.find((t) => t.id === target.taskId)
           if (!task) return
-          const subIdx = task.subBullets.findIndex(s => s.id === target.subId)
-          if (subIdx < task.subBullets.length - 1) mapTask(target.projectId, target.taskId, t => ({ ...t, subBullets: arrayMove(t.subBullets, subIdx, subIdx + 1) }))
+          const subIdx = task.subBullets.findIndex((s) => s.id === target.subId)
+          if (subIdx < task.subBullets.length - 1)
+            mapTask(target.projectId, target.taskId, (t) => ({
+              ...t,
+              subBullets: arrayMove(t.subBullets, subIdx, subIdx + 1),
+            }))
         } else {
           const section = v()[target.sk]
-          const idx = section.items.findIndex(i => i.id === target.itemId)
-          if (idx < section.items.length - 1) commit({ ...v(), [target.sk]: { ...section, items: arrayMove(section.items, idx, idx + 1) } })
+          const idx = section.items.findIndex((i) => i.id === target.itemId)
+          if (idx < section.items.length - 1)
+            commit({
+              ...v(),
+              [target.sk]: {
+                ...section,
+                items: arrayMove(section.items, idx, idx + 1),
+              },
+            })
         }
       },
 
       duplicateItem: (target) => {
-        if (target.type === 'task') {
+        if (target.type === "task") {
           const tasks = getProjectTasks(target.projectId)
-          const idx = tasks.findIndex(t => t.id === target.taskId)
+          const idx = tasks.findIndex((t) => t.id === target.taskId)
           if (idx < 0) return
           const src = tasks[idx]
           const newTask = {
             id: makeId(),
             text: src.text,
-            subBullets: src.subBullets.map(s => ({ id: makeId(), text: s.text })),
+            subBullets: src.subBullets.map((s) => ({
+              id: makeId(),
+              text: s.text,
+            })),
           }
           const next = [...tasks]
           next.splice(idx + 1, 0, newTask)
           setProjectTasks(target.projectId, next)
           pendingFocus.current = `task:${newTask.id}`
-        } else if (target.type === 'sub') {
+        } else if (target.type === "sub") {
           const tasks = getProjectTasks(target.projectId)
-          const task = tasks.find(t => t.id === target.taskId)
+          const task = tasks.find((t) => t.id === target.taskId)
           if (!task) return
-          const subIdx = task.subBullets.findIndex(s => s.id === target.subId)
+          const subIdx = task.subBullets.findIndex((s) => s.id === target.subId)
           if (subIdx < 0) return
           const newSubId = makeId()
           const newSub = { id: newSubId, text: task.subBullets[subIdx].text }
-          mapTask(target.projectId, target.taskId, t => {
+          mapTask(target.projectId, target.taskId, (t) => {
             const subs = [...t.subBullets]
             subs.splice(subIdx + 1, 0, newSub)
             return { ...t, subBullets: subs }
@@ -582,7 +819,7 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
           pendingFocus.current = `sub:${target.taskId}:${newSubId}`
         } else {
           const section = v()[target.sk]
-          const idx = section.items.findIndex(i => i.id === target.itemId)
+          const idx = section.items.findIndex((i) => i.id === target.itemId)
           if (idx < 0) return
           const newId = makeId()
           const newItem = { id: newId, text: section.items[idx].text }
@@ -595,14 +832,15 @@ export function EodFormProvider({ value, onChange, mode, activeId, children }: P
     }
   }, [])
 
-  const api = useMemo<EodApi>(() => ({ mode, actions, focus: focusApi }), [mode, actions, focusApi])
+  const api = useMemo<EodApi>(
+    () => ({ mode, actions, focus: focusApi }),
+    [mode, actions, focusApi]
+  )
   const dndState = useMemo(() => ({ activeId }), [activeId])
 
   return (
     <EodApiContext value={api}>
-      <EodDndStateContext value={dndState}>
-        {children}
-      </EodDndStateContext>
+      <EodDndStateContext value={dndState}>{children}</EodDndStateContext>
     </EodApiContext>
   )
 }

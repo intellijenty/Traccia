@@ -5,12 +5,15 @@ import { Switch } from "@/components/ui/switch"
 export function StepHotkey() {
   const { settings, save, loading } = useHotkeySettings()
 
-  if (loading) return <div className="h-32 animate-pulse rounded-lg bg-muted/30" />
+  if (loading)
+    return <div className="h-32 animate-pulse rounded-lg bg-muted/30" />
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Set a global keyboard shortcut to summon Traccia from anywhere.<br />Even when it's minimized to tray or Window is closed.
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Set a global keyboard shortcut to summon Traccia from anywhere.
+        <br />
+        Even when it's minimized to tray or Window is closed.
       </p>
 
       <div className="space-y-3 rounded-lg border border-border/40 bg-muted/20 p-3.5">
@@ -23,7 +26,9 @@ export function StepHotkey() {
           </div>
           <Switch
             checked={settings.enabled}
-            onCheckedChange={(checked) => save({ ...settings, enabled: checked })}
+            onCheckedChange={(checked) =>
+              save({ ...settings, enabled: checked })
+            }
             size="sm"
             className="mt-0.5 shrink-0"
           />

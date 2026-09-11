@@ -1,7 +1,7 @@
-import { X } from 'lucide-react'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import type { EodHistoryEntry } from '@/lib/eod-types'
+import { X } from "lucide-react"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import type { EodHistoryEntry } from "@/lib/eod-types"
 
 interface EodHistoryViewDialogProps {
   entry: EodHistoryEntry | null
@@ -10,20 +10,20 @@ interface EodHistoryViewDialogProps {
 }
 
 function formatLongDate(dateStr: string): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   })
 }
 
 function formatSentAt(isoStr: string): string {
-  return new Date(isoStr).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
+  return new Date(isoStr).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
     hour12: true,
   })
 }
@@ -34,30 +34,37 @@ export function EodHistoryViewDialog({
   onRestoreAsDraft,
 }: EodHistoryViewDialogProps) {
   return (
-    <Dialog open={!!entry} onOpenChange={open => { if (!open) onClose() }}>
+    <Dialog
+      open={!!entry}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+    >
       <DialogContent
         showCloseButton={false}
-        className="flex w-full md:max-w-4xl flex-col gap-0 overflow-hidden p-0"
-        style={{ height: '80vh' }}
+        className="flex w-full flex-col gap-0 overflow-hidden p-0 md:max-w-4xl"
+        style={{ height: "80vh" }}
       >
         {/* Header */}
         <div className="flex items-start justify-between border-b border-border px-6 py-4">
-          <div className="space-y-1 min-w-0 pr-4">
+          <div className="min-w-0 space-y-1 pr-4">
             <DialogTitle className="text-sm font-semibold text-muted-foreground">
-              {entry ? formatLongDate(entry.date) : ''}
+              {entry ? formatLongDate(entry.date) : ""}
             </DialogTitle>
-            <p className="text-base font-medium leading-tight truncate">
+            <p className="truncate text-base leading-tight font-medium">
               {entry?.subject}
             </p>
             {entry && (
               <div className="flex items-center gap-2">
-                <span className={[
-                  'rounded px-1.5 py-0.5 text-[10px] font-medium leading-none',
-                  entry.mode === 'form'
-                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                    : 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-                ].join(' ')}>
-                  {entry.mode === 'form' ? 'Form' : 'Editor'}
+                <span
+                  className={[
+                    "rounded px-1.5 py-0.5 text-[10px] font-medium leading-none",
+                    entry.mode === "form"
+                      ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                      : "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+                  ].join(" ")}
+                >
+                  {entry.mode === "form" ? "Form" : "Editor"}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Sent {formatSentAt(entry.sentAt)}

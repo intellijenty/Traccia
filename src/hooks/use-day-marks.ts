@@ -34,7 +34,9 @@ export function useDayMarks() {
   }, [])
 
   // Load persisted marks on mount
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => {
+    reload()
+  }, [reload])
 
   // Re-sync whenever the main process signals a data change (e.g. leave sync)
   useEffect(() => {

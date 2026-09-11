@@ -6,18 +6,18 @@
 // JSONL reduces to a few dozen KB of pure work evidence that gets injected
 // directly into the gather prompt — the agent never Reads raw transcripts.
 
-import { promises as fs } from 'fs'
-import { existsSync } from 'fs'
-import { homedir } from 'os'
-import { join } from 'path'
-import { effectiveDayStart } from '../src/lib/eod-workday'
+import { promises as fs } from "fs"
+import { existsSync } from "fs"
+import { homedir } from "os"
+import { join } from "path"
+import { effectiveDayStart } from "../src/lib/eod-workday"
 
 export interface SessionDigest {
   /** Folder the session ran in (exact path from the transcript's cwd field). */
   cwd: string
   gitBranch: string | null
   startedAt: string // ISO timestamp of first kept message
-  endedAt: string   // ISO timestamp of last kept message
+  endedAt: string // ISO timestamp of last kept message
   userPrompts: string[]
   /** One outcome statement per turn - see keepTurnSummary. */
   assistantSummaries: string[]
@@ -41,7 +41,7 @@ export interface DigestResult {
 // they never pollute the next day's digest. Belt-and-braces since the CLI is
 // now invoked with --no-session-persistence (no transcript is written at all),
 // but it still catches transcripts left behind by older app versions.
-export const TRACCIA_EOD_SENTINEL = '[TRACCIA-EOD]'
+export const TRACCIA_EOD_SENTINEL = "[TRACCIA-EOD]"
 
 // The work-day boundary lives in one place shared with the renderer (see
 // src/lib/eod-workday), so evidence gathering, draft expiry and the date
@@ -72,27 +72,59 @@ const COMMANDS_HEAD = 5
 /** Tools that change a file. Reads are deliberately excluded: a file glanced at
  *  is not work done, and read paths outnumber written ones by an order of
  *  magnitude. */
-const MUTATING_TOOLS = new Set(['edit', 'write', 'multiedit', 'notebookedit'])
+const MUTATING_TOOLS = new Set(["edit", "write", "multiedit", "notebookedit"])
 
 /** Shell commands that only inspect state. They say nothing about what was
  *  accomplished and crowd out the commands that do. */
 const NOISE_COMMANDS = new Set([
-  'ls', 'cat', 'head', 'tail', 'pwd', 'cd', 'echo', 'wc', 'find', 'grep', 'rg',
-  'which', 'where', 'type', 'file', 'stat', 'tree', 'less', 'more', 'dir', 'clear',
+  "ls",
+  "cat",
+  "head",
+  "tail",
+  "pwd",
+  "cd",
+  "echo",
+  "wc",
+  "find",
+  "grep",
+  "rg",
+  "which",
+  "where",
+  "type",
+  "file",
+  "stat",
+  "tree",
+  "less",
+  "more",
+  "dir",
+  "clear",
 ])
 const NOISE_GIT_SUBCOMMANDS = new Set([
-  'status', 'log', 'diff', 'show', 'branch', 'remote', 'config', 'rev-parse',
-  'ls-files', 'blame', 'describe',
+  "status",
+  "log",
+  "diff",
+  "show",
+  "branch",
+  "remote",
+  "config",
+  "rev-parse",
+  "ls-files",
+  "blame",
+  "describe",
 ])
 
 /** True for read-only inspection commands. */
 export function isNoiseCommand(command: string): boolean {
   // Strip a leading `cd <dir> &&` so the real command is classified
-  const stripped = command.trim().replace(/^cd\s+[^&|;]+(&&|;)\s*/i, '').trim()
+  const stripped = command
+    .trim()
+    .replace(/^cd\s+[^&|;]+(&&|;)\s*/i, "")
+    .trim()
   const tokens = stripped.split(/\s+/)
-  const head = (tokens[0] ?? '').toLowerCase()
+  const head = (tokens[0] ?? "").toLowerCase()
   if (!head) return true
-  if (head === 'git') return NOISE_GIT_SUBCOMMANDS.has((tokens[1] ?? '').toLowerCase())
+  if (head === "git")
+    return NOISE_GIT_SUBCOMMANDS.has((tokens[1] ?? "").toLowerCase())
   return NOISE_COMMANDS.has(head)
 }
 
@@ -125,7 +157,7 @@ type TranscriptLine = {
 
 function truncate(text: string, cap: number): string {
   const t = text.trim()
-  return t.length <= cap ? t : t.slice(0, cap) + '…'
+  return t.length <= cap ? t : t.slice(0, cap) + "…"
 }
 
 /**
@@ -137,7 +169,7 @@ function truncate(text: string, cap: number): string {
 export function splitHeadTail<T>(
   items: T[],
   max: number,
-  head: number,
+  head: number
 ): { head: T[]; tail: T[]; omitted: number } {
   if (items.length <= max) return { head: items, tail: [], omitted: 0 }
   const h = Math.max(0, Math.min(head, max - 1))
@@ -153,18 +185,21 @@ function isNoisePrompt(text: string): boolean {
   const t = text.trimStart()
   return (
     t.length === 0 ||
-    t.startsWith('<') ||          // <command-name>, <local-command-stdout>, <system-reminder>…
-    t.startsWith('Caveat:') ||
-    t.startsWith('[Request interrupted')
+    t.startsWith("<") || // <command-name>, <local-command-stdout>, <system-reminder>…
+    t.startsWith("Caveat:") ||
+    t.startsWith("[Request interrupted")
   )
 }
 
-export function digestFile(content: string, dayStartMs: number): SessionDigest | null {
+export function digestFile(
+  content: string,
+  dayStartMs: number
+): SessionDigest | null {
   const digest: SessionDigest = {
-    cwd: '',
+    cwd: "",
     gitBranch: null,
-    startedAt: '',
-    endedAt: '',
+    startedAt: "",
+    endedAt: "",
     userPrompts: [],
     assistantSummaries: [],
     filesChanged: [],
@@ -189,7 +224,7 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
     pendingSummary = null
   }
 
-  for (const rawLine of content.split('\n')) {
+  for (const rawLine of content.split("\n")) {
     const trimmed = rawLine.trim()
     if (!trimmed) continue
 
@@ -200,7 +235,7 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
       continue // partial write / corrupt line — skip, never fail the file
     }
 
-    if (line.type !== 'user' && line.type !== 'assistant') continue
+    if (line.type !== "user" && line.type !== "assistant") continue
     if (line.isSidechain || line.isMeta) continue
     if (!line.timestamp) continue
     const ts = new Date(line.timestamp).getTime()
@@ -213,16 +248,16 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
 
     const content = line.message?.content
 
-    if (line.type === 'user') {
-      let text = ''
-      if (typeof content === 'string') {
+    if (line.type === "user") {
+      let text = ""
+      if (typeof content === "string") {
         text = content
       } else if (Array.isArray(content)) {
         // user lines carrying only tool_result blocks are tool output, not prompts
         text = content
-          .filter(b => b?.type === 'text' && typeof b.text === 'string')
-          .map(b => b.text as string)
-          .join('\n')
+          .filter((b) => b?.type === "text" && typeof b.text === "string")
+          .map((b) => b.text as string)
+          .join("\n")
       }
       if (text && !isNoisePrompt(text)) {
         // Whole session is one of our own generation runs — discard it entirely.
@@ -236,25 +271,40 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
     // assistant
     if (!Array.isArray(content)) continue
     for (const block of content) {
-      if (!block || typeof block !== 'object') continue
-      if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
+      if (!block || typeof block !== "object") continue
+      if (
+        block.type === "text" &&
+        typeof block.text === "string" &&
+        block.text.trim()
+      ) {
         if (block.text.trim().length >= MIN_SUMMARY_LEN) {
           pendingSummary = truncate(block.text, ASSISTANT_TEXT_CAP)
         }
-      } else if (block.type === 'tool_use') {
+      } else if (block.type === "tool_use") {
         const input = block.input
-        const tool = (block.name ?? '').toLowerCase()
+        const tool = (block.name ?? "").toLowerCase()
         if (MUTATING_TOOLS.has(tool)) {
           const filePath = input?.file_path ?? input?.notebook_path
-          if (typeof filePath === 'string' && filePath) files.add(filePath)
+          if (typeof filePath === "string" && filePath) files.add(filePath)
         }
-        if (tool === 'task' || tool === 'agent') {
-          const label = typeof input?.description === 'string' ? input.description.trim() : ''
-          const brief = typeof input?.prompt === 'string' ? input.prompt.trim() : ''
+        if (tool === "task" || tool === "agent") {
+          const label =
+            typeof input?.description === "string"
+              ? input.description.trim()
+              : ""
+          const brief =
+            typeof input?.prompt === "string" ? input.prompt.trim() : ""
           const text = label && brief ? `${label}: ${brief}` : label || brief
-          if (text) delegations.add(truncate(text.replace(/\s*\n\s*/g, ' '), DELEGATION_CAP))
+          if (text)
+            delegations.add(
+              truncate(text.replace(/\s*\n\s*/g, " "), DELEGATION_CAP)
+            )
         }
-        if (typeof input?.command === 'string' && input.command.trim() && !isNoiseCommand(input.command)) {
+        if (
+          typeof input?.command === "string" &&
+          input.command.trim() &&
+          !isNoiseCommand(input.command)
+        ) {
           commands.add(truncate(input.command, COMMAND_CAP))
         }
       }
@@ -271,13 +321,21 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
   const up = splitHeadTail(userPrompts, MAX_USER_PROMPTS, USER_PROMPT_HEAD)
   digest.userPrompts = [
     ...up.head,
-    ...(up.omitted ? [`…(${up.omitted} earlier prompt${up.omitted > 1 ? 's' : ''} omitted)…`] : []),
+    ...(up.omitted
+      ? [`…(${up.omitted} earlier prompt${up.omitted > 1 ? "s" : ""} omitted)…`]
+      : []),
     ...up.tail,
   ]
-  const as = splitHeadTail(assistantSummaries, MAX_ASSISTANT_SUMMARIES, ASSISTANT_SUMMARY_HEAD)
+  const as = splitHeadTail(
+    assistantSummaries,
+    MAX_ASSISTANT_SUMMARIES,
+    ASSISTANT_SUMMARY_HEAD
+  )
   digest.assistantSummaries = [
     ...as.head,
-    ...(as.omitted ? [`…(${as.omitted} earlier update${as.omitted > 1 ? 's' : ''} omitted)…`] : []),
+    ...(as.omitted
+      ? [`…(${as.omitted} earlier update${as.omitted > 1 ? "s" : ""} omitted)…`]
+      : []),
     ...as.tail,
   ]
   // Files/commands are an unordered context list — head+tail without a marker.
@@ -294,10 +352,12 @@ export function digestFile(content: string, dayStartMs: number): SessionDigest |
  * Never throws — a missing projects dir or unreadable files yield an empty
  * or partial result.
  */
-export async function digestTodaySessions(now = new Date()): Promise<DigestResult> {
+export async function digestTodaySessions(
+  now = new Date()
+): Promise<DigestResult> {
   const result: DigestResult = { digests: [], repoPaths: [], skippedFiles: 0 }
 
-  const projectsDir = join(homedir(), '.claude', 'projects')
+  const projectsDir = join(homedir(), ".claude", "projects")
   if (!existsSync(projectsDir)) return result
 
   const dayStartMs = effectiveDayStart(now).getTime()
@@ -307,8 +367,8 @@ export async function digestTodaySessions(now = new Date()): Promise<DigestResul
   let projectDirs: string[]
   try {
     projectDirs = (await fs.readdir(projectsDir, { withFileTypes: true }))
-      .filter(d => d.isDirectory())
-      .map(d => join(projectsDir, d.name))
+      .filter((d) => d.isDirectory())
+      .map((d) => join(projectsDir, d.name))
   } catch {
     return result
   }
@@ -322,7 +382,7 @@ export async function digestTodaySessions(now = new Date()): Promise<DigestResul
       continue
     }
     for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith('.jsonl')) continue
+      if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue
       const filePath = join(dir, entry.name)
       try {
         const stat = await fs.stat(filePath)
@@ -336,7 +396,7 @@ export async function digestTodaySessions(now = new Date()): Promise<DigestResul
   const repoPaths = new Set<string>()
   for (const filePath of candidates) {
     try {
-      const content = await fs.readFile(filePath, 'utf8')
+      const content = await fs.readFile(filePath, "utf8")
       const digest = digestFile(content, dayStartMs)
       if (digest) {
         result.digests.push(digest)

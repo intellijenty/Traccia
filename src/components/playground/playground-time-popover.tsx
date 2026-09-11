@@ -73,7 +73,7 @@ export function TimePopover({
             {/* Input row */}
             <div className="flex items-center gap-2">
               <TimeInput value={h} min={1} max={12} onChange={setH} />
-              <span className="w-3 select-none text-center text-base font-light text-muted-foreground/40">
+              <span className="w-3 text-center text-base font-light text-muted-foreground/40 select-none">
                 :
               </span>
               <TimeInput value={m} min={0} max={59} onChange={setM} pad />
@@ -124,14 +124,20 @@ function TimeInput({
         if (!isNaN(n)) onChange(clamp(n))
       }}
       onKeyDown={(e) => {
-        if (e.key === "ArrowUp") { e.preventDefault(); onChange(clamp(value + 1)) }
-        if (e.key === "ArrowDown") { e.preventDefault(); onChange(clamp(value - 1)) }
+        if (e.key === "ArrowUp") {
+          e.preventDefault()
+          onChange(clamp(value + 1))
+        }
+        if (e.key === "ArrowDown") {
+          e.preventDefault()
+          onChange(clamp(value - 1))
+        }
       }}
       onWheel={(e) => {
         e.currentTarget.blur()
         onChange(clamp(value + (e.deltaY < 0 ? 1 : -1)))
       }}
-      className="w-14 rounded-md border border-border bg-background py-1.5 text-center text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+      className="w-14 rounded-md border border-border bg-background py-1.5 text-center text-sm font-medium tabular-nums focus:ring-1 focus:ring-ring focus:outline-none"
     />
   )
 }
@@ -169,36 +175,69 @@ export function TimeRangePopover({
   // Start state
   const [sH, setSH] = useState(() => to12hr(parseHHMM(initialStart).h).h)
   const [sM, setSM] = useState(() => parseHHMM(initialStart).m)
-  const [sAmpm, setSAmpm] = useState<"AM" | "PM">(() => to12hr(parseHHMM(initialStart).h).ampm)
+  const [sAmpm, setSAmpm] = useState<"AM" | "PM">(
+    () => to12hr(parseHHMM(initialStart).h).ampm
+  )
   // End state
   const [eH, setEH] = useState(() => to12hr(parseHHMM(initialEnd).h).h)
   const [eM, setEM] = useState(() => parseHHMM(initialEnd).m)
-  const [eAmpm, setEAmpm] = useState<"AM" | "PM">(() => to12hr(parseHHMM(initialEnd).h).ampm)
+  const [eAmpm, setEAmpm] = useState<"AM" | "PM">(
+    () => to12hr(parseHHMM(initialEnd).h).ampm
+  )
 
   function syncToProps() {
     const s = parseHHMM(initialStart)
     const e = parseHHMM(initialEnd)
     const s12 = to12hr(s.h)
     const e12 = to12hr(e.h)
-    setSH(s12.h); setSM(s.m); setSAmpm(s12.ampm)
-    setEH(e12.h); setEM(e.m); setEAmpm(e12.ampm)
+    setSH(s12.h)
+    setSM(s.m)
+    setSAmpm(s12.ampm)
+    setEH(e12.h)
+    setEM(e.m)
+    setEAmpm(e12.ampm)
   }
 
   return (
-    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) syncToProps() }}>
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (o) syncToProps()
+      }}
+    >
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent className="w-auto p-4" align={align}>
         <div className="space-y-4">
           <div className="space-y-3">
-            <TimePickerRow label="From" h={sH} m={sM} ampm={sAmpm} onH={setSH} onM={setSM} onAmpm={setSAmpm} />
-            <TimePickerRow label="To"   h={eH} m={eM} ampm={eAmpm} onH={setEH} onM={setEM} onAmpm={setEAmpm} />
+            <TimePickerRow
+              label="From"
+              h={sH}
+              m={sM}
+              ampm={sAmpm}
+              onH={setSH}
+              onM={setSM}
+              onAmpm={setSAmpm}
+            />
+            <TimePickerRow
+              label="To"
+              h={eH}
+              m={eM}
+              ampm={eAmpm}
+              onH={setEH}
+              onM={setEM}
+              onAmpm={setEAmpm}
+            />
           </div>
           <Button
             type="button"
             size="sm"
             className="w-full"
             onClick={() => {
-              onSubmit(toHHMM(to24hr(sH, sAmpm), sM), toHHMM(to24hr(eH, eAmpm), eM))
+              onSubmit(
+                toHHMM(to24hr(sH, sAmpm), sM),
+                toHHMM(to24hr(eH, eAmpm), eM)
+              )
               setOpen(false)
             }}
           >
@@ -211,18 +250,32 @@ export function TimeRangePopover({
 }
 
 function TimePickerRow({
-  label, h, m, ampm, onH, onM, onAmpm,
+  label,
+  h,
+  m,
+  ampm,
+  onH,
+  onM,
+  onAmpm,
 }: {
   label: string
-  h: number; m: number; ampm: "AM" | "PM"
-  onH: (n: number) => void; onM: (n: number) => void; onAmpm: (v: "AM" | "PM") => void
+  h: number
+  m: number
+  ampm: "AM" | "PM"
+  onH: (n: number) => void
+  onM: (n: number) => void
+  onAmpm: (v: "AM" | "PM") => void
 }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {label}
+      </p>
       <div className="flex items-center gap-2">
         <TimeInput value={h} min={1} max={12} onChange={onH} />
-        <span className="w-3 select-none text-center text-base font-light text-muted-foreground/40">:</span>
+        <span className="w-3 text-center text-base font-light text-muted-foreground/40 select-none">
+          :
+        </span>
         <TimeInput value={m} min={0} max={59} onChange={onM} pad />
         <AmPmToggle value={ampm} onChange={onAmpm} />
       </div>

@@ -39,7 +39,10 @@ import { EodHistoryViewDialog } from "@/components/eod/eod-history-view-dialog"
 import { EodAiDialog } from "@/components/eod/eod-ai-dialog"
 import { useEodAiState } from "@/lib/eod-ai-store"
 import { EodKeyboardDialog } from "@/components/eod/eod-keyboard-dialog"
-import { EodThemeProvider, EodThemeToggleButton } from "@/components/eod/eod-theme-toggle"
+import {
+  EodThemeProvider,
+  EodThemeToggleButton,
+} from "@/components/eod/eod-theme-toggle"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Refresh03Icon, Target02Icon } from "@hugeicons/core-free-icons"
 import { Toggle } from "@/components/ui/toggle"
@@ -78,26 +81,31 @@ function markSyncedToday(): void {
 // Handles old single-project shape: { project, projectStatus, tasksCompleted, ... }
 
 function migrateFormState(raw: unknown): EodFormState {
-  if (!raw || typeof raw !== 'object') return makeDefaultFormState()
+  if (!raw || typeof raw !== "object") return makeDefaultFormState()
   const obj = raw as Record<string, unknown>
-  if ('project' in obj && !('projects' in obj)) {
+  if ("project" in obj && !("projects" in obj)) {
     const { project, projectStatus, tasksCompleted, ...rest } = obj
     return {
-      ...(rest as Omit<EodFormState, 'projects'>),
-      projects: [{
-        id: makeId(),
-        name: (project as string) ?? '',
-        status: (projectStatus as EodFormState['projects'][0]['status']) ?? 'green',
-        statusNote: null,
-        tasksCompleted: (tasksCompleted as EodFormState['projects'][0]['tasksCompleted']) ?? [],
-      }],
+      ...(rest as Omit<EodFormState, "projects">),
+      projects: [
+        {
+          id: makeId(),
+          name: (project as string) ?? "",
+          status:
+            (projectStatus as EodFormState["projects"][0]["status"]) ?? "green",
+          statusNote: null,
+          tasksCompleted:
+            (tasksCompleted as EodFormState["projects"][0]["tasksCompleted"]) ??
+            [],
+        },
+      ],
     }
   }
   // Normalize projects array: ensure new fields exist on each entry
-  if ('projects' in obj && Array.isArray(obj.projects)) {
+  if ("projects" in obj && Array.isArray(obj.projects)) {
     const migrated = {
       ...obj,
-      projects: (obj.projects as Record<string, unknown>[]).map(p => ({
+      projects: (obj.projects as Record<string, unknown>[]).map((p) => ({
         ...p,
         statusNote: (p.statusNote as string | null | undefined) ?? null,
       })),
@@ -117,12 +125,16 @@ function loadDraft(): EodFormState {
       const state = migrateFormState(JSON.parse(raw))
       return state.date !== today ? { ...state, date: today } : state
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   // Migrate from legacy last-sent if exists
   try {
     const legacy = localStorage.getItem(KEYS.lastSent)
     if (legacy) return { ...migrateFormState(JSON.parse(legacy)), date: today }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return makeDefaultFormState()
 }
 
@@ -134,11 +146,17 @@ function loadHistory(): Record<string, EodHistoryEntry> {
       const pruned = pruneHistory(parsed, 5)
       // If pruning removed entries, persist the pruned result back to storage
       if (Object.keys(pruned).length !== Object.keys(parsed).length) {
-        try { localStorage.setItem(KEYS.history, JSON.stringify(pruned)) } catch { /* ignore */ }
+        try {
+          localStorage.setItem(KEYS.history, JSON.stringify(pruned))
+        } catch {
+          /* ignore */
+        }
       }
       return pruned
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return {}
 }
 
@@ -153,7 +171,11 @@ function pruneHistory(h: Record<string, EodHistoryEntry>, maxDays = 5) {
 
 function saveHistory(h: Record<string, EodHistoryEntry>) {
   const pruned = pruneHistory(h, 5)
-  try { localStorage.setItem(KEYS.history, JSON.stringify(pruned)) } catch { /* ignore */ }
+  try {
+    localStorage.setItem(KEYS.history, JSON.stringify(pruned))
+  } catch {
+    /* ignore */
+  }
 }
 
 function formatDateLong(dateStr: string): string {
@@ -179,7 +201,9 @@ export function EodPage() {
   const aiState = useEodAiState()
   const aiRunning = aiState.status === "running"
   const [formMode, setFormMode] = useState<FormLayoutMode>(
-    () => (localStorage.getItem(KEYS.formMode) as FormLayoutMode | null) ?? 'comfortable'
+    () =>
+      (localStorage.getItem(KEYS.formMode) as FormLayoutMode | null) ??
+      "comfortable"
   )
   const [isOpening, setIsOpening] = useState(false)
   const [isPrewarming, setIsPrewarming] = useState(false)
@@ -188,9 +212,12 @@ export function EodPage() {
   const mountedRef = useRef(true)
   useEffect(() => {
     mountedRef.current = true
-    return () => { mountedRef.current = false }
+    return () => {
+      mountedRef.current = false
+    }
   }, [])
-  const [history, setHistory] = useState<Record<string, EodHistoryEntry>>(loadHistory)
+  const [history, setHistory] =
+    useState<Record<string, EodHistoryEntry>>(loadHistory)
   // Latest formState snapshot for sync handler. Avoids stale-localStorage reads
   // when the autosave debounce hasn't fired yet.
   const formStateRef = useRef<EodFormState | null>(null)
@@ -203,16 +230,22 @@ export function EodPage() {
   const [subject, setSubject] = useState(() => {
     const today = new Date().toLocaleDateString("en-CA")
     const savedSubject = localStorage.getItem(KEYS.subject)
-    return savedSubject ? refreshAutoSubject(savedSubject, today) : buildEodSubject(today)
+    return savedSubject
+      ? refreshAutoSubject(savedSubject, today)
+      : buildEodSubject(today)
   })
   const [editingSubject, setEditingSubject] = useState(false)
 
   // Editor sync state
   const [editorInitialized, setEditorInitialized] = useState(!!savedEditorHtml)
-  const [formChangedAfterEditorInit, setFormChangedAfterEditorInit] = useState(false)
+  const [formChangedAfterEditorInit, setFormChangedAfterEditorInit] =
+    useState(false)
 
   const richEditorRef = useRef<RichEditorHandle>(null)
-  const actionsRef = useRef({ handleOpenInOutlook: () => {}, handleRestoreLatest: () => {} })
+  const actionsRef = useRef({
+    handleOpenInOutlook: () => {},
+    handleRestoreLatest: () => {},
+  })
 
   // Restore editor HTML if returning to editor tab
   useEffect(() => {
@@ -252,8 +285,8 @@ export function EodPage() {
       const today = new Date().toLocaleDateString("en-CA")
       if (today === lastSyncedDay.current) return
       lastSyncedDay.current = today
-      setFormState(s => (s.date !== today ? { ...s, date: today } : s))
-      setSubject(s => refreshAutoSubject(s, today))
+      setFormState((s) => (s.date !== today ? { ...s, date: today } : s))
+      setSubject((s) => refreshAutoSubject(s, today))
     }
     window.addEventListener("focus", syncToday)
     document.addEventListener("visibilitychange", syncToday)
@@ -268,9 +301,21 @@ export function EodPage() {
     function onKeyDown(e: KeyboardEvent) {
       // G — open the AI Generate panel. Plain key, so ignore while the user is
       // typing in a field (input / textarea / select / rich-text editor).
-      if (e.key.toLowerCase() === "g" && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+      if (
+        e.key.toLowerCase() === "g" &&
+        !e.ctrlKey &&
+        !e.shiftKey &&
+        !e.altKey &&
+        !e.metaKey
+      ) {
         const t = e.target as HTMLElement
-        if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable) return
+        if (
+          t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable
+        )
+          return
         e.preventDefault()
         if (isElectron) setAiDialogOpen(true)
         return
@@ -308,16 +353,23 @@ export function EodPage() {
     // stale-localStorage reads while autosave debounce is pending); fall back
     // to localStorage if the component has unmounted mid-IPC.
     const readCurrent = (): EodFormState => {
-      if (mountedRef.current && formStateRef.current) return formStateRef.current
+      if (mountedRef.current && formStateRef.current)
+        return formStateRef.current
       try {
         const raw = localStorage.getItem(KEYS.formState)
         if (raw) return migrateFormState(JSON.parse(raw))
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       return makeDefaultFormState()
     }
     const persist = (merged: EodFormState) => {
       // Always write to localStorage so the merge survives unmount races.
-      try { localStorage.setItem(KEYS.formState, JSON.stringify(merged)) } catch { /* ignore */ }
+      try {
+        localStorage.setItem(KEYS.formState, JSON.stringify(merged))
+      } catch {
+        /* ignore */
+      }
       // Keep ref in sync so a subsequent sync step (leaves after meetings)
       // sees the merged state immediately, before React commits.
       formStateRef.current = merged
@@ -335,7 +387,9 @@ export function EodPage() {
         meetingsOk = false
         const result = await window.electronAPI.eodGetMeetingsToday()
         if (result.ok) {
-          persist(applyMeetingSync(readCurrent(), result.meetings, meetingsSettings))
+          persist(
+            applyMeetingSync(readCurrent(), result.meetings, meetingsSettings)
+          )
           meetingsOk = true
         }
       }
@@ -343,7 +397,9 @@ export function EodPage() {
       const holidaysSettings = loadHolidaysSettings()
       if (holidaysSettings.enabled) {
         leavesOk = false
-        const result = await window.electronAPI.eodGetUpcomingLeaves(holidaysSettings.windowDays)
+        const result = await window.electronAPI.eodGetUpcomingLeaves(
+          holidaysSettings.windowDays
+        )
         if (result.ok) {
           persist(applyLeavesSync(readCurrent(), result.dates))
           leavesOk = true
@@ -379,11 +435,13 @@ export function EodPage() {
   function addSelectedToForm(subset: EodFormState, replace: boolean) {
     const snapshot = formState
     const today = new Date().toLocaleDateString("en-CA")
-    const merged = mergeSelected({ ...formState, date: today }, subset, { replace })
+    const merged = mergeSelected({ ...formState, date: today }, subset, {
+      replace,
+    })
     updateFormState(merged)
     // Advancing the draft to today must roll the auto-subject forward too, or
     // the subject freezes at yesterday while the heading shows today.
-    setSubject(s => refreshAutoSubject(s, today))
+    setSubject((s) => refreshAutoSubject(s, today))
     setActiveTab("form")
     localStorage.setItem(KEYS.activeTab, "form")
     const n =
@@ -411,13 +469,19 @@ export function EodPage() {
 
   function syncEditorFromForm() {
     richEditorRef.current?.setContent(buildEditorHtml(formState))
-    localStorage.setItem(KEYS.editorHtml, richEditorRef.current?.getHtml() ?? "")
+    localStorage.setItem(
+      KEYS.editorHtml,
+      richEditorRef.current?.getHtml() ?? ""
+    )
     setFormChangedAfterEditorInit(false)
   }
 
   function handleTabChange(tab: EodTab) {
     if (activeTab === "editor" && tab === "form") {
-      localStorage.setItem(KEYS.editorHtml, richEditorRef.current?.getHtml() ?? "")
+      localStorage.setItem(
+        KEYS.editorHtml,
+        richEditorRef.current?.getHtml() ?? ""
+      )
     }
     localStorage.setItem(KEYS.activeTab, tab)
     if (tab === "editor") switchToEditor()
@@ -456,13 +520,14 @@ export function EodPage() {
     setViewingEntry(null)
     // Restore overwrote today's synced meetings/holidays with the old entry's.
     // Re-run the sync (additive) so today's meetings/holidays merge back in.
-    if (entry.formState && entry.mode === "form") void runMeetingSync({ force: true })
+    if (entry.formState && entry.mode === "form")
+      void runMeetingSync({ force: true })
   }
 
   function handleRestoreLatest() {
     const today = new Date().toLocaleDateString("en-CA")
     const sorted = Object.values(history)
-      .filter(e => e.date !== today)
+      .filter((e) => e.date !== today)
       .sort((a, b) => b.date.localeCompare(a.date))
     if (sorted.length > 0) handleRestoreFromHistory(sorted[0])
   }
@@ -475,7 +540,10 @@ export function EodPage() {
     // Roll the auto-subject to the current local date first: if the app sat open
     // across midnight the in-memory subject may still encode yesterday.
     const snapshotFormState = formState
-    const snapshotSubject = refreshAutoSubject(subject, new Date().toLocaleDateString("en-CA"))
+    const snapshotSubject = refreshAutoSubject(
+      subject,
+      new Date().toLocaleDateString("en-CA")
+    )
     if (snapshotSubject !== subject) setSubject(snapshotSubject)
     const snapshotActiveTab = activeTab
     setIsOpening(true)
@@ -483,7 +551,7 @@ export function EodPage() {
     // it boots New Outlook on cold start and 'done' when the EML hand-off is
     // imminent. Listener cleaned up alongside isOpening reset.
     const unsubscribePhase = window.electronAPI.onOutlookPhase?.((phase) => {
-      setIsPrewarming(phase === 'prewarming')
+      setIsPrewarming(phase === "prewarming")
     })
     try {
       let htmlBody: string
@@ -493,11 +561,13 @@ export function EodPage() {
         plainText = buildEodPlainText(snapshotFormState, emailSettings)
       } else {
         const rawHtml = richEditorRef.current?.getHtml() ?? ""
-        const font = "font-family:Aptos,Calibri,Arial,sans-serif;font-size:15px;color:#1a1a1a;line-height:1.6"
+        const font =
+          "font-family:Aptos,Calibri,Arial,sans-serif;font-size:15px;color:#1a1a1a;line-height:1.6"
         const embedSig = emailSettings.embedSignature !== false
-        const sigHtml = embedSig && emailSettings.signature
-          ? `<br><div style="${font};margin:0;line-height:1.5">${flattenSignatureToBreaks(emailSettings.signature)}</div>`
-          : ''
+        const sigHtml =
+          embedSig && emailSettings.signature
+            ? `<br><div style="${font};margin:0;line-height:1.5">${flattenSignatureToBreaks(emailSettings.signature)}</div>`
+            : ""
         htmlBody = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:20px;background:#fff"><div style="${font}">${rawHtml}${sigHtml}</div></body></html>`
         plainText = richEditorRef.current?.getText() ?? ""
         localStorage.setItem(KEYS.editorHtml, rawHtml)
@@ -517,7 +587,10 @@ export function EodPage() {
       // causes today's sends to be saved under yesterday's entry. Use the current date and
       // persist the corrected date back to the draft.
       const currentDate = new Date().toLocaleDateString("en-CA")
-      const entryDate = snapshotFormState.date === currentDate ? snapshotFormState.date : currentDate
+      const entryDate =
+        snapshotFormState.date === currentDate
+          ? snapshotFormState.date
+          : currentDate
 
       const entry: EodHistoryEntry = {
         date: entryDate,
@@ -525,7 +598,10 @@ export function EodPage() {
         mode: snapshotActiveTab,
         htmlBody,
         plainText,
-        formState: snapshotActiveTab === "form" ? { ...snapshotFormState, date: entryDate } : undefined,
+        formState:
+          snapshotActiveTab === "form"
+            ? { ...snapshotFormState, date: entryDate }
+            : undefined,
         sentAt: new Date().toISOString(),
       }
 
@@ -540,7 +616,9 @@ export function EodPage() {
         setFormState(corrected)
         try {
           localStorage.setItem(KEYS.formState, JSON.stringify(corrected))
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     } finally {
       unsubscribePhase?.()
@@ -558,367 +636,392 @@ export function EodPage() {
     <TooltipProvider delayDuration={500}>
       <div className="h-full p-6">
         <EodThemeProvider>
-        <div className="mb-0 flex h-full overflow-hidden rounded-lg border bg-background">
-
-          {/* ── Left Sidebar ── */}
-          <aside className="flex w-78 shrink-0 flex-col border-r border-border">
-            {/* Header */}
-            <div className="px-6 pt-7 pb-6">
-              <h1
-                className="text-lg text-foreground font-semibold tracking-tight"
-                style={{ textWrap: "balance" } as React.CSSProperties}
-              >
-                Power Composer
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">{longDate}</p>
-            </div>
-
-            {/* Metadata */}
-            <div className="no-scrollbar flex-1 space-y-5 overflow-y-auto px-6">
-
-              {/* Subject — editable on click */}
-              <div className="space-y-1.5">
-                <div className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                  Subject
-                </div>
-                {editingSubject ? (
-                  <input
-                    autoFocus
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    onBlur={() => setEditingSubject(false)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === "Escape")
-                        setEditingSubject(false)
-                    }}
-                    className="w-full bg-transparent text-sm font-medium focus:outline-none"
-                    spellCheck={false}
-                  />
-                ) : (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <p
-                        className="cursor-pointer text-foreground text-sm font-medium transition-colors hover:text-muted-foreground"
-                        onClick={() => setEditingSubject(true)}
-                      >
-                        {subject}
-                      </p>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">Click to edit</TooltipContent>
-                  </Tooltip>
-                )}
+          <div className="mb-0 flex h-full overflow-hidden rounded-lg border bg-background">
+            {/* ── Left Sidebar ── */}
+            <aside className="flex w-78 shrink-0 flex-col border-r border-border">
+              {/* Header */}
+              <div className="px-6 pt-7 pb-6">
+                <h1
+                  className="text-lg font-semibold tracking-tight text-foreground"
+                  style={{ textWrap: "balance" } as React.CSSProperties}
+                >
+                  Power Composer
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">{longDate}</p>
               </div>
 
-              {/* TO */}
-              {emailSettings.to.length > 0 && (
+              {/* Metadata */}
+              <div className="no-scrollbar flex-1 space-y-5 overflow-y-auto px-6">
+                {/* Subject — editable on click */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                    <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-                    To
+                  <div className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                    Subject
                   </div>
-                  <div className="space-y-0.5 pl-5.5 text-foreground">
-                    {emailSettings.to.map(email => (
-                      <p key={email} className="truncate text-sm">{email}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* CC */}
-              {emailSettings.cc.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                    CC
-                  </div>
-                  <div className="space-y-0.5 pl-5.5 text-foreground">
-                    {emailSettings.cc.map((email) => (
-                      <p key={email} className="truncate text-sm">
-                        {email}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <Separator />
-
-              {/* Settings */}
-              <Button
-                type="button"
-                tabIndex={-1}
-                variant="ghost"
-                size="sm"
-                onClick={() => setSettingsOpen(true)}
-                className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-              >
-                <Settings className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="flex-1 text-left">Settings</span>
-                {/* <KbdGroup><Kbd className="opacity-50">Ctrl</Kbd><Kbd className="opacity-50">⇧</Kbd><Kbd className="opacity-50">S</Kbd></KbdGroup> */}
-              </Button>
-
-              {/* AI Generate EOD */}
-              {isElectron && (
-                <Button
-                  type="button"
-                  tabIndex={-1}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAiDialogOpen(true)}
-                  className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-                >
-                  <TiGlyph size={14} running={aiRunning} />
-                  <span className="flex-1 text-left">{aiRunning ? "Generating…" : "Traccia Intelligence"}</span>
-                  {aiState.status === "done" && !aiDialogOpen && (
-                    <span className="h-1.5 w-1.5 rounded-full animate-pulse bg-gradient-to-br from-violet-500 to-cyan-500" aria-label="Draft ready" />
-                  )}
-                </Button>
-              )}
-
-              {/* Restore Last Sent (previous day) */}
-              {Object.values(history).some(e => e.date !== new Date().toLocaleDateString("en-CA")) && (
-                <Button
-                  type="button"
-                  tabIndex={-1}
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRestoreLatest}
-                  className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className="flex-1 text-left">Restore Last Sent</span>
-                  {/* <KbdGroup><Kbd className="opacity-50">Ctrl</Kbd><Kbd className="opacity-50">⇧</Kbd><Kbd className="opacity-50">R</Kbd></KbdGroup> */}
-                </Button>
-              )}
-
-              <Separator />
-
-              {/* Recent Drafts history — collapsible, at bottom */}
-              <EodHistoryPanel history={history} onView={setViewingEntry} />
-            </div>
-
-            {/* Bottom — Compose button */}
-            <div className="border-t border-border p-5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="block w-full">
-                    <Button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={handleOpenInOutlook}
-                      disabled={isOpening || !isElectron || emailSettings.to.length === 0}
-                      className="w-full gap-2"
-                    >
-                      {isOpening ? (
-                        <Spinner className="size-4" />
-                      ) : (
-                        <Send className="h-4 w-4" aria-hidden="true" />
-                      )}
-                      <span>
-                        {isPrewarming
-                          ? "Warming up Outlook"
-                          : isOpening
-                            ? "Opening"
-                            : "Open in Outlook"}
-                      </span>
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                {emailSettings.to.length === 0 && (
-                  <TooltipContent side="top">
-                    Add a recipient in Settings first
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </div>
-          </aside>
-
-          {/* ── Main Content ── */}
-          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-            {isElectron && (
-              <EodAiDialog
-                open={aiDialogOpen}
-                onOpenChange={setAiDialogOpen}
-                history={history}
-                onAddSelected={addSelectedToForm}
-              />
-            )}
-            {/* Tab bar */}
-            <div className="flex items-center gap-1 border-b border-border px-4 py-2">
-              {(["form", "editor"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => handleTabChange(tab)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    activeTab === tab
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {tab === "form" ? "Form" : "Editor"}
-                  {tab === "editor" && formChangedAfterEditorInit && (
-                    <span
-                      className="h-1.5 w-1.5 rounded-full bg-orange-400"
-                      aria-label="Form has unsaved changes"
+                  {editingSubject ? (
+                    <input
+                      autoFocus
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      onBlur={() => setEditingSubject(false)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "Escape")
+                          setEditingSubject(false)
+                      }}
+                      className="w-full bg-transparent text-sm font-medium focus:outline-none"
+                      spellCheck={false}
                     />
-                  )}
-                </button>
-              ))}
-
-              <div className="ml-auto flex items-center gap-2">
-                
-                {/* Form layout mode toggle — only relevant on form tab */}
-                {activeTab === "form" && (
-                  <Tooltip delayDuration={500}>
-                    <TooltipTrigger asChild>
-                      <Toggle
-                        aria-label="Toggle bookmark"
-                        size="sm"
-                        variant="outline"
-                        tabIndex={-1}
-                        className={cn(
-                          "text-xs border border-border bg-muted/30 text-muted-foreground hover:bg-muted",
-                          formMode === "zen" && "bg-muted text-foreground"
-                        )}
-                        pressed={formMode === "zen"}
-                        onPressedChange={() => {
-                          setFormMode((f) => {
-                            const next =
-                              f === "comfortable" ? "zen" : "comfortable"
-                            return next
-                          })
-                          localStorage.setItem(
-                            KEYS.formMode,
-                            formMode === "comfortable" ? "zen" : "comfortable"
-                          )
-                        }}
-                      >
-                        {formMode === "zen" && (
-                          <HugeiconsIcon
-                            icon={Target02Icon}
-                            className="size-3.5 shrink-0"
-                          />
-                        )}
-                        Zen Mode
-                      </Toggle>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p
+                          className="cursor-pointer text-sm font-medium text-foreground transition-colors hover:text-muted-foreground"
+                          onClick={() => setEditingSubject(true)}
+                        >
+                          {subject}
+                        </p>
                       </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      Toggle zen mode
-                    </TooltipContent>
-                  </Tooltip>
-                  // <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5 gap-0.5">
-                  //   {(['comfortable', 'focused', 'zen'] as const).map(m => (
-                  //     <button
-                  //       key={m}
-                  //       type="button"
-                  //       tabIndex={-1}
-                  //       onClick={() => {
-                  //         setFormMode(m)
-                  //         localStorage.setItem(KEYS.formMode, m)
-                  //       }}
-                  //     >
-                  //       {m}
-                  //     </button>
-                  //   ))}
-                  // </div>
+                      <TooltipContent side="bottom">
+                        Click to edit
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+
+                {/* TO */}
+                {emailSettings.to.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                      <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                      To
+                    </div>
+                    <div className="space-y-0.5 pl-5.5 text-foreground">
+                      {emailSettings.to.map((email) => (
+                        <p key={email} className="truncate text-sm">
+                          {email}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
-                {activeTab === "form" && isElectron && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        tabIndex={-1}
-                        onClick={() => void runMeetingSync({ force: true })}
-                        disabled={isSyncingMeetings}
-                        aria-label="Sync meetings from Outlook"
-                      >
-                        <HugeiconsIcon
-                          icon={Refresh03Icon}
-                          className={cn("size-3.5", isSyncingMeetings && "animate-spin")}
-                        />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">Sync meetings from Outlook</TooltipContent>
-                  </Tooltip>
+                {/* CC */}
+                {emailSettings.cc.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                      <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                      CC
+                    </div>
+                    <div className="space-y-0.5 pl-5.5 text-foreground">
+                      {emailSettings.cc.map((email) => (
+                        <p key={email} className="truncate text-sm">
+                          {email}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
-                {activeTab === "editor" && editorInitialized && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        size={"xs"}
-                        tabIndex={-1}
-                        onClick={syncEditorFromForm}
-                      >
-                        <HugeiconsIcon icon={Refresh03Icon} /> Sync from Form
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Regenerate editor content from current Form state
-                    </TooltipContent>
-                  </Tooltip>
+                <Separator />
+
+                {/* Settings */}
+                <Button
+                  type="button"
+                  tabIndex={-1}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSettingsOpen(true)}
+                  className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <Settings className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="flex-1 text-left">Settings</span>
+                  {/* <KbdGroup><Kbd className="opacity-50">Ctrl</Kbd><Kbd className="opacity-50">⇧</Kbd><Kbd className="opacity-50">S</Kbd></KbdGroup> */}
+                </Button>
+
+                {/* AI Generate EOD */}
+                {isElectron && (
+                  <Button
+                    type="button"
+                    tabIndex={-1}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAiDialogOpen(true)}
+                    className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <TiGlyph size={14} running={aiRunning} />
+                    <span className="flex-1 text-left">
+                      {aiRunning ? "Generating…" : "Traccia Intelligence"}
+                    </span>
+                    {aiState.status === "done" && !aiDialogOpen && (
+                      <span
+                        className="h-1.5 w-1.5 animate-pulse rounded-full bg-gradient-to-br from-violet-500 to-cyan-500"
+                        aria-label="Draft ready"
+                      />
+                    )}
+                  </Button>
                 )}
 
-                <EodThemeToggleButton />
+                {/* Restore Last Sent (previous day) */}
+                {Object.values(history).some(
+                  (e) => e.date !== new Date().toLocaleDateString("en-CA")
+                ) && (
+                  <Button
+                    type="button"
+                    tabIndex={-1}
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRestoreLatest}
+                    className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="flex-1 text-left">Restore Last Sent</span>
+                    {/* <KbdGroup><Kbd className="opacity-50">Ctrl</Kbd><Kbd className="opacity-50">⇧</Kbd><Kbd className="opacity-50">R</Kbd></KbdGroup> */}
+                  </Button>
+                )}
 
+                <Separator />
+
+                {/* Recent Drafts history — collapsible, at bottom */}
+                <EodHistoryPanel history={history} onView={setViewingEntry} />
+              </div>
+
+              {/* Bottom — Compose button */}
+              <div className="border-t border-border p-5">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={() => setKeyboardDialogOpen(true)}
-                      aria-label="Keyboard shortcuts"
-                      className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
+                    <span className="block w-full">
+                      <Button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={handleOpenInOutlook}
+                        disabled={
+                          isOpening ||
+                          !isElectron ||
+                          emailSettings.to.length === 0
+                        }
+                        className="w-full gap-2"
+                      >
+                        {isOpening ? (
+                          <Spinner className="size-4" />
+                        ) : (
+                          <Send className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        <span>
+                          {isPrewarming
+                            ? "Warming up Outlook"
+                            : isOpening
+                              ? "Opening"
+                              : "Open in Outlook"}
+                        </span>
+                      </Button>
+                    </span>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Keyboard Shortcuts</TooltipContent>
+                  {emailSettings.to.length === 0 && (
+                    <TooltipContent side="top">
+                      Add a recipient in Settings first
+                    </TooltipContent>
+                  )}
                 </Tooltip>
               </div>
-            </div>
+            </aside>
 
-            {/* Content — both always mounted */}
-            <div className="flex-1 overflow-hidden">
-              <div className={cn("h-full", activeTab !== "form" && "hidden")}>
-                <div className="no-scrollbar h-full overflow-y-auto px-6 py-6">
-                  <FormEditor value={formState} onChange={updateFormState} mode={formMode} />
+            {/* ── Main Content ── */}
+            <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+              {isElectron && (
+                <EodAiDialog
+                  open={aiDialogOpen}
+                  onOpenChange={setAiDialogOpen}
+                  history={history}
+                  onAddSelected={addSelectedToForm}
+                />
+              )}
+              {/* Tab bar */}
+              <div className="flex items-center gap-1 border-b border-border px-4 py-2">
+                {(["form", "editor"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => handleTabChange(tab)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                      activeTab === tab
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {tab === "form" ? "Form" : "Editor"}
+                    {tab === "editor" && formChangedAfterEditorInit && (
+                      <span
+                        className="h-1.5 w-1.5 rounded-full bg-orange-400"
+                        aria-label="Form has unsaved changes"
+                      />
+                    )}
+                  </button>
+                ))}
+
+                <div className="ml-auto flex items-center gap-2">
+                  {/* Form layout mode toggle — only relevant on form tab */}
+                  {activeTab === "form" && (
+                    <Tooltip delayDuration={500}>
+                      <TooltipTrigger asChild>
+                        <Toggle
+                          aria-label="Toggle bookmark"
+                          size="sm"
+                          variant="outline"
+                          tabIndex={-1}
+                          className={cn(
+                            "border border-border bg-muted/30 text-xs text-muted-foreground hover:bg-muted",
+                            formMode === "zen" && "bg-muted text-foreground"
+                          )}
+                          pressed={formMode === "zen"}
+                          onPressedChange={() => {
+                            setFormMode((f) => {
+                              const next =
+                                f === "comfortable" ? "zen" : "comfortable"
+                              return next
+                            })
+                            localStorage.setItem(
+                              KEYS.formMode,
+                              formMode === "comfortable" ? "zen" : "comfortable"
+                            )
+                          }}
+                        >
+                          {formMode === "zen" && (
+                            <HugeiconsIcon
+                              icon={Target02Icon}
+                              className="size-3.5 shrink-0"
+                            />
+                          )}
+                          Zen Mode
+                        </Toggle>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        Toggle zen mode
+                      </TooltipContent>
+                    </Tooltip>
+                    // <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5 gap-0.5">
+                    //   {(['comfortable', 'focused', 'zen'] as const).map(m => (
+                    //     <button
+                    //       key={m}
+                    //       type="button"
+                    //       tabIndex={-1}
+                    //       onClick={() => {
+                    //         setFormMode(m)
+                    //         localStorage.setItem(KEYS.formMode, m)
+                    //       }}
+                    //     >
+                    //       {m}
+                    //     </button>
+                    //   ))}
+                    // </div>
+                  )}
+
+                  {activeTab === "form" && isElectron && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          tabIndex={-1}
+                          onClick={() => void runMeetingSync({ force: true })}
+                          disabled={isSyncingMeetings}
+                          aria-label="Sync meetings from Outlook"
+                        >
+                          <HugeiconsIcon
+                            icon={Refresh03Icon}
+                            className={cn(
+                              "size-3.5",
+                              isSyncingMeetings && "animate-spin"
+                            )}
+                          />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        Sync meetings from Outlook
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {activeTab === "editor" && editorInitialized && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          size={"xs"}
+                          tabIndex={-1}
+                          onClick={syncEditorFromForm}
+                        >
+                          <HugeiconsIcon icon={Refresh03Icon} /> Sync from Form
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Regenerate editor content from current Form state
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  <EodThemeToggleButton />
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => setKeyboardDialogOpen(true)}
+                        aria-label="Keyboard shortcuts"
+                        className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      Keyboard Shortcuts
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
-              <div className={cn("h-full", activeTab !== "editor" && "hidden")}>
-                <RichEditor ref={richEditorRef} />
+
+              {/* Content — both always mounted */}
+              <div className="flex-1 overflow-hidden">
+                <div className={cn("h-full", activeTab !== "form" && "hidden")}>
+                  <div className="no-scrollbar h-full overflow-y-auto px-6 py-6">
+                    <FormEditor
+                      value={formState}
+                      onChange={updateFormState}
+                      mode={formMode}
+                    />
+                  </div>
+                </div>
+                <div
+                  className={cn("h-full", activeTab !== "editor" && "hidden")}
+                >
+                  <RichEditor ref={richEditorRef} />
+                </div>
               </div>
             </div>
+
+            {/* Dialogs */}
+            <EodSettingsDialog
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+              settings={emailSettings}
+              onSave={(newSettings) => {
+                setEmailSettings(newSettings)
+                saveEodSettings(newSettings)
+              }}
+            />
+
+            <EodHistoryViewDialog
+              entry={viewingEntry}
+              onClose={() => setViewingEntry(null)}
+              onRestoreAsDraft={handleRestoreFromHistory}
+            />
+
+            <EodKeyboardDialog
+              open={keyboardDialogOpen}
+              onOpenChange={setKeyboardDialogOpen}
+            />
           </div>
-
-          {/* Dialogs */}
-          <EodSettingsDialog
-            open={settingsOpen}
-            onOpenChange={setSettingsOpen}
-            settings={emailSettings}
-            onSave={(newSettings) => {
-              setEmailSettings(newSettings)
-              saveEodSettings(newSettings)
-            }}
-          />
-
-          <EodHistoryViewDialog
-            entry={viewingEntry}
-            onClose={() => setViewingEntry(null)}
-            onRestoreAsDraft={handleRestoreFromHistory}
-          />
-
-          <EodKeyboardDialog
-            open={keyboardDialogOpen}
-            onOpenChange={setKeyboardDialogOpen}
-          />
-        </div>
         </EodThemeProvider>
       </div>
     </TooltipProvider>

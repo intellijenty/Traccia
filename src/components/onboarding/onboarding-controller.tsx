@@ -73,7 +73,8 @@ export function OnboardingController({ isWide }: OnboardingControllerProps) {
       }
     }
     window.addEventListener("traccia:license-activated", handler)
-    return () => window.removeEventListener("traccia:license-activated", handler)
+    return () =>
+      window.removeEventListener("traccia:license-activated", handler)
   }, [isWide, onboardingCompleted])
 
   const handleOnboardingComplete = useCallback(async () => {

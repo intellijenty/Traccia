@@ -18,7 +18,8 @@ export function computePortalBreakMinutes(
     const out = sorted[i].outtime
     if (!out) continue
     const gap = Math.floor(
-      (new Date(sorted[i + 1].intime).getTime() - new Date(out).getTime()) / 60000
+      (new Date(sorted[i + 1].intime).getTime() - new Date(out).getTime()) /
+        60000
     )
     if (gap > 0) total += gap
   }
@@ -49,7 +50,9 @@ export function computeLocalBreakSeconds(
   if (workMode === "holiday") return 0
   const filtered =
     workMode === "window" && workWindow
-      ? events.filter((e) => isTimestampInWindow(e.timestamp, workWindow, workMode))
+      ? events.filter((e) =>
+          isTimestampInWindow(e.timestamp, workWindow, workMode)
+        )
       : events
   const sorted = [...filtered].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -61,7 +64,8 @@ export function computeLocalBreakSeconds(
       lastLogout = ev.timestamp
     } else if (ev.type === "LOGIN" && lastLogout !== null) {
       const gap = Math.floor(
-        (new Date(ev.timestamp).getTime() - new Date(lastLogout).getTime()) / 1000
+        (new Date(ev.timestamp).getTime() - new Date(lastLogout).getTime()) /
+          1000
       )
       if (gap > 0) total += gap
       lastLogout = null

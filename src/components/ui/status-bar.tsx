@@ -1,27 +1,31 @@
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils"
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from '@/components/ui/hover-card'
-import { Progress } from '@/components/ui/progress'
+} from "@/components/ui/hover-card"
+import { Progress } from "@/components/ui/progress"
 import {
   useClaudeUsage,
   formatCountdown,
   formatResetDay,
   formatRelativeTime,
   type ClaudeUsageData,
-} from '@/hooks/use-claude-usage'
+} from "@/hooks/use-claude-usage"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { TestTube01Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
-import { useAlphaUser } from '@/hooks/use-alpha-user'
+} from "@/components/ui/tooltip"
+import { TestTube01Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { useAlphaUser } from "@/hooks/use-alpha-user"
 
-type UsageProps = { data: ClaudeUsageData | null; error: string | null; loading: boolean }
+type UsageProps = {
+  data: ClaudeUsageData | null
+  error: string | null
+  loading: boolean
+}
 
 // ── Claude icon ────────────────────────────────────────────────────────────────
 
@@ -29,7 +33,7 @@ function ClaudeIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      className={cn('fill-current', className)}
+      className={cn("fill-current", className)}
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
@@ -63,8 +67,12 @@ function UsageRow({
         </span>
         <span
           className={cn(
-            'text-xs font-semibold tabular-nums',
-            isHigh ? 'text-destructive' : isMed ? 'text-[#d97757]' : 'text-foreground/80'
+            "text-xs font-semibold tabular-nums",
+            isHigh
+              ? "text-destructive"
+              : isMed
+                ? "text-[#d97757]"
+                : "text-foreground/80"
           )}
         >
           {pct}%
@@ -74,17 +82,19 @@ function UsageRow({
       <Progress
         value={pct}
         className={cn(
-          'h-[5px] bg-muted/50',
+          "h-[5px] bg-muted/50",
           isHigh
-            ? '[&>[data-slot=progress-indicator]]:bg-destructive'
+            ? "[&>[data-slot=progress-indicator]]:bg-destructive"
             : isMed
-              ? '[&>[data-slot=progress-indicator]]:bg-[#d97757]'
-              : '[&>[data-slot=progress-indicator]]:bg-[#d97757]'
+              ? "[&>[data-slot=progress-indicator]]:bg-[#d97757]"
+              : "[&>[data-slot=progress-indicator]]:bg-[#d97757]"
         )}
       />
 
       <div className="flex items-baseline justify-between">
-        <span className="text-[11px] text-muted-foreground/60">{resetLabel}</span>
+        <span className="text-[11px] text-muted-foreground/60">
+          {resetLabel}
+        </span>
         <span className="text-[10px] text-muted-foreground/40">{resetSub}</span>
       </div>
     </div>
@@ -102,9 +112,11 @@ function ClaudeUsageCard({ data, error, loading }: UsageProps) {
           <div className="flex h-5 w-5 items-center justify-center">
             <ClaudeIcon className="size-3.5 text-[#d97757]" />
           </div>
-          <span className="text-xs font-semibold text-foreground/90">Claude Usage</span>
+          <span className="text-xs font-semibold text-foreground/90">
+            Claude Usage
+          </span>
         </div>
-        <span className="text-xs font-medium text-muted-foreground/50 uppercase tracking-wide">
+        <span className="text-xs font-medium tracking-wide text-muted-foreground/50 uppercase">
           Team
         </span>
       </div>
@@ -113,7 +125,9 @@ function ClaudeUsageCard({ data, error, loading }: UsageProps) {
       <div className="flex flex-col gap-4 px-4 py-4">
         {loading && !data && (
           <div className="flex items-center justify-center py-4">
-            <span className="text-[11px] text-muted-foreground/40">Loading…</span>
+            <span className="text-[11px] text-muted-foreground/40">
+              Loading…
+            </span>
           </div>
         )}
 
@@ -122,7 +136,9 @@ function ClaudeUsageCard({ data, error, loading }: UsageProps) {
             <span className="text-[11px] font-medium text-muted-foreground/60">
               Unable to fetch usage
             </span>
-            <span className="text-[10px] text-muted-foreground/40">{error}</span>
+            <span className="text-[10px] text-muted-foreground/40">
+              {error}
+            </span>
           </div>
         )}
 
@@ -165,12 +181,12 @@ function ClaudeUsageChip({ data, error, loading }: UsageProps) {
 
   const chipText =
     loading && !data
-      ? '...'
+      ? "..."
       : error && !data
-        ? '— · —'
+        ? "— · —"
         : sessionPct !== null
           ? `${sessionPct}% · ${countdown}`
-          : '—'
+          : "—"
 
   const isError = Boolean(error && !data)
   const isHigh = data ? data.session.utilization >= 80 : false
@@ -181,24 +197,34 @@ function ClaudeUsageChip({ data, error, loading }: UsageProps) {
       <HoverCardTrigger asChild>
         <button
           className={cn(
-            'flex h-full items-center gap-1.5 rounded-sm px-2.5 text-[12px] font-medium tabular-nums transition-colors duration-100',
-            'hover:bg-muted/50',
+            "flex h-full items-center gap-1.5 rounded-sm px-2.5 text-[12px] font-medium tabular-nums transition-colors duration-100",
+            "hover:bg-muted/50",
             isError
-              ? 'text-muted-foreground/30'
+              ? "text-muted-foreground/30"
               : isHigh
-                ? 'text-destructive/70 hover:text-destructive'
+                ? "text-destructive/70 hover:text-destructive"
                 : isMed
-                  ? 'text-[#d97757]/70 hover:text-[#d97757]'
-                  : 'text-muted-foreground/60 hover:text-muted-foreground/80'
+                  ? "text-[#d97757]/70 hover:text-[#d97757]"
+                  : "text-muted-foreground/60 hover:text-muted-foreground/80"
           )}
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
-          <ClaudeIcon className={cn('h-3 w-3 shrink-0', isError ? 'opacity-20' : 'opacity-90')} />
+          <ClaudeIcon
+            className={cn(
+              "h-3 w-3 shrink-0",
+              isError ? "opacity-20" : "opacity-90"
+            )}
+          />
           {chipText}
         </button>
       </HoverCardTrigger>
 
-      <HoverCardContent side="top" align="start" sideOffset={6} className="w-64 p-0 overflow-hidden">
+      <HoverCardContent
+        side="top"
+        align="start"
+        sideOffset={6}
+        className="w-64 overflow-hidden p-0"
+      >
         <ClaudeUsageCard data={data} error={error} loading={loading} />
       </HoverCardContent>
     </HoverCard>
@@ -214,10 +240,10 @@ export function StatusBar({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'flex h-8 shrink-0 items-center justify-between border-t border-border/40 bg-background/95 px-1 select-none',
+        "flex h-8 shrink-0 items-center justify-between border-t border-border/40 bg-background/95 px-1 select-none",
         className
       )}
-      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
     >
       {/* Left slot */}
       <div className="flex items-center">
@@ -225,7 +251,10 @@ export function StatusBar({ className }: { className?: string }) {
       </div>
 
       {/* Right slot */}
-      <div className="flex items-center px-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+      <div
+        className="flex items-center px-1"
+        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+      >
         {isAlpha && (
           <Tooltip>
             <TooltipTrigger asChild>

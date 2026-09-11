@@ -34,10 +34,12 @@ export function useNotificationSettings() {
       if (isElectron) {
         const raw = await window.electronAPI.getSettings()
         setPrefs({
-          dailyTargetMinutes: raw.dailyTargetMinutes ?? DEFAULTS.dailyTargetMinutes,
+          dailyTargetMinutes:
+            raw.dailyTargetMinutes ?? DEFAULTS.dailyTargetMinutes,
           targetEnabled: raw.notifyTargetEnabled ?? DEFAULTS.targetEnabled,
           targetMessage: raw.notifyTargetMessage || DEFAULTS.targetMessage,
-          targetSource: (raw.notifyTargetSource as TimeSource) || DEFAULTS.targetSource,
+          targetSource:
+            (raw.notifyTargetSource as TimeSource) || DEFAULTS.targetSource,
           eodEnabled: raw.notifyEodEnabled ?? DEFAULTS.eodEnabled,
           eodMinutes: raw.notifyEodMinutes ?? DEFAULTS.eodMinutes,
           eodMessage: raw.notifyEodMessage || DEFAULTS.eodMessage,
@@ -53,13 +55,27 @@ export function useNotificationSettings() {
     setPrefs((prev) => ({ ...prev, ...updated }))
     if (isElectron) {
       window.electronAPI.updateSettings({
-        ...(updated.targetEnabled !== undefined && { notifyTargetEnabled: updated.targetEnabled }),
-        ...(updated.targetMessage !== undefined && { notifyTargetMessage: updated.targetMessage }),
-        ...(updated.targetSource !== undefined && { notifyTargetSource: updated.targetSource }),
-        ...(updated.eodEnabled !== undefined && { notifyEodEnabled: updated.eodEnabled }),
-        ...(updated.eodMinutes !== undefined && { notifyEodMinutes: updated.eodMinutes }),
-        ...(updated.eodMessage !== undefined && { notifyEodMessage: updated.eodMessage }),
-        ...(updated.eodSource !== undefined && { notifyEodSource: updated.eodSource }),
+        ...(updated.targetEnabled !== undefined && {
+          notifyTargetEnabled: updated.targetEnabled,
+        }),
+        ...(updated.targetMessage !== undefined && {
+          notifyTargetMessage: updated.targetMessage,
+        }),
+        ...(updated.targetSource !== undefined && {
+          notifyTargetSource: updated.targetSource,
+        }),
+        ...(updated.eodEnabled !== undefined && {
+          notifyEodEnabled: updated.eodEnabled,
+        }),
+        ...(updated.eodMinutes !== undefined && {
+          notifyEodMinutes: updated.eodMinutes,
+        }),
+        ...(updated.eodMessage !== undefined && {
+          notifyEodMessage: updated.eodMessage,
+        }),
+        ...(updated.eodSource !== undefined && {
+          notifyEodSource: updated.eodSource,
+        }),
       } as Parameters<typeof window.electronAPI.updateSettings>[0])
     }
   }, [])

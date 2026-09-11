@@ -8,7 +8,11 @@ interface PunchButtonsProps {
   onPunchOut: () => void
 }
 
-export function PunchButtons({ isIn, onPunchIn, onPunchOut }: PunchButtonsProps) {
+export function PunchButtons({
+  isIn,
+  onPunchIn,
+  onPunchOut,
+}: PunchButtonsProps) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <Button
@@ -16,7 +20,7 @@ export function PunchButtons({ isIn, onPunchIn, onPunchOut }: PunchButtonsProps)
         className={`h-12 gap-2 text-sm font-semibold ${
           !isIn
             ? "bg-emerald-600 text-white hover:bg-emerald-700"
-            : "bg-emerald-600/20 text-emerald-600/50 cursor-not-allowed"
+            : "cursor-not-allowed bg-emerald-600/20 text-emerald-600/50"
         }`}
         disabled={isIn}
         onClick={onPunchIn}
@@ -29,7 +33,7 @@ export function PunchButtons({ isIn, onPunchIn, onPunchOut }: PunchButtonsProps)
         className={`h-12 gap-2 text-sm font-semibold ${
           isIn
             ? "bg-red-600 text-white hover:bg-red-700"
-            : "bg-red-600/20 text-red-600/50 cursor-not-allowed"
+            : "cursor-not-allowed bg-red-600/20 text-red-600/50"
         }`}
         disabled={!isIn}
         onClick={onPunchOut}

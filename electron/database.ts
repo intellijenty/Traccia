@@ -112,8 +112,11 @@ export function initDatabase(): void {
 
   // Migration: upgrade old day_work_windows schema (NOT NULL + missing 'disabled')
   {
-    const colInfo = db.prepare("PRAGMA table_info(day_work_windows)").all() as { name: string; notnull: number }[]
-    const startCol = colInfo.find(c => c.name === 'start_time')
+    const colInfo = db.prepare("PRAGMA table_info(day_work_windows)").all() as {
+      name: string
+      notnull: number
+    }[]
+    const startCol = colInfo.find((c) => c.name === "start_time")
     if (startCol?.notnull === 1) {
       db.exec(`
         CREATE TABLE day_work_windows_v2 (
@@ -131,7 +134,14 @@ export function initDatabase(): void {
 
   // Migration: add relative-offset to day_targets type CHECK constraint
   {
-    const sql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='day_targets'").get() as { sql: string } | undefined)?.sql ?? ""
+    const sql =
+      (
+        db
+          .prepare(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='day_targets'"
+          )
+          .get() as { sql: string } | undefined
+      )?.sql ?? ""
     if (!sql.includes("relative-offset")) {
       db.exec(`
         CREATE TABLE day_targets_v2 (
@@ -202,11 +212,14 @@ export function insertEntry(
 
   // Sequence integrity guard: check positional neighbors at the insertion point
   const allForDate = db
-    .prepare("SELECT * FROM entries WHERE date = ? ORDER BY timestamp ASC, id ASC")
+    .prepare(
+      "SELECT * FROM entries WHERE date = ? ORDER BY timestamp ASC, id ASC"
+    )
     .all(localDate) as DBEntry[]
 
-  const before = [...allForDate].reverse().find(e => e.timestamp < now) ?? null
-  const after  = allForDate.find(e => e.timestamp > now) ?? null
+  const before =
+    [...allForDate].reverse().find((e) => e.timestamp < now) ?? null
+  const after = allForDate.find((e) => e.timestamp > now) ?? null
 
   if (before && before.type === type) {
     if (source === "manual") {
@@ -276,35 +289,49 @@ export function insertEntryPair(
   const run = db.transaction(() => {
     // Auto-detect types from the entry immediately preceding the first timestamp
     const existing = db
-      .prepare("SELECT * FROM entries WHERE date = ? ORDER BY timestamp ASC, id ASC")
+      .prepare(
+        "SELECT * FROM entries WHERE date = ? ORDER BY timestamp ASC, id ASC"
+      )
       .all(date) as DBEntry[]
 
     // Duplicate timestamp guard
-    if (existing.some(e => e.timestamp === firstTs || e.timestamp === secondTs)) {
+    if (
+      existing.some((e) => e.timestamp === firstTs || e.timestamp === secondTs)
+    ) {
       throw new Error("An entry with this exact timestamp already exists")
     }
 
-    const before = [...existing].reverse().find(e => e.timestamp < firstTs) ?? null
+    const before =
+      [...existing].reverse().find((e) => e.timestamp < firstTs) ?? null
 
     // If no preceding entry, start with LOGIN (new session); otherwise alternate from before
     const firstType: "LOGIN" | "LOGOUT" = !before
       ? "LOGIN"
-      : before.type === "LOGIN" ? "LOGOUT" : "LOGIN"
-    const secondType: "LOGIN" | "LOGOUT" = firstType === "LOGOUT" ? "LOGIN" : "LOGOUT"
+      : before.type === "LOGIN"
+        ? "LOGOUT"
+        : "LOGIN"
+    const secondType: "LOGIN" | "LOGOUT" =
+      firstType === "LOGOUT" ? "LOGIN" : "LOGOUT"
 
-    const r1 = db.prepare(
-      `INSERT INTO entries (timestamp, date, type, source, trigger_label, notes) VALUES (?, ?, ?, 'manual', 'via manual', ?)`
-    ).run(firstTs, date, firstType, notes ?? null)
+    const r1 = db
+      .prepare(
+        `INSERT INTO entries (timestamp, date, type, source, trigger_label, notes) VALUES (?, ?, ?, 'manual', 'via manual', ?)`
+      )
+      .run(firstTs, date, firstType, notes ?? null)
     firstId = r1.lastInsertRowid as number
 
-    const r2 = db.prepare(
-      `INSERT INTO entries (timestamp, date, type, source, trigger_label, notes) VALUES (?, ?, ?, 'manual', 'via manual', ?)`
-    ).run(secondTs, date, secondType, notes ?? null)
+    const r2 = db
+      .prepare(
+        `INSERT INTO entries (timestamp, date, type, source, trigger_label, notes) VALUES (?, ?, ?, 'manual', 'via manual', ?)`
+      )
+      .run(secondTs, date, secondType, notes ?? null)
     secondId = r2.lastInsertRowid as number
 
     // Full alternating check after both insertions
     const sorted = db
-      .prepare("SELECT * FROM entries WHERE date = ? ORDER BY timestamp ASC, id ASC")
+      .prepare(
+        "SELECT * FROM entries WHERE date = ? ORDER BY timestamp ASC, id ASC"
+      )
       .all(date) as DBEntry[]
 
     for (let i = 1; i < sorted.length; i++) {
@@ -365,9 +392,11 @@ export function updateEntry(
     ).run(newTimestamp, newDate, newType, newNotes, id)
 
     // Re-read all entries for the affected date, sorted chronologically
-    const sorted = (db
-      .prepare("SELECT * FROM entries WHERE date = ? ORDER BY timestamp ASC, id ASC")
-      .all(newDate) as DBEntry[])
+    const sorted = db
+      .prepare(
+        "SELECT * FROM entries WHERE date = ? ORDER BY timestamp ASC, id ASC"
+      )
+      .all(newDate) as DBEntry[]
 
     // Full alternating sequence check — any two adjacent same-type entries = corrupt
     for (let i = 1; i < sorted.length; i++) {
@@ -528,7 +557,12 @@ export function getAllWorkWindows(): DBWorkWindow[] {
 
 // ── Day targets ──────────────────────────────────────────────────────────────
 
-export type DayTargetType = "fixed" | "end-time" | "flex-balance" | "weekly-distribute" | "relative-offset"
+export type DayTargetType =
+  | "fixed"
+  | "end-time"
+  | "flex-balance"
+  | "weekly-distribute"
+  | "relative-offset"
 
 export interface DBDayTarget {
   date: string
@@ -537,12 +571,16 @@ export interface DBDayTarget {
 }
 
 export function getDayTarget(date: string): DBDayTarget | undefined {
-  return db
-    .prepare("SELECT * FROM day_targets WHERE date = ?")
-    .get(date) as DBDayTarget | undefined
+  return db.prepare("SELECT * FROM day_targets WHERE date = ?").get(date) as
+    | DBDayTarget
+    | undefined
 }
 
-export function setDayTarget(date: string, type: DayTargetType, value: string | null): void {
+export function setDayTarget(
+  date: string,
+  type: DayTargetType,
+  value: string | null
+): void {
   db.prepare(
     "INSERT OR REPLACE INTO day_targets (date, type, value) VALUES (?, ?, ?)"
   ).run(date, type, value ?? null)
@@ -581,9 +619,9 @@ export function deleteMisspunchDraft(date: string): void {
 // ── Effective day mode ────────────────────────────────────────────────────────
 
 type DayMode =
-  | { type: "holiday" }                              // count 0 seconds
-  | { type: "all" }                                  // count all entries
-  | { type: "window"; start: string; end: string }   // clamp to window
+  | { type: "holiday" } // count 0 seconds
+  | { type: "all" } // count all entries
+  | { type: "window"; start: string; end: string } // clamp to window
 
 function isWeekend(date: string): boolean {
   const dow = new Date(date + "T00:00:00").getDay()
@@ -620,7 +658,11 @@ export function resolveEffectiveMode(date: string): DayMode {
     if (stored.source === "disabled") return { type: "all" }
     if (stored.source === "nightshift" || stored.source === "manual") {
       if (stored.start_time && stored.end_time) {
-        return { type: "window", start: stored.start_time, end: stored.end_time }
+        return {
+          type: "window",
+          start: stored.start_time,
+          end: stored.end_time,
+        }
       }
       // Corrupted row (missing times) — fall through to global/fallback
     }
@@ -629,7 +671,11 @@ export function resolveEffectiveMode(date: string): DayMode {
       const globalStart = getSetting("workBoundaryStart")
       const globalEnd = getSetting("workBoundaryEnd")
       if (globalStart && globalEnd && stored.start_time && stored.end_time) {
-        return { type: "window", start: stored.start_time, end: stored.end_time }
+        return {
+          type: "window",
+          start: stored.start_time,
+          end: stored.end_time,
+        }
       }
       // Global disabled or corrupted row — ignore stale snapshot, fall through
     }
@@ -779,8 +825,11 @@ export function closeDatabase(): void {
  * Find the paired counterpart of an entry (LOGIN↔LOGOUT adjacency in sorted order).
  * sortedEntries must be sorted by (timestamp ASC, id ASC).
  */
-export function findPairedEntry(sortedEntries: DBEntry[], targetId: number): DBEntry | null {
-  const idx = sortedEntries.findIndex(e => e.id === targetId)
+export function findPairedEntry(
+  sortedEntries: DBEntry[],
+  targetId: number
+): DBEntry | null {
+  const idx = sortedEntries.findIndex((e) => e.id === targetId)
   if (idx === -1) return null
   const target = sortedEntries[idx]
 

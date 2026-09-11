@@ -143,9 +143,7 @@ export function MonthlyInsights({
                   isCurrentWeek ? "bg-muted/60" : "hover:bg-muted/30"
                 }`}
               >
-                <span className="w-7 shrink-0 font-semibold">
-                  {label}
-                </span>
+                <span className="w-7 shrink-0 font-semibold">{label}</span>
                 <span className="flex-1 text-left text-[10px]">
                   {weekStart}
                 </span>
@@ -166,7 +164,7 @@ export function MonthlyInsights({
       <p className="text-[10px] text-muted-foreground">
         {workingDays}d worked
         {mpDays > 0 ? ` · ${mpDays} MP` : ""}
-        {" · "} {(today >= start && today <= end) && "excludes today"}
+        {" · "} {today >= start && today <= end && "excludes today"}
       </p>
     </div>
   )

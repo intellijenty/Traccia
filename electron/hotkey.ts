@@ -2,8 +2,17 @@ import { globalShortcut, BrowserWindow } from "electron"
 
 // Modifier key names in Electron accelerator format
 const MODIFIER_KEYS = new Set([
-  "Ctrl", "Control", "Alt", "Option", "Shift", "Super", "Meta",
-  "Command", "Cmd", "CommandOrControl", "CmdOrCtrl",
+  "Ctrl",
+  "Control",
+  "Alt",
+  "Option",
+  "Shift",
+  "Super",
+  "Meta",
+  "Command",
+  "Cmd",
+  "CommandOrControl",
+  "CmdOrCtrl",
 ])
 
 let registeredCombo: string | null = null

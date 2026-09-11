@@ -7,10 +7,10 @@
 // Phase WRITE (plain): fact sheet + past EODs (style fingerprint) → EodFormState
 // shaped JSON in the user's personal voice.
 
-import type { SessionDigest } from './eod-session-digest'
-import { TRACCIA_EOD_SENTINEL } from './eod-session-digest'
-import type { RepoEvidence } from './eod-git-evidence'
-import type { EodFactSheet } from '../src/lib/eod-ai-types'
+import type { SessionDigest } from "./eod-session-digest"
+import { TRACCIA_EOD_SENTINEL } from "./eod-session-digest"
+import type { RepoEvidence } from "./eod-git-evidence"
+import type { EodFactSheet } from "../src/lib/eod-ai-types"
 
 // Char budgets — keep the gather prompt comfortably inside the context window.
 const TOTAL_DIGEST_BUDGET = 60_000
@@ -28,16 +28,16 @@ export interface TicketIndexEntry {
 
 /** Extract "KEY - title" pairs from past EOD plain text. Newest EOD wins. */
 export function extractTicketIndex(
-  pastEods: Array<{ date: string; plainText: string }>,
+  pastEods: Array<{ date: string; plainText: string }>
 ): TicketIndexEntry[] {
   const index = new Map<string, string>()
   // pastEods arrive newest-first; first occurrence of a key wins
   const lineRx = /\b([A-Z][A-Z0-9]{1,9}-\d{1,6})\b\s*[-–—:]\s*([^\n→]{4,140})/g
   for (const eod of pastEods) {
-    if (typeof eod?.plainText !== 'string') continue
+    if (typeof eod?.plainText !== "string") continue
     for (const match of eod.plainText.matchAll(lineRx)) {
       const key = match[1]
-      const title = match[2].trim().replace(/\s+/g, ' ')
+      const title = match[2].trim().replace(/\s+/g, " ")
       if (!index.has(key) && title) index.set(key, title)
       if (index.size >= TICKET_INDEX_MAX) break
     }
@@ -50,8 +50,8 @@ export function extractTicketIndex(
 
 function timeOf(iso: string): string {
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '?'
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  if (Number.isNaN(d.getTime())) return "?"
+  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
 }
 
 /** Trim a session block to budget keeping head (intent) and tail (outcome). */
@@ -59,50 +59,64 @@ function trimToBudget(text: string, budget: number): string {
   if (text.length <= budget) return text
   const head = Math.floor(budget * 0.6)
   const tail = budget - head
-  return text.slice(0, head) + '\n…[trimmed]…\n' + text.slice(text.length - tail)
+  return (
+    text.slice(0, head) + "\n…[trimmed]…\n" + text.slice(text.length - tail)
+  )
 }
 
-function formatSession(s: SessionDigest, index: number, budget: number): string {
+function formatSession(
+  s: SessionDigest,
+  index: number,
+  budget: number
+): string {
   const lines: string[] = []
-  lines.push(`### Session ${index + 1} — ${s.cwd || 'unknown dir'}`)
-  lines.push(`Branch: ${s.gitBranch ?? 'n/a'} | Time: ${timeOf(s.startedAt)}–${timeOf(s.endedAt)}`)
+  lines.push(`### Session ${index + 1} — ${s.cwd || "unknown dir"}`)
+  lines.push(
+    `Branch: ${s.gitBranch ?? "n/a"} | Time: ${timeOf(s.startedAt)}–${timeOf(s.endedAt)}`
+  )
   if (s.userPrompts.length > 0) {
-    lines.push('User asked:')
-    for (const p of s.userPrompts) lines.push(`- ${p.replace(/\s*\n\s*/g, ' ')}`)
+    lines.push("User asked:")
+    for (const p of s.userPrompts)
+      lines.push(`- ${p.replace(/\s*\n\s*/g, " ")}`)
   }
   if (s.assistantSummaries.length > 0) {
-    lines.push('Assistant reported (one outcome statement per turn):')
-    for (const a of s.assistantSummaries) lines.push(`- ${a.replace(/\s*\n\s*/g, ' ')}`)
+    lines.push("Assistant reported (one outcome statement per turn):")
+    for (const a of s.assistantSummaries)
+      lines.push(`- ${a.replace(/\s*\n\s*/g, " ")}`)
   }
   if (s.delegations.length > 0) {
-    lines.push('Delegated to subagents:')
+    lines.push("Delegated to subagents:")
     for (const d of s.delegations) lines.push(`- ${d}`)
   }
-  if (s.filesChanged.length > 0) lines.push(`Files changed: ${s.filesChanged.join(', ')}`)
-  if (s.commands.length > 0) lines.push(`Commands run: ${s.commands.join(' ; ')}`)
-  return trimToBudget(lines.join('\n'), budget)
+  if (s.filesChanged.length > 0)
+    lines.push(`Files changed: ${s.filesChanged.join(", ")}`)
+  if (s.commands.length > 0)
+    lines.push(`Commands run: ${s.commands.join(" ; ")}`)
+  return trimToBudget(lines.join("\n"), budget)
 }
 
 function formatGitEvidence(repos: RepoEvidence[]): string {
-  if (repos.length === 0) return '(no git activity detected today)'
+  if (repos.length === 0) return "(no git activity detected today)"
   return repos
-    .map(r => {
+    .map((r) => {
       const lines = [`### ${r.repoPath}`, `Current branch: ${r.branch}`]
       if (r.commitsToday.length > 0) {
-        lines.push('Commits today:')
+        lines.push("Commits today:")
         for (const c of r.commitsToday) lines.push(`- ${c}`)
       }
       if (r.uncommitted) lines.push(`Uncommitted work: ${r.uncommitted}`)
-      return lines.join('\n')
+      return lines.join("\n")
     })
-    .join('\n\n')
+    .join("\n\n")
 }
 
-function formatPastEods(pastEods: Array<{ date: string; plainText: string }>): string {
+function formatPastEods(
+  pastEods: Array<{ date: string; plainText: string }>
+): string {
   const blocks: string[] = []
   let used = 0
   for (const eod of pastEods) {
-    if (typeof eod?.plainText !== 'string' || !eod.plainText.trim()) continue
+    if (typeof eod?.plainText !== "string" || !eod.plainText.trim()) continue
     const block = `### EOD sent on ${eod.date}\n${eod.plainText.trim()}`
     if (used + block.length > PAST_EOD_BUDGET) {
       const remaining = PAST_EOD_BUDGET - used
@@ -112,7 +126,7 @@ function formatPastEods(pastEods: Array<{ date: string; plainText: string }>): s
     blocks.push(block)
     used += block.length
   }
-  return blocks.length > 0 ? blocks.join('\n\n') : '(no past EODs available)'
+  return blocks.length > 0 ? blocks.join("\n\n") : "(no past EODs available)"
 }
 
 // ── GATHER prompt ─────────────────────────────────────────────────────────────
@@ -135,22 +149,29 @@ export interface GatherContext {
 export function buildGatherPrompt(ctx: GatherContext): string {
   const sessionBudget = Math.max(
     MIN_SESSION_BUDGET,
-    Math.min(MAX_SESSION_BUDGET, Math.floor(TOTAL_DIGEST_BUDGET / Math.max(1, ctx.digests.length))),
+    Math.min(
+      MAX_SESSION_BUDGET,
+      Math.floor(TOTAL_DIGEST_BUDGET / Math.max(1, ctx.digests.length))
+    )
   )
   const sessionsBlock =
     ctx.digests.length > 0
-      ? ctx.digests.map((s, i) => formatSession(s, i, sessionBudget)).join('\n\n')
-      : '(no Claude Code sessions found today — rely on git, Jira and meetings evidence)'
+      ? ctx.digests
+          .map((s, i) => formatSession(s, i, sessionBudget))
+          .join("\n\n")
+      : "(no Claude Code sessions found today — rely on git, Jira and meetings evidence)"
 
   const meetingsBlock =
     ctx.meetings.length > 0
-      ? ctx.meetings.map(m => `- ${m.title} (${m.durationMin} min)`).join('\n')
-      : '(no meetings today)'
+      ? ctx.meetings
+          .map((m) => `- ${m.title} (${m.durationMin} min)`)
+          .join("\n")
+      : "(no meetings today)"
 
   const ticketIndexBlock =
     ctx.ticketIndex.length > 0
-      ? ctx.ticketIndex.map(t => `- ${t.key} - ${t.title}`).join('\n')
-      : '(none)'
+      ? ctx.ticketIndex.map((t) => `- ${t.key} - ${t.title}`).join("\n")
+      : "(none)"
 
   const notesBlock = ctx.notes.trim()
     ? `━━━ EVIDENCE E — USER-DECLARED FACTS FOR TODAY (authoritative, highest priority) ━━━
@@ -159,7 +180,7 @@ ${ctx.notes.trim()}
 Rules for evidence E: anything the user states here is true evidence with source "user" — include it in the fact sheet even with no other trace. If the user says to skip/remove/ignore something (a meeting, a topic, a ticket), OMIT it from the fact sheet entirely.
 
 `
-    : ''
+    : ""
 
   const instructionsBlock = ctx.instructions.trim()
     ? `━━━ USER STANDING INSTRUCTIONS ━━━
@@ -168,7 +189,7 @@ ${ctx.instructions.trim()}
 Rules for standing instructions: declarations of recurring work (e.g. "always include KEY-123 as WIP regression testing") become fact-sheet tickets with source "user". Statements that something must never be reported mean: omit it from the fact sheet. Pure style/phrasing rules are for a later writing step — ignore them here.
 
 `
-    : ''
+    : ""
 
   // The agentic run may query Jira. The offline rerun has no tools at all, so
   // asking it to "try Jira" only invites it to pretend it did.
@@ -245,9 +266,9 @@ function userRulesBlock(instructions: string, notes: string): string {
   const parts: string[] = []
   if (instructions.trim()) parts.push(instructions.trim())
   if (notes.trim()) parts.push(`Today's notes from the user:\n${notes.trim()}`)
-  if (parts.length === 0) return ''
+  if (parts.length === 0) return ""
   return `━━━ USER RULES — these override ALL default rules below whenever they conflict ━━━
-${parts.join('\n\n')}
+${parts.join("\n\n")}
 
 `
 }
@@ -314,7 +335,7 @@ ${ctx.instruction.trim()}
 ━━━ FACT SHEET (the only source of truth — never add content beyond it) ━━━
 ${JSON.stringify(ctx.factSheet, null, 2)}
 
-${userRulesBlock(ctx.instructions, '')}━━━ RULES ━━━
+${userRulesBlock(ctx.instructions, "")}━━━ RULES ━━━
 - Apply the refinement request faithfully; do not "improve" unrelated parts.
 - Never invent ticket keys, titles or work that is not in the fact sheet or the refinement request.
 - Keep the exact same output JSON shape as the previous draft (projects / otherTasks / concerns / nextDayPlan / upcomingHolidays).

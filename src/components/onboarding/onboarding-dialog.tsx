@@ -1,9 +1,6 @@
 import { useState, useCallback } from "react"
 import { AnimatePresence, motion } from "motion/react"
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { StepWelcome } from "./steps/step-welcome"
@@ -17,9 +14,22 @@ import { useGeneralSettings } from "@/hooks/use-general-settings"
 import { useNotificationSettings } from "@/hooks/use-notification-settings"
 import { useHotkeySettings } from "@/hooks/use-hotkey-settings"
 
-type StepId = "welcome" | "portal" | "work-hours" | "notifications" | "hotkey" | "complete"
+type StepId =
+  | "welcome"
+  | "portal"
+  | "work-hours"
+  | "notifications"
+  | "hotkey"
+  | "complete"
 
-const STEPS: StepId[] = ["welcome", "portal", "work-hours", "notifications", "hotkey", "complete"]
+const STEPS: StepId[] = [
+  "welcome",
+  "portal",
+  "work-hours",
+  "notifications",
+  "hotkey",
+  "complete",
+]
 
 const SKIPPABLE: StepId[] = ["portal", "work-hours", "notifications", "hotkey"]
 
@@ -62,7 +72,8 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
   }, [goNext])
 
   const portalConnected = portalStatus.connected || portalStatus.hasCredentials
-  const workHoursSet = !!generalSettings.workBoundaryStart && !!generalSettings.workBoundaryEnd
+  const workHoursSet =
+    !!generalSettings.workBoundaryStart && !!generalSettings.workBoundaryEnd
   const notificationsEnabled = prefs.targetEnabled || prefs.eodEnabled
   const hotkeyEnabled = hotkeySettings.enabled
 
@@ -96,7 +107,7 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
         showCloseButton={false}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="sm:max-w-lg gap-0 p-0 overflow-hidden"
+        className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         overlayBlur="supports-backdrop-filter:backdrop-blur-2xl"
       >
         {/* Step indicator */}
@@ -122,7 +133,10 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
         </div>
 
         {/* Step content */}
-        <div className="scrollbar-hide overflow-y-auto px-6 py-5" style={{ minHeight: 260, maxHeight: 380 }}>
+        <div
+          className="scrollbar-hide overflow-y-auto px-6 py-5"
+          style={{ minHeight: 260, maxHeight: 380 }}
+        >
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={currentStep}
@@ -140,7 +154,12 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
         <div className="flex items-center justify-between border-t border-border/30 px-6 py-3">
           <div>
             {!isFirst && currentStep !== "complete" && (
-              <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={goBack}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={goBack}
+              >
                 Back
               </Button>
             )}

@@ -5,14 +5,22 @@ import { useGeneralSettings } from "@/hooks/use-general-settings"
 export function StepWorkHours() {
   const { settings, save, loading } = useGeneralSettings()
 
-  if (loading) return <div className="h-32 animate-pulse rounded-lg bg-muted/30" />
+  if (loading)
+    return <div className="h-32 animate-pulse rounded-lg bg-muted/30" />
 
   const hasBoundary = !!settings.workBoundaryStart && !!settings.workBoundaryEnd
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Define your work boundary so Traccia can accurately filter out working sessions and calculate accurate working time.<br /> <span className="text-foreground bold">Recommended if you open your PC outside working hours.</span> <br /> Ex. My standard working window will be between 9:00 AM to 9:30 PM.
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Define your work boundary so Traccia can accurately filter out working
+        sessions and calculate accurate working time.
+        <br />{" "}
+        <span className="bold text-foreground">
+          Recommended if you open your PC outside working hours.
+        </span>{" "}
+        <br /> Ex. My standard working window will be between 9:00 AM to 9:30
+        PM.
       </p>
 
       <div className="space-y-3 rounded-lg border border-border/40 bg-muted/20 p-3.5">

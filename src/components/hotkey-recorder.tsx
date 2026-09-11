@@ -14,7 +14,9 @@ function eventToKeys(e: KeyboardEvent): string[] {
   if (e.shiftKey) parts.push("Shift")
   if (e.metaKey) parts.push("Super")
   if (!MODIFIER_KEYS.has(e.key)) {
-    parts.push(e.key === " " ? "Space" : e.key.length === 1 ? e.key.toUpperCase() : e.key)
+    parts.push(
+      e.key === " " ? "Space" : e.key.length === 1 ? e.key.toUpperCase() : e.key
+    )
   }
   return parts
 }
@@ -146,7 +148,10 @@ export function HotkeyRecorder({
   useEffect(() => {
     if (!recording) return
     const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         cancelRecording()
       }
     }
@@ -174,7 +179,9 @@ export function HotkeyRecorder({
           {currentKeys.length > 0 ? (
             currentKeys.map((k, i) => <KeyBadge key={i} label={k} size="sm" />)
           ) : (
-            <span className="text-[11px] text-muted-foreground">Click to set</span>
+            <span className="text-[11px] text-muted-foreground">
+              Click to set
+            </span>
           )}
         </button>
 
@@ -214,7 +221,9 @@ export function HotkeyRecorder({
           <div className="border-b border-border/40 px-4 py-3 text-center">
             <p className="text-[11px] text-muted-foreground">
               Press{" "}
-              <span className="font-semibold text-foreground/70">Backspace</span>{" "}
+              <span className="font-semibold text-foreground/70">
+                Backspace
+              </span>{" "}
               to clear &nbsp;
             </p>
           </div>
@@ -232,7 +241,9 @@ export function HotkeyRecorder({
 
           {/* Error */}
           {error && (
-            <p className="px-4 pb-2 text-center text-[10px] text-red-400">{error}</p>
+            <p className="px-4 pb-2 text-center text-[10px] text-red-400">
+              {error}
+            </p>
           )}
 
           {/* Actions */}

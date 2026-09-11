@@ -1,35 +1,44 @@
-import { useState, useEffect, useRef } from 'react'
-import { X, Plus } from 'lucide-react'
+import { useState, useEffect, useRef } from "react"
+import { X, Plus } from "lucide-react"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import { HugeiconsIcon } from '@hugeicons/react'
-import { Cancel01Icon, Mail02Icon, Calendar03Icon, Calendar01Icon } from '@hugeicons/core-free-icons'
-import { cn } from '@/lib/utils'
-import { migratePlainTextSignature } from '@/lib/eod-utils'
-import type { EodEmailSettings } from '@/lib/eod-types'
-import { SignatureEditor } from '@/components/eod/signature-editor'
+  Cancel01Icon,
+  Mail02Icon,
+  Calendar03Icon,
+  Calendar01Icon,
+} from "@hugeicons/core-free-icons"
+import { cn } from "@/lib/utils"
+import { migratePlainTextSignature } from "@/lib/eod-utils"
+import type { EodEmailSettings } from "@/lib/eod-types"
+import { SignatureEditor } from "@/components/eod/signature-editor"
 import {
-  loadMeetingsSettings, saveMeetingsSettings,
-  type EodMeetingsSettings, type MeetingRule, type MeetingRouteTarget,
-} from '@/lib/eod-meetings-settings'
+  loadMeetingsSettings,
+  saveMeetingsSettings,
+  type EodMeetingsSettings,
+  type MeetingRule,
+  type MeetingRouteTarget,
+} from "@/lib/eod-meetings-settings"
 import {
-  loadHolidaysSettings, saveHolidaysSettings,
+  loadHolidaysSettings,
+  saveHolidaysSettings,
   type EodHolidaysSettings,
-} from '@/lib/eod-holidays-settings'
-import { makeId } from '@/lib/eod-types'
+} from "@/lib/eod-holidays-settings"
+import { makeId } from "@/lib/eod-types"
 
-const STORAGE_KEY = 'traccia:eod-settings'
+const STORAGE_KEY = "traccia:eod-settings"
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 function isValidEmail(e: string) {
@@ -44,20 +53,23 @@ export function loadEodSettings(): EodEmailSettings {
       return {
         to: Array.isArray(p.to)
           ? (p.to as string[])
-          : typeof p.to === 'string' && p.to
-          ? [p.to]
-          : [],
+          : typeof p.to === "string" && p.to
+            ? [p.to]
+            : [],
         cc: Array.isArray(p.cc)
           ? (p.cc as string[])
-          : typeof p.cc === 'string' && p.cc
-          ? [p.cc]
-          : [],
-        signature: migratePlainTextSignature((p.signature as string) || ''),
-        embedSignature: typeof p.embedSignature === 'boolean' ? p.embedSignature : true,
+          : typeof p.cc === "string" && p.cc
+            ? [p.cc]
+            : [],
+        signature: migratePlainTextSignature((p.signature as string) || ""),
+        embedSignature:
+          typeof p.embedSignature === "boolean" ? p.embedSignature : true,
       }
     }
-  } catch { /* ignore */ }
-  return { to: [], cc: [], signature: '', embedSignature: true }
+  } catch {
+    /* ignore */
+  }
+  return { to: [], cc: [], signature: "", embedSignature: true }
 }
 
 export function saveEodSettings(s: EodEmailSettings): void {
@@ -65,12 +77,12 @@ export function saveEodSettings(s: EodEmailSettings): void {
 }
 
 const DIALOG_TABS = [
-  { value: 'email',    label: 'Email',    icon: Mail02Icon     },
-  { value: 'meetings', label: 'Meetings', icon: Calendar03Icon },
-  { value: 'holidays', label: 'Holidays', icon: Calendar01Icon },
+  { value: "email", label: "Email", icon: Mail02Icon },
+  { value: "meetings", label: "Meetings", icon: Calendar03Icon },
+  { value: "holidays", label: "Holidays", icon: Calendar01Icon },
 ] as const
 
-type DialogTab = (typeof DIALOG_TABS)[number]['value']
+type DialogTab = (typeof DIALOG_TABS)[number]["value"]
 
 interface Props {
   open: boolean
@@ -87,34 +99,34 @@ interface KeywordChipsInputProps {
 }
 
 function KeywordChipsInput({ keywords, onChange }: KeywordChipsInputProps) {
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
 
   function commit() {
     const trimmed = input.trim().toLowerCase()
     if (!trimmed) return
-    if (!keywords.some(k => k.toLowerCase() === trimmed)) {
+    if (!keywords.some((k) => k.toLowerCase() === trimmed)) {
       onChange([...keywords, trimmed])
     }
-    setInput('')
+    setInput("")
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' || e.key === ',' || e.key === ';') {
+    if (e.key === "Enter" || e.key === "," || e.key === ";") {
       e.preventDefault()
       commit()
     }
-    if (e.key === 'Backspace' && input === '' && keywords.length > 0) {
+    if (e.key === "Backspace" && input === "" && keywords.length > 0) {
       onChange(keywords.slice(0, -1))
     }
   }
 
   return (
     <div
-      className="flex min-h-8 flex-wrap items-center gap-1 rounded-md border border-input bg-background px-2 py-1 cursor-text focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50"
+      className="flex min-h-8 cursor-text flex-wrap items-center gap-1 rounded-md border border-input bg-background px-2 py-1 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50"
       onClick={() => inputRef.current?.focus()}
     >
-      {keywords.map(kw => (
+      {keywords.map((kw) => (
         <span
           key={kw}
           className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground"
@@ -122,9 +134,12 @@ function KeywordChipsInput({ keywords, onChange }: KeywordChipsInputProps) {
           {kw}
           <button
             type="button"
-            onClick={e => { e.stopPropagation(); onChange(keywords.filter(k => k !== kw)) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onChange(keywords.filter((k) => k !== kw))
+            }}
             aria-label={`Remove keyword ${kw}`}
-            className="rounded p-0.5 hover:bg-accent outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="rounded p-0.5 outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring"
           >
             <X className="h-2.5 w-2.5" aria-hidden="true" />
           </button>
@@ -133,11 +148,11 @@ function KeywordChipsInput({ keywords, onChange }: KeywordChipsInputProps) {
       <input
         ref={inputRef}
         value={input}
-        onChange={e => setInput(e.target.value)}
+        onChange={(e) => setInput(e.target.value)}
         onKeyDown={onKeyDown}
         onBlur={commit}
-        placeholder={keywords.length === 0 ? 'Type keyword, press Enter…' : ''}
-        className="min-w-20 flex-1 bg-transparent text-xs focus:outline-none placeholder:text-muted-foreground/50"
+        placeholder={keywords.length === 0 ? "Type keyword, press Enter…" : ""}
+        className="min-w-20 flex-1 bg-transparent text-xs placeholder:text-muted-foreground/50 focus:outline-none"
         autoComplete="off"
         spellCheck={false}
       />
@@ -147,35 +162,44 @@ function KeywordChipsInput({ keywords, onChange }: KeywordChipsInputProps) {
 
 // ── Main dialog ───────────────────────────────────────────────────────────────
 
-export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Props) {
-  const [activeTab, setActiveTab] = useState<DialogTab>('email')
+export function EodSettingsDialog({
+  open,
+  onOpenChange,
+  settings,
+  onSave,
+}: Props) {
+  const [activeTab, setActiveTab] = useState<DialogTab>("email")
 
   // ── Email tab state ─────────────────────────────────────────────────────────
   const [toChips, setToChips] = useState<string[]>(settings.to)
-  const [toInput, setToInput] = useState('')
-  const [toError, setToError] = useState('')
+  const [toInput, setToInput] = useState("")
+  const [toError, setToError] = useState("")
   const [ccChips, setCcChips] = useState<string[]>(settings.cc)
-  const [ccInput, setCcInput] = useState('')
-  const [ccError, setCcError] = useState('')
+  const [ccInput, setCcInput] = useState("")
+  const [ccError, setCcError] = useState("")
   const [signature, setSignature] = useState(settings.signature)
-  const [embedSignature, setEmbedSignature] = useState(settings.embedSignature ?? true)
+  const [embedSignature, setEmbedSignature] = useState(
+    settings.embedSignature ?? true
+  )
   const toRef = useRef<HTMLInputElement>(null)
   const ccRef = useRef<HTMLInputElement>(null)
 
   // ── Meetings tab state ──────────────────────────────────────────────────────
-  const [meetingsSettings, setMeetingsSettings] = useState<EodMeetingsSettings>(loadMeetingsSettings)
+  const [meetingsSettings, setMeetingsSettings] =
+    useState<EodMeetingsSettings>(loadMeetingsSettings)
 
   // ── Holidays tab state ──────────────────────────────────────────────────────
-  const [holidaysSettings, setHolidaysSettings] = useState<EodHolidaysSettings>(loadHolidaysSettings)
+  const [holidaysSettings, setHolidaysSettings] =
+    useState<EodHolidaysSettings>(loadHolidaysSettings)
 
   useEffect(() => {
     if (open) {
       setToChips(settings.to)
-      setToInput('')
-      setToError('')
+      setToInput("")
+      setToError("")
       setCcChips(settings.cc)
-      setCcInput('')
-      setCcError('')
+      setCcInput("")
+      setCcError("")
       setSignature(settings.signature)
       setEmbedSignature(settings.embedSignature ?? true)
       setMeetingsSettings(loadMeetingsSettings())
@@ -184,50 +208,72 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
   }, [open, settings])
 
   function tryAddTo(raw: string): boolean {
-    setToError('')
-    const parts = raw.split(/[,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean)
+    setToError("")
+    const parts = raw
+      .split(/[,;]+/)
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
     if (!parts.length) return false
-    const invalid = parts.filter(e => !isValidEmail(e))
-    if (invalid.length) { setToError(`Invalid: ${invalid.join(', ')}`); return false }
-    const fresh = parts.filter(e => !toChips.some(c => c.toLowerCase() === e.toLowerCase()))
-    if (!fresh.length) { setToError('Already added'); return false }
-    setToChips(prev => [...prev, ...fresh])
-    setToInput('')
+    const invalid = parts.filter((e) => !isValidEmail(e))
+    if (invalid.length) {
+      setToError(`Invalid: ${invalid.join(", ")}`)
+      return false
+    }
+    const fresh = parts.filter(
+      (e) => !toChips.some((c) => c.toLowerCase() === e.toLowerCase())
+    )
+    if (!fresh.length) {
+      setToError("Already added")
+      return false
+    }
+    setToChips((prev) => [...prev, ...fresh])
+    setToInput("")
     setTimeout(() => toRef.current?.focus(), 0)
     return true
   }
 
   function handleToKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' || e.key === ',' || e.key === ';') {
+    if (e.key === "Enter" || e.key === "," || e.key === ";") {
       e.preventDefault()
       tryAddTo(toInput)
     }
-    if (e.key === 'Backspace' && toInput === '' && toChips.length > 0) {
-      setToChips(prev => prev.slice(0, -1))
+    if (e.key === "Backspace" && toInput === "" && toChips.length > 0) {
+      setToChips((prev) => prev.slice(0, -1))
     }
   }
 
   function tryAddCc(raw: string): boolean {
-    setCcError('')
-    const parts = raw.split(/[,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean)
+    setCcError("")
+    const parts = raw
+      .split(/[,;]+/)
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
     if (!parts.length) return false
-    const invalid = parts.filter(e => !isValidEmail(e))
-    if (invalid.length) { setCcError(`Invalid: ${invalid.join(', ')}`); return false }
-    const fresh = parts.filter(e => !ccChips.some(c => c.toLowerCase() === e.toLowerCase()))
-    if (!fresh.length) { setCcError('Already added'); return false }
-    setCcChips(prev => [...prev, ...fresh])
-    setCcInput('')
+    const invalid = parts.filter((e) => !isValidEmail(e))
+    if (invalid.length) {
+      setCcError(`Invalid: ${invalid.join(", ")}`)
+      return false
+    }
+    const fresh = parts.filter(
+      (e) => !ccChips.some((c) => c.toLowerCase() === e.toLowerCase())
+    )
+    if (!fresh.length) {
+      setCcError("Already added")
+      return false
+    }
+    setCcChips((prev) => [...prev, ...fresh])
+    setCcInput("")
     setTimeout(() => ccRef.current?.focus(), 0)
     return true
   }
 
   function handleCcKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' || e.key === ',' || e.key === ';') {
+    if (e.key === "Enter" || e.key === "," || e.key === ";") {
       e.preventDefault()
       tryAddCc(ccInput)
     }
-    if (e.key === 'Backspace' && ccInput === '' && ccChips.length > 0) {
-      setCcChips(prev => prev.slice(0, -1))
+    if (e.key === "Backspace" && ccInput === "" && ccChips.length > 0) {
+      setCcChips((prev) => prev.slice(0, -1))
     }
   }
 
@@ -240,7 +286,12 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
       const ok = tryAddCc(ccInput)
       if (!ok) return
     }
-    const emailS: EodEmailSettings = { to: toChips, cc: ccChips, signature, embedSignature }
+    const emailS: EodEmailSettings = {
+      to: toChips,
+      cc: ccChips,
+      signature,
+      embedSignature,
+    }
     onSave(emailS)
     saveEodSettings(emailS)
     saveMeetingsSettings(meetingsSettings)
@@ -251,33 +302,44 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
   // ── Meetings helpers ────────────────────────────────────────────────────────
 
   function updateMeetings(patch: Partial<EodMeetingsSettings>) {
-    setMeetingsSettings(s => ({ ...s, ...patch }))
+    setMeetingsSettings((s) => ({ ...s, ...patch }))
   }
 
   function addRule() {
-    const newRule: MeetingRule = { id: makeId(), keywords: [], target: 'otherTasks' }
+    const newRule: MeetingRule = {
+      id: makeId(),
+      keywords: [],
+      target: "otherTasks",
+    }
     updateMeetings({ rules: [...meetingsSettings.rules, newRule] })
   }
 
   function removeRule(idx: number) {
-    updateMeetings({ rules: meetingsSettings.rules.filter((_, i) => i !== idx) })
+    updateMeetings({
+      rules: meetingsSettings.rules.filter((_, i) => i !== idx),
+    })
   }
 
   function patchRule(idx: number, patch: Partial<MeetingRule>) {
     updateMeetings({
-      rules: meetingsSettings.rules.map((r, i) => i === idx ? { ...r, ...patch } : r),
+      rules: meetingsSettings.rules.map((r, i) =>
+        i === idx ? { ...r, ...patch } : r
+      ),
     })
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="md:max-w-2xl gap-0 overflow-hidden p-0">
+      <DialogContent
+        showCloseButton={false}
+        className="gap-0 overflow-hidden p-0 md:max-w-2xl"
+      >
         <DialogTitle className="sr-only">EOD Settings</DialogTitle>
 
         <Tabs
           orientation="vertical"
           value={activeTab}
-          onValueChange={v => setActiveTab(v as DialogTab)}
+          onValueChange={(v) => setActiveTab(v as DialogTab)}
           className="flex h-[32rem]"
         >
           {/* ── Left sidebar ── */}
@@ -296,10 +358,10 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                   key={value}
                   value={value}
                   className={cn(
-                    'group/tab h-9 justify-start gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium',
-                    'text-muted-foreground/70 hover:text-foreground',
-                    'data-active:bg-background/80 data-active:text-foreground dark:data-active:bg-input/40',
-                    'after:hidden',
+                    "group/tab h-9 justify-start gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium",
+                    "text-muted-foreground/70 hover:text-foreground",
+                    "data-active:bg-background/80 data-active:text-foreground dark:data-active:bg-input/40",
+                    "after:hidden"
                   )}
                 >
                   <HugeiconsIcon
@@ -327,24 +389,36 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
             </Button>
 
             {/* ── Email tab ── */}
-            <TabsContent value="email" className="mt-0 flex h-full flex-col overflow-y-auto px-6 pt-5 pb-6 no-scrollbar">
+            <TabsContent
+              value="email"
+              className="mt-0 no-scrollbar flex h-full flex-col overflow-y-auto px-6 pt-5 pb-6"
+            >
               <div className="mb-4">
                 <h2 className="text-sm font-semibold">Email</h2>
                 <Separator className="mt-3" />
               </div>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="eod-to" className="block text-sm font-medium">To</label>
+                  <label htmlFor="eod-to" className="block text-sm font-medium">
+                    To
+                  </label>
                   {toChips.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                      {toChips.map(email => (
-                        <span key={email} className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                      {toChips.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+                        >
                           <span className="max-w-48 truncate">{email}</span>
                           <button
                             type="button"
-                            onClick={() => setToChips(prev => prev.filter(e => e !== email))}
+                            onClick={() =>
+                              setToChips((prev) =>
+                                prev.filter((e) => e !== email)
+                              )
+                            }
                             aria-label={`Remove ${email}`}
-                            className="rounded p-0.5 hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring outline-none"
+                            className="rounded p-0.5 outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring"
                           >
                             <X className="h-3 w-3" aria-hidden="true" />
                           </button>
@@ -362,33 +436,57 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                       spellCheck={false}
                       className="flex-1"
                       value={toInput}
-                      onChange={e => { setToInput(e.target.value); setToError('') }}
+                      onChange={(e) => {
+                        setToInput(e.target.value)
+                        setToError("")
+                      }}
                       onKeyDown={handleToKeyDown}
                       placeholder="manager@company.com"
                       aria-invalid={toError ? true : undefined}
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={() => tryAddTo(toInput)} disabled={!toInput.trim()} aria-label="Add To email">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => tryAddTo(toInput)}
+                      disabled={!toInput.trim()}
+                      aria-label="Add To email"
+                    >
                       <Plus className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </div>
-                  {toError
-                    ? <p className="text-xs text-destructive" aria-live="polite">{toError}</p>
-                    : <p className="text-xs text-muted-foreground">Press Enter or comma to add multiple</p>
-                  }
+                  {toError ? (
+                    <p className="text-xs text-destructive" aria-live="polite">
+                      {toError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Press Enter or comma to add multiple
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="eod-cc" className="block text-sm font-medium">CC</label>
+                  <label htmlFor="eod-cc" className="block text-sm font-medium">
+                    CC
+                  </label>
                   {ccChips.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                      {ccChips.map(email => (
-                        <span key={email} className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                      {ccChips.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+                        >
                           <span className="max-w-48 truncate">{email}</span>
                           <button
                             type="button"
-                            onClick={() => setCcChips(prev => prev.filter(e => e !== email))}
+                            onClick={() =>
+                              setCcChips((prev) =>
+                                prev.filter((e) => e !== email)
+                              )
+                            }
                             aria-label={`Remove ${email}`}
-                            className="rounded p-0.5 hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring outline-none"
+                            className="rounded p-0.5 outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring"
                           >
                             <X className="h-3 w-3" aria-hidden="true" />
                           </button>
@@ -406,52 +504,86 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                       spellCheck={false}
                       className="flex-1"
                       value={ccInput}
-                      onChange={e => { setCcInput(e.target.value); setCcError('') }}
+                      onChange={(e) => {
+                        setCcInput(e.target.value)
+                        setCcError("")
+                      }}
                       onKeyDown={handleCcKeyDown}
                       placeholder="email@company.com"
                       aria-invalid={ccError ? true : undefined}
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={() => tryAddCc(ccInput)} disabled={!ccInput.trim()} aria-label="Add CC email">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => tryAddCc(ccInput)}
+                      disabled={!ccInput.trim()}
+                      aria-label="Add CC email"
+                    >
                       <Plus className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </div>
-                  {ccError
-                    ? <p className="text-xs text-destructive" aria-live="polite">{ccError}</p>
-                    : <p className="text-xs text-muted-foreground">Press Enter or comma to add multiple</p>
-                  }
+                  {ccError ? (
+                    <p className="text-xs text-destructive" aria-live="polite">
+                      {ccError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Press Enter or comma to add multiple
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between gap-3 pt-1">
                   <div>
-                    <p className="text-sm font-medium">Include Signature in Email</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Disable if Outlook adds your signature automatically</p>
+                    <p className="text-sm font-medium">
+                      Include Signature in Email
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Disable if Outlook adds your signature automatically
+                    </p>
                   </div>
-                  <Switch checked={embedSignature} onCheckedChange={setEmbedSignature} aria-label="Include signature in email" />
+                  <Switch
+                    checked={embedSignature}
+                    onCheckedChange={setEmbedSignature}
+                    aria-label="Include signature in email"
+                  />
                 </div>
 
                 {embedSignature && (
                   <div className="space-y-1.5">
                     <p className="text-sm font-medium">Outlook Signature</p>
-                    <SignatureEditor value={signature} onChange={setSignature} />
+                    <SignatureEditor
+                      value={signature}
+                      onChange={setSignature}
+                    />
                   </div>
                 )}
               </div>
             </TabsContent>
 
             {/* ── Meetings tab ── */}
-            <TabsContent value="meetings" className="mt-0 flex h-full flex-col overflow-y-auto px-6 pt-5 pb-6 no-scrollbar">
+            <TabsContent
+              value="meetings"
+              className="mt-0 no-scrollbar flex h-full flex-col overflow-y-auto px-6 pt-5 pb-6"
+            >
               <div className="mb-4">
                 <h2 className="text-sm font-semibold">Meetings</h2>
                 <Separator className="mt-3" />
               </div>
               <div className="space-y-5">
-
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium">Sync Outlook Meetings</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Auto-import today's calendar meetings on EOD open</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Auto-import today's calendar meetings on EOD open
+                    </p>
                   </div>
-                  <Switch checked={meetingsSettings.enabled} onCheckedChange={v => updateMeetings({ enabled: v })} aria-label="Sync Outlook meetings" />
+                  <Switch
+                    checked={meetingsSettings.enabled}
+                    onCheckedChange={(v) => updateMeetings({ enabled: v })}
+                    aria-label="Sync Outlook meetings"
+                  />
                 </div>
 
                 <Separator />
@@ -459,9 +591,17 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium">Attach Duration</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Append meeting length in hours, e.g. (0.5 Hr)</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Append meeting length in hours, e.g. (0.5 Hr)
+                    </p>
                   </div>
-                  <Switch checked={meetingsSettings.attachDuration} onCheckedChange={v => updateMeetings({ attachDuration: v })} aria-label="Attach meeting duration" />
+                  <Switch
+                    checked={meetingsSettings.attachDuration}
+                    onCheckedChange={(v) =>
+                      updateMeetings({ attachDuration: v })
+                    }
+                    aria-label="Attach meeting duration"
+                  />
                 </div>
 
                 <Separator />
@@ -469,11 +609,14 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                 <div className="space-y-2">
                   <div>
                     <p className="text-sm font-medium">Exclude Keywords</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Meetings matching any of these keywords are ignored entirely.</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Meetings matching any of these keywords are ignored
+                      entirely.
+                    </p>
                   </div>
                   <KeywordChipsInput
                     keywords={meetingsSettings.excludeKeywords}
-                    onChange={kws => updateMeetings({ excludeKeywords: kws })}
+                    onChange={(kws) => updateMeetings({ excludeKeywords: kws })}
                   />
                 </div>
 
@@ -482,37 +625,54 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm font-medium">Routing Rules</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Route meetings by keyword match. First matching rule wins. Everything else goes to Other Tasks.
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Route meetings by keyword match. First matching rule wins.
+                      Everything else goes to Other Tasks.
                     </p>
                   </div>
 
                   {meetingsSettings.rules.length > 0 && (
                     <div className="space-y-2.5">
                       {meetingsSettings.rules.map((rule, idx) => (
-                        <div key={rule.id} className="rounded-lg border border-border/40 bg-muted/10 p-3 space-y-2">
+                        <div
+                          key={rule.id}
+                          className="space-y-2 rounded-lg border border-border/40 bg-muted/10 p-3"
+                        >
                           <div className="flex items-center gap-2">
                             <Select
                               value={rule.target}
-                              onValueChange={v => patchRule(idx, {
-                                target: v as MeetingRouteTarget,
-                                projectName: v !== 'project' ? undefined : rule.projectName,
-                              })}
+                              onValueChange={(v) =>
+                                patchRule(idx, {
+                                  target: v as MeetingRouteTarget,
+                                  projectName:
+                                    v !== "project"
+                                      ? undefined
+                                      : rule.projectName,
+                                })
+                              }
                             >
                               <SelectTrigger className="h-7 w-32 text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="project">Projects</SelectItem>
-                                <SelectItem value="otherTasks">Other Tasks</SelectItem>
+                                <SelectItem value="project">
+                                  Projects
+                                </SelectItem>
+                                <SelectItem value="otherTasks">
+                                  Other Tasks
+                                </SelectItem>
                               </SelectContent>
                             </Select>
-                            {rule.target === 'project' && (
+                            {rule.target === "project" && (
                               <Input
-                                value={rule.projectName ?? ''}
+                                value={rule.projectName ?? ""}
                                 placeholder="Project name (optional)…"
                                 className="h-7 flex-1 text-xs"
-                                onChange={e => patchRule(idx, { projectName: e.target.value || undefined })}
+                                onChange={(e) =>
+                                  patchRule(idx, {
+                                    projectName: e.target.value || undefined,
+                                  })
+                                }
                               />
                             )}
                             <Button
@@ -524,26 +684,40 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                               aria-label="Remove rule"
                               className="ml-auto shrink-0 text-muted-foreground/50 hover:text-destructive"
                             >
-                              <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+                              <HugeiconsIcon
+                                icon={Cancel01Icon}
+                                className="size-3.5"
+                              />
                             </Button>
                           </div>
                           <KeywordChipsInput
                             keywords={rule.keywords}
-                            onChange={kws => patchRule(idx, { keywords: kws })}
+                            onChange={(kws) =>
+                              patchRule(idx, { keywords: kws })
+                            }
                           />
                         </div>
                       ))}
                     </div>
                   )}
 
-                  <Button type="button" variant="outline" size="sm" onClick={addRule} className="gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addRule}
+                    className="gap-1.5"
+                  >
                     <Plus className="size-3.5" aria-hidden="true" /> Add Rule
                   </Button>
                 </div>
               </div>
             </TabsContent>
 
-            <TabsContent value="holidays" className="mt-0 flex h-full flex-col overflow-y-auto px-6 pt-5 pb-6 no-scrollbar">
+            <TabsContent
+              value="holidays"
+              className="mt-0 no-scrollbar flex h-full flex-col overflow-y-auto px-6 pt-5 pb-6"
+            >
               <div className="mb-4">
                 <h2 className="text-sm font-semibold">Holidays</h2>
                 <Separator className="mt-3" />
@@ -552,14 +726,19 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                 {/* Sync enabled */}
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium">Sync Upcoming Holidays</p>
+                    <p className="text-sm font-medium">
+                      Sync Upcoming Holidays
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Auto-fill Upcoming Holidays from approved leave applications
+                      Auto-fill Upcoming Holidays from approved leave
+                      applications
                     </p>
                   </div>
                   <Switch
                     checked={holidaysSettings.enabled}
-                    onCheckedChange={v => setHolidaysSettings(s => ({ ...s, enabled: v }))}
+                    onCheckedChange={(v) =>
+                      setHolidaysSettings((s) => ({ ...s, enabled: v }))
+                    }
                   />
                 </div>
 
@@ -579,11 +758,14 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
                       min={1}
                       max={90}
                       value={holidaysSettings.windowDays}
-                      onChange={e => {
-                        const v = Math.min(90, Math.max(1, Number(e.target.value) || 14))
-                        setHolidaysSettings(s => ({ ...s, windowDays: v }))
+                      onChange={(e) => {
+                        const v = Math.min(
+                          90,
+                          Math.max(1, Number(e.target.value) || 14)
+                        )
+                        setHolidaysSettings((s) => ({ ...s, windowDays: v }))
                       }}
-                      className="h-8 w-20 text-sm text-right"
+                      className="h-8 w-20 text-right text-sm"
                       aria-label="Look-ahead window in days"
                     />
                     <span className="text-sm text-muted-foreground">days</span>
@@ -594,9 +776,18 @@ export function EodSettingsDialog({ open, onOpenChange, settings, onSave }: Prop
           </div>
         </Tabs>
 
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-          <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" size="sm" onClick={handleSave}>Save Settings</Button>
+        <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="button" size="sm" onClick={handleSave}>
+            Save Settings
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

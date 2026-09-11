@@ -1,11 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { toast } from "sonner"
-import type { PunchEntry, PunchStatus, EntryType, WorkWindow } from "@/lib/types"
+import type {
+  PunchEntry,
+  PunchStatus,
+  EntryType,
+  WorkWindow,
+} from "@/lib/types"
 
 function getErrorMessage(err: unknown, fallback: string): string {
   if (!(err instanceof Error)) return fallback
   // Electron wraps IPC errors: "Error invoking remote method 'X': Error: ACTUAL"
-  const match = err.message.match(/Error invoking remote method '[^']+': Error: (.+)/)
+  const match = err.message.match(
+    /Error invoking remote method '[^']+': Error: (.+)/
+  )
   return match ? match[1] : err.message
 }
 
@@ -41,11 +48,61 @@ function initMockEntries(): void {
   const now = new Date().toISOString()
 
   mockEntries = [
-    { id: 5, timestamp: new Date(base.getTime() + 6 * 3600000).toISOString(), date: getLocalDate(), type: "LOGIN", source: "auto", trigger: "via unlock", notes: null, created_at: now, modified_at: null },
-    { id: 4, timestamp: new Date(base.getTime() + 5 * 3600000).toISOString(), date: getLocalDate(), type: "LOGOUT", source: "auto", trigger: "via lock", notes: null, created_at: now, modified_at: null },
-    { id: 3, timestamp: new Date(base.getTime() + 3 * 3600000).toISOString(), date: getLocalDate(), type: "LOGIN", source: "auto", trigger: "via unlock", notes: null, created_at: now, modified_at: null },
-    { id: 2, timestamp: new Date(base.getTime() + 1 * 3600000).toISOString(), date: getLocalDate(), type: "LOGOUT", source: "auto", trigger: "via lock", notes: null, created_at: now, modified_at: null },
-    { id: 1, timestamp: base.toISOString(), date: getLocalDate(), type: "LOGIN", source: "auto", trigger: "via boot", notes: null, created_at: now, modified_at: null },
+    {
+      id: 5,
+      timestamp: new Date(base.getTime() + 6 * 3600000).toISOString(),
+      date: getLocalDate(),
+      type: "LOGIN",
+      source: "auto",
+      trigger: "via unlock",
+      notes: null,
+      created_at: now,
+      modified_at: null,
+    },
+    {
+      id: 4,
+      timestamp: new Date(base.getTime() + 5 * 3600000).toISOString(),
+      date: getLocalDate(),
+      type: "LOGOUT",
+      source: "auto",
+      trigger: "via lock",
+      notes: null,
+      created_at: now,
+      modified_at: null,
+    },
+    {
+      id: 3,
+      timestamp: new Date(base.getTime() + 3 * 3600000).toISOString(),
+      date: getLocalDate(),
+      type: "LOGIN",
+      source: "auto",
+      trigger: "via unlock",
+      notes: null,
+      created_at: now,
+      modified_at: null,
+    },
+    {
+      id: 2,
+      timestamp: new Date(base.getTime() + 1 * 3600000).toISOString(),
+      date: getLocalDate(),
+      type: "LOGOUT",
+      source: "auto",
+      trigger: "via lock",
+      notes: null,
+      created_at: now,
+      modified_at: null,
+    },
+    {
+      id: 1,
+      timestamp: base.toISOString(),
+      date: getLocalDate(),
+      type: "LOGIN",
+      source: "auto",
+      trigger: "via boot",
+      notes: null,
+      created_at: now,
+      modified_at: null,
+    },
   ]
 }
 
@@ -91,7 +148,12 @@ function getMockStatus(): PunchStatus {
   }
 }
 
-function mockAddEntry(data: { date: string; time: string; type: EntryType; notes?: string }): void {
+function mockAddEntry(data: {
+  date: string
+  time: string
+  type: EntryType
+  notes?: string
+}): void {
   initMockEntries()
   const timestamp = new Date(`${data.date}T${data.time}`).toISOString()
   mockEntries.push({
@@ -116,7 +178,11 @@ function mockEditEntry(id: number, updates: { timestamp?: string }): void {
   initMockEntries()
   mockEntries = mockEntries.map((e) =>
     e.id === id
-      ? { ...e, ...(updates.timestamp ? { timestamp: updates.timestamp } : {}), modified_at: new Date().toISOString() }
+      ? {
+          ...e,
+          ...(updates.timestamp ? { timestamp: updates.timestamp } : {}),
+          modified_at: new Date().toISOString(),
+        }
       : e
   )
 }
@@ -148,7 +214,11 @@ export function usePunchData(date?: string) {
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const snapshotRef = useRef<{ total: number; working: number; at: number } | null>(null)
+  const snapshotRef = useRef<{
+    total: number
+    working: number
+    at: number
+  } | null>(null)
   const workTicksRef = useRef(0)
 
   const refresh = useCallback(async () => {
@@ -229,9 +299,13 @@ export function usePunchData(date?: string) {
         if (!snap) return prev
         const elapsed = Math.floor((Date.now() - snap.at) / 1000)
         const workIncrement =
-          prev.workMode === "holiday" ? 0 :
-          prev.workMode === "all" ? 1 :
-          isTimeInWorkWindow(new Date(), prev.workWindow) ? 1 : 0
+          prev.workMode === "holiday"
+            ? 0
+            : prev.workMode === "all"
+              ? 1
+              : isTimeInWorkWindow(new Date(), prev.workWindow)
+                ? 1
+                : 0
         workTicksRef.current += workIncrement
         return {
           ...prev,
@@ -321,7 +395,10 @@ export function usePunchData(date?: string) {
     async (id1: number, id2: number) => {
       try {
         if (isElectron) await window.electronAPI.deleteEntries([id1, id2])
-        else { mockDeleteEntry(id1); mockDeleteEntry(id2) }
+        else {
+          mockDeleteEntry(id1)
+          mockDeleteEntry(id2)
+        }
       } catch (err) {
         toast.error(getErrorMessage(err, "Failed to delete entries"))
         throw err

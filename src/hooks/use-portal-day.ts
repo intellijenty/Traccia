@@ -16,7 +16,11 @@ interface UsePortalDayResult {
   error: string | null
   permanent: boolean
   lastRefreshed: Date | null
-  login: (email: string, password: string, baseUrl?: string) => Promise<{ success: boolean; message?: string }>
+  login: (
+    email: string,
+    password: string,
+    baseUrl?: string
+  ) => Promise<{ success: boolean; message?: string }>
   logout: () => Promise<void>
   refresh: () => Promise<void>
 }
@@ -40,7 +44,10 @@ export function usePortalDay(date?: string): UsePortalDayResult {
 
   useEffect(() => {
     if (!store.connected || !isToday || isFuture) return
-    const id = setInterval(() => store.refreshDay(targetDate), REFRESH_INTERVAL_MS)
+    const id = setInterval(
+      () => store.refreshDay(targetDate),
+      REFRESH_INTERVAL_MS
+    )
     return () => clearInterval(id)
   }, [targetDate, isToday, store.connected, isFuture]) // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -63,7 +63,8 @@ function deliver(
   body: string
 ) {
   if (channel === "system" || channel === "both") sendSystem(title, body)
-  if (channel === "in-app" || channel === "both") toast(title, { description: body })
+  if (channel === "in-app" || channel === "both")
+    toast(title, { description: body })
 }
 
 // ── Engine hook ───────────────────────────────────────────────────────────────
@@ -85,7 +86,9 @@ export function useNotificationEngine(settings: EngineSettings) {
   // read them without being in the dep array (which would cause re-evaluations
   // on every settings change, complicating the fired-once guarantee).
   const settingsRef = useRef<EngineSettings>(settings)
-  useEffect(() => { settingsRef.current = settings })
+  useEffect(() => {
+    settingsRef.current = settings
+  })
 
   // Gate: don't evaluate until previous session's fired keys are restored.
   // Prevents re-firing already-completed notifications on every app restart.
@@ -111,7 +114,10 @@ export function useNotificationEngine(settings: EngineSettings) {
     prevTargetKeyRef.current = settings.targetChangeKey
     const today = getLocalDate()
     for (const key of [...firedRef.current]) {
-      if (key.startsWith(`${today}:target-complete:`) || key.startsWith(`${today}:eod-reminder:`)) {
+      if (
+        key.startsWith(`${today}:target-complete:`) ||
+        key.startsWith(`${today}:eod-reminder:`)
+      ) {
         firedRef.current.delete(key)
       }
     }
@@ -140,8 +146,14 @@ export function useNotificationEngine(settings: EngineSettings) {
      * fingerprint — embed a config value (e.g. eodMinutes) so that changing
      * the setting invalidates the cached "fired" state and allows re-firing.
      */
-    function fireOnce(id: NotificationId, fn: () => void, fingerprint?: string) {
-      const key = fingerprint ? `${today}:${id}:${fingerprint}` : `${today}:${id}`
+    function fireOnce(
+      id: NotificationId,
+      fn: () => void,
+      fingerprint?: string
+    ) {
+      const key = fingerprint
+        ? `${today}:${id}:${fingerprint}`
+        : `${today}:${id}`
       if (firedRef.current.has(key)) return
       firedRef.current.add(key)
       fn()
@@ -156,10 +168,15 @@ export function useNotificationEngine(settings: EngineSettings) {
 
     // 1. Daily target reached
     if (s.targetEnabled) {
-      const targetSeconds = resolveSeconds(s.targetSource, localSeconds, s.portalSecondsToday)
+      const targetSeconds = resolveSeconds(
+        s.targetSource,
+        localSeconds,
+        s.portalSecondsToday
+      )
       if (targetSeconds >= s.dailyTargetSeconds) {
-        fireOnce("target-complete", () =>
-          deliver("system", "Traccia", s.targetMessage),
+        fireOnce(
+          "target-complete",
+          () => deliver("system", "Traccia", s.targetMessage),
           String(s.dailyTargetSeconds)
         )
       }
@@ -170,15 +187,20 @@ export function useNotificationEngine(settings: EngineSettings) {
     //    Fingerprinted by eodMinutes: changing the threshold invalidates the
     //    cached fired state so the notification re-fires at the new threshold.
     if (s.eodEnabled) {
-      const eodSeconds = resolveSeconds(s.eodSource, localSeconds, s.portalSecondsToday)
+      const eodSeconds = resolveSeconds(
+        s.eodSource,
+        localSeconds,
+        s.portalSecondsToday
+      )
       const eodThresholdSeconds = s.dailyTargetSeconds - s.eodMinutes * 60
       if (
         eodThresholdSeconds > 0 &&
         eodSeconds >= eodThresholdSeconds &&
         eodSeconds < s.dailyTargetSeconds
       ) {
-        fireOnce("eod-reminder", () =>
-          deliver("system", "Traccia", s.eodMessage),
+        fireOnce(
+          "eod-reminder",
+          () => deliver("system", "Traccia", s.eodMessage),
           String(s.eodMinutes)
         )
       }
@@ -186,6 +208,10 @@ export function useNotificationEngine(settings: EngineSettings) {
 
     // Add future notification conditions here ↓
     // e.g. miss-punch-warning, weekly-summary, etc.
-
-  }, [restored, localSeconds, settings.portalSecondsToday, settings.dailyTargetSeconds])
+  }, [
+    restored,
+    localSeconds,
+    settings.portalSecondsToday,
+    settings.dailyTargetSeconds,
+  ])
 }

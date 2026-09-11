@@ -27,7 +27,7 @@ export interface PunchEntry {
 
 export interface WorkWindow {
   start: string // "HH:MM"
-  end: string   // "HH:MM"
+  end: string // "HH:MM"
 }
 
 export interface PunchStatus {
@@ -67,11 +67,11 @@ export interface AppSettings {
   notifyEodSource: "local" | "portal"
   // Work boundary
   workBoundaryStart: string // "HH:MM" or ""
-  workBoundaryEnd: string   // "HH:MM" or ""
+  workBoundaryEnd: string // "HH:MM" or ""
   // Night shift
   nightShiftEnabled: boolean
   nightShiftStart: string // "HH:MM"
-  nightShiftEnd: string   // "HH:MM"
+  nightShiftEnd: string // "HH:MM"
   // Notification fired-state persistence
   notificationsFiredKeys: string
   // Onboarding
@@ -124,10 +124,10 @@ export interface LeaveApplication {
   user_id: number
   leave_type_id: number
   leave_name: string
-  start_date: string        // YYYY-MM-DD
-  start_type: number        // 1=Full Day, 2=First Half, 3=Second Half
-  end_date: string          // YYYY-MM-DD
-  end_type: number          // 1=Full Day, 2=First Half
+  start_date: string // YYYY-MM-DD
+  start_type: number // 1=Full Day, 2=First Half, 3=Second Half
+  end_date: string // YYYY-MM-DD
+  end_type: number // 1=Full Day, 2=First Half
   total_days: number
   comment: string | null
   status: number
@@ -148,7 +148,12 @@ export interface LeaveSyncResult {
 
 // ── Day target types ──
 
-export type DayTargetType = "fixed" | "end-time" | "flex-balance" | "weekly-distribute" | "relative-offset"
+export type DayTargetType =
+  | "fixed"
+  | "end-time"
+  | "flex-balance"
+  | "weekly-distribute"
+  | "relative-offset"
 
 export interface DayTarget {
   date: string
@@ -176,7 +181,7 @@ export interface DayWorkWindow {
 export interface NightShiftConfig {
   enabled: boolean
   start: string // "HH:MM"
-  end: string   // "HH:MM"
+  end: string // "HH:MM"
 }
 
 // ── Portal cache types ──
@@ -199,13 +204,13 @@ export interface PortalRangeResult extends PortalDayResult {
 }
 
 export interface LicenseResponse {
-  success: boolean;
-  message?: string;
+  success: boolean
+  message?: string
 }
 export interface ILicenseAPI {
-  getHwid: () => Promise<string>;
-  submitLicense: (key: string) => Promise<LicenseResponse>;
-  checkStatus: () => Promise<boolean>;
+  getHwid: () => Promise<string>
+  submitLicense: (key: string) => Promise<LicenseResponse>
+  checkStatus: () => Promise<boolean>
 }
 
 export interface ElectronAPI {
@@ -213,7 +218,10 @@ export interface ElectronAPI {
 
   getEvents: (date: string) => Promise<PunchEntry[]>
   getStatus: (date?: string) => Promise<PunchStatus>
-  getWeekSummaries: (startDate: string, endDate: string) => Promise<WeekDaySummary[]>
+  getWeekSummaries: (
+    startDate: string,
+    endDate: string
+  ) => Promise<WeekDaySummary[]>
   punchIn: () => Promise<PunchEntry>
   punchOut: () => Promise<PunchEntry>
   addEntry: (entry: {
@@ -228,7 +236,11 @@ export interface ElectronAPI {
   ) => Promise<PunchEntry>
   deleteEntry: (id: number) => Promise<void>
   deleteEntries: (ids: number[]) => Promise<void>
-  addEntryPair: (data: { date: string; time1: string; time2: string }) => Promise<{ firstEntry: PunchEntry; secondEntry: PunchEntry }>
+  addEntryPair: (data: {
+    date: string
+    time1: string
+    time2: string
+  }) => Promise<{ firstEntry: PunchEntry; secondEntry: PunchEntry }>
   getSettings: () => Promise<AppSettings>
   updateSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>
   onEventUpdate: (callback: () => void) => () => void
@@ -241,7 +253,11 @@ export interface ElectronAPI {
   // Day targets
   getAllDayTargets: () => Promise<DayTarget[]>
   getDayTarget: (date: string) => Promise<DayTarget | null>
-  setDayTarget: (date: string, type: DayTargetType, value: string | null) => Promise<void>
+  setDayTarget: (
+    date: string,
+    type: DayTargetType,
+    value: string | null
+  ) => Promise<void>
   deleteDayTarget: (date: string) => Promise<void>
 
   // Work windows
@@ -260,20 +276,35 @@ export interface ElectronAPI {
     email: string,
     password: string,
     baseUrl?: string
-  ) => Promise<{ success: boolean; message?: string; userName?: string; userId?: number }>
+  ) => Promise<{
+    success: boolean
+    message?: string
+    userName?: string
+    userId?: number
+  }>
   hrmsLogout: () => Promise<void>
   hrmsGetHours: (date?: string) => Promise<PortalData>
   hrmsGetStatus: () => Promise<HrmsConnectionStatus>
 
   // Portal cache
   portalGetDay: (date: string, force?: boolean) => Promise<PortalDayResult>
-  portalGetRange: (dates: string[], force?: boolean) => Promise<PortalRangeResult[]>
+  portalGetRange: (
+    dates: string[],
+    force?: boolean
+  ) => Promise<PortalRangeResult[]>
   portalCacheStatus: (date: string) => Promise<PortalCacheStatus>
   portalInvalidate: (dates: string[]) => Promise<void>
   portalInvalidateAll: () => Promise<void>
-  portalPopulate: (dates: string[]) => Promise<{ date: string; success: boolean }[]>
+  portalPopulate: (
+    dates: string[]
+  ) => Promise<{ date: string; success: boolean }[]>
   portalSyncNonPermanent: () => Promise<{
-    results: { date: string; success: boolean; promoted: boolean; error?: string }[]
+    results: {
+      date: string
+      success: boolean
+      promoted: boolean
+      error?: string
+    }[]
     synced: number
     promoted: number
     failed: number
@@ -282,8 +313,19 @@ export interface ElectronAPI {
     date: string
     skipped: boolean
     skipReason?: "already_synced" | "no_credentials"
-    leaves?: { success: boolean; synced: number; total: number; daysMarked: number; message?: string }
-    portalDays?: { results: unknown[]; synced: number; promoted: number; failed: number }
+    leaves?: {
+      success: boolean
+      synced: number
+      total: number
+      daysMarked: number
+      message?: string
+    }
+    portalDays?: {
+      results: unknown[]
+      synced: number
+      promoted: number
+      failed: number
+    }
   }>
 
   // Miss-punch playground drafts
@@ -314,15 +356,26 @@ export interface ElectronAPI {
   downloadUpdate: () => Promise<void>
   installUpdate: () => Promise<void>
   onUpdateChecking: (cb: () => void) => () => void
-  onUpdateAvailable: (cb: (info: { version: string; releaseNotes?: string }) => void) => () => void
+  onUpdateAvailable: (
+    cb: (info: { version: string; releaseNotes?: string }) => void
+  ) => () => void
   onUpdateNotAvailable: (cb: () => void) => () => void
-  onUpdateProgress: (cb: (p: { percent: number; transferred: number; total: number }) => void) => () => void
+  onUpdateProgress: (
+    cb: (p: { percent: number; transferred: number; total: number }) => void
+  ) => () => void
   onUpdateDownloaded: (cb: (info: { version: string }) => void) => () => void
   onUpdateError: (cb: (msg: string) => void) => () => void
 
   // Claude usage
   getClaudeUsage: () => Promise<
-    | { ok: true; data: { session: { utilization: number; resetsAt: string }; weekly: { utilization: number; resetsAt: string }; fetchedAt: number } }
+    | {
+        ok: true
+        data: {
+          session: { utilization: number; resetsAt: string }
+          weekly: { utilization: number; resetsAt: string }
+          fetchedAt: number
+        }
+      }
     | { ok: false; error: string }
   >
 
@@ -334,39 +387,52 @@ export interface ElectronAPI {
     htmlBody: string
     plainText: string
   }) => Promise<void>
-  onOutlookPhase: (cb: (phase: 'prewarming' | 'done') => void) => () => void
+  onOutlookPhase: (cb: (phase: "prewarming" | "done") => void) => () => void
   eodGetMeetingsToday: () => Promise<
-    { ok: true; meetings: import('./outlook-meetings').OutlookMeeting[] } |
-    { ok: false; error: string }
+    | { ok: true; meetings: import("./outlook-meetings").OutlookMeeting[] }
+    | { ok: false; error: string }
   >
-  eodGetUpcomingLeaves: (windowDays: number) => Promise<
-    { ok: true; dates: string[] } | { ok: false; error: string }
-  >
+  eodGetUpcomingLeaves: (
+    windowDays: number
+  ) => Promise<{ ok: true; dates: string[] } | { ok: false; error: string }>
 
   // AI / Claude
-  aiAvailable: () => Promise<{ available: boolean; version?: string; error?: string }>
+  aiAvailable: () => Promise<{
+    available: boolean
+    version?: string
+    error?: string
+  }>
   aiCancel: (requestId: string) => void
 
   // EOD AI generation
   eodAiGenerate: (
-    payload: import('./eod-ai-types').EodAiGeneratePayload
+    payload: import("./eod-ai-types").EodAiGeneratePayload
   ) => Promise<{ requestId: string }>
   eodAiRefine: (
-    payload: import('./eod-ai-types').EodAiRefinePayload
+    payload: import("./eod-ai-types").EodAiRefinePayload
   ) => Promise<{ requestId: string }>
-  eodAiListProjects: () => Promise<import('./eod-ai-types').EodAiProjectInfo[]>
-  onEodAiPhase: (cb: (data: import('./eod-ai-types').EodAiPhaseEvent) => void) => () => void
-  onEodAiDone: (cb: (data: import('./eod-ai-types').EodAiDoneEvent) => void) => () => void
-  onEodAiError: (cb: (data: import('./eod-ai-types').EodAiErrorEvent) => void) => () => void
+  eodAiListProjects: () => Promise<import("./eod-ai-types").EodAiProjectInfo[]>
+  onEodAiPhase: (
+    cb: (data: import("./eod-ai-types").EodAiPhaseEvent) => void
+  ) => () => void
+  onEodAiDone: (
+    cb: (data: import("./eod-ai-types").EodAiDoneEvent) => void
+  ) => () => void
+  onEodAiError: (
+    cb: (data: import("./eod-ai-types").EodAiErrorEvent) => void
+  ) => () => void
 
   // Entries export
-  exportFile: (format: "csv" | "json", date: string) => Promise<{ success: boolean; filePath?: string; error?: string }>
+  exportFile: (
+    format: "csv" | "json",
+    date: string
+  ) => Promise<{ success: boolean; filePath?: string; error?: string }>
   showItemInFolder: (filePath: string) => Promise<void>
 }
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
-    licenseAPI: ILicenseAPI;
+    electronAPI: ElectronAPI
+    licenseAPI: ILicenseAPI
   }
 }

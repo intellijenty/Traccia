@@ -22,10 +22,10 @@ export interface LeaveApplicationRaw {
   user_type_id: number
   leave_type_id: number
   leave_name: string
-  start_date: string       // ISO datetime, e.g. "2026-04-10T00:00:00"
-  start_type: number       // 1=Full Day, 2=First Half, 3=Second Half
-  end_date: string         // ISO datetime
-  end_type: number         // 1=Full Day, 2=First Half
+  start_date: string // ISO datetime, e.g. "2026-04-10T00:00:00"
+  start_type: number // 1=Full Day, 2=First Half, 3=Second Half
+  end_date: string // ISO datetime
+  end_type: number // 1=Full Day, 2=First Half
   total_days: number
   comment: string
   status: number
@@ -40,8 +40,8 @@ export interface LeaveApplicationRaw {
 // ── Fetch options & result ────────────────────────────────────────────────────
 
 export interface FetchLeavesOptions {
-  leaveTypeId?: number  // 1=Casual, 2=Earned, 3=Public Holiday, 4=Comp-off
-  status?: number       // filter to a specific status code
+  leaveTypeId?: number // 1=Casual, 2=Earned, 3=Public Holiday, 4=Comp-off
+  status?: number // filter to a specific status code
 }
 
 export interface FetchLeavesResult {
@@ -92,7 +92,8 @@ export async function fetchLeaveApplications(
 
   const baseUrl = getBaseUrl()
   const params = new URLSearchParams({ user_Id: String(getUserId()) })
-  if (options.leaveTypeId !== undefined) params.set("leave_type_id", String(options.leaveTypeId))
+  if (options.leaveTypeId !== undefined)
+    params.set("leave_type_id", String(options.leaveTypeId))
   if (options.status !== undefined) params.set("status", String(options.status))
 
   const url = `${baseUrl}/LeaveApplication?${params}`
@@ -110,7 +111,10 @@ export async function fetchLeaveApplications(
       setToken(null)
       const loginResult = await hrmsLogin()
       if (!loginResult.success) {
-        return { ...empty, message: "Session expired. " + (loginResult.message || "") }
+        return {
+          ...empty,
+          message: "Session expired. " + (loginResult.message || ""),
+        }
       }
       return fetchLeaveApplications(options, true)
     }

@@ -54,9 +54,12 @@ function buildUpdatedTimestamp(original: string, newTime: string): string {
 
 function getSourceIcon(source: string) {
   switch (source) {
-    case "manual": return PencilEdit01Icon
-    case "estimated": return Alert01Icon
-    default: return LockIcon
+    case "manual":
+      return PencilEdit01Icon
+    case "estimated":
+      return Alert01Icon
+    default:
+      return LockIcon
   }
 }
 
@@ -105,10 +108,20 @@ interface EventLogItemProps {
   workWindow?: WorkWindow | null
   workMode?: "holiday" | "all" | "window"
   onDelete: (id: number) => Promise<void>
-  onEdit: (id: number, updates: { timestamp?: string; notes?: string }) => Promise<void>
+  onEdit: (
+    id: number,
+    updates: { timestamp?: string; notes?: string }
+  ) => Promise<void>
 }
 
-export function EventLogItem({ entry, isCorrupted = false, workWindow, workMode = "all", onDelete, onEdit }: EventLogItemProps) {
+export function EventLogItem({
+  entry,
+  isCorrupted = false,
+  workWindow,
+  workMode = "all",
+  onDelete,
+  onEdit,
+}: EventLogItemProps) {
   const [deleting, setDeleting] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTime, setEditTime] = useState("")
@@ -159,11 +172,13 @@ export function EventLogItem({ entry, isCorrupted = false, workWindow, workMode 
   }
 
   return (
-    <div className={cn(
-      "group flex items-center gap-3 rounded-lg border border-border/40 bg-card/30 px-3 py-2.5 transition-colors hover:bg-card/60",
-      outsideWindow && "opacity-35",
-      isCorrupted && "border-amber-500/40 bg-amber-500/5"
-    )}>
+    <div
+      className={cn(
+        "group flex items-center gap-3 rounded-lg border border-border/40 bg-card/30 px-3 py-2.5 transition-colors hover:bg-card/60",
+        outsideWindow && "opacity-35",
+        isCorrupted && "border-amber-500/40 bg-amber-500/5"
+      )}
+    >
       {/* Source icon */}
       <Tooltip>
         <TooltipTrigger asChild>
@@ -227,7 +242,7 @@ export function EventLogItem({ entry, isCorrupted = false, workWindow, workMode 
                 if (e.key === "Enter") saveEdit()
                 if (e.key === "Escape") cancelEdit()
               }}
-              className="h-7 w-28 rounded border border-primary/40 bg-background px-1.5 font-mono text-[11px] tabular-nums outline-none ring-1 ring-primary/20 focus:ring-primary/40"
+              className="h-7 w-28 rounded border border-primary/40 bg-background px-1.5 font-mono text-[11px] tabular-nums ring-1 ring-primary/20 outline-none focus:ring-primary/40"
               disabled={saving}
             />
             <Button
@@ -257,7 +272,7 @@ export function EventLogItem({ entry, isCorrupted = false, workWindow, workMode 
                 <button
                   type="button"
                   onClick={startEdit}
-                  className="rounded px-1 py-0.5 font-mono text-xs tabular-nums text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                  className="rounded px-1 py-0.5 font-mono text-xs text-muted-foreground tabular-nums transition-colors hover:bg-muted/60 hover:text-foreground"
                 >
                   {formatTime(entry.timestamp)}
                 </button>
@@ -282,14 +297,15 @@ export function EventLogItem({ entry, isCorrupted = false, workWindow, workMode 
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete entry</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Remove this {isIn ? "IN" : "OUT"} entry at {formatTime(entry.timestamp)}? This cannot be undone.
+                    Remove this {isIn ? "IN" : "OUT"} entry at{" "}
+                    {formatTime(entry.timestamp)}? This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
                   >
                     Delete
                   </AlertDialogAction>

@@ -12,9 +12,9 @@
 // and - because a repo with such a signal counts as "active today" - also keeps
 // re-persisting itself into the known-repos list.
 
-import { execFile } from 'child_process'
-import { existsSync, promises as fs } from 'fs'
-import { isAbsolute, join } from 'path'
+import { execFile } from "child_process"
+import { existsSync, promises as fs } from "fs"
+import { isAbsolute, join } from "path"
 
 export interface RepoEvidence {
   repoPath: string
@@ -29,15 +29,20 @@ const MAX_COMMITS_PER_REPO = 50
 const MAX_REPOS = 15
 const MAX_LISTED_DIRTY_FILES = 10
 /** ASCII unit separator - cannot occur in a commit subject. */
-const FIELD_SEP = '\x1f'
+const FIELD_SEP = "\x1f"
 
 function git(repoPath: string, args: string[]): Promise<string | null> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     execFile(
-      'git',
+      "git",
       args,
-      { cwd: repoPath, timeout: GIT_TIMEOUT_MS, windowsHide: true, maxBuffer: 1024 * 1024 },
-      (err, stdout) => resolve(err ? null : stdout.trim()),
+      {
+        cwd: repoPath,
+        timeout: GIT_TIMEOUT_MS,
+        windowsHide: true,
+        maxBuffer: 1024 * 1024,
+      },
+      (err, stdout) => resolve(err ? null : stdout.trim())
     )
   })
 }
@@ -45,7 +50,7 @@ function git(repoPath: string, args: string[]): Promise<string | null> {
 function isGitRepo(repoPath: string): boolean {
   try {
     // .git is a directory in normal clones, a file in worktrees - both count
-    return existsSync(join(repoPath, '.git'))
+    return existsSync(join(repoPath, ".git"))
   } catch {
     return false
   }
@@ -58,12 +63,12 @@ function isGitRepo(repoPath: string): boolean {
  */
 export function parsePorcelain(porcelain: string): string[] {
   const paths: string[] = []
-  for (const line of porcelain.split('\n')) {
+  for (const line of porcelain.split("\n")) {
     if (line.length < 4) continue
     let rest = line.slice(3)
-    const arrow = rest.indexOf(' -> ')
+    const arrow = rest.indexOf(" -> ")
     if (arrow >= 0) rest = rest.slice(arrow + 4) // rename: keep the destination
-    const path = rest.trim().replace(/^"|"$/g, '')
+    const path = rest.trim().replace(/^"|"$/g, "")
     if (path) paths.push(path)
   }
   return paths
@@ -77,10 +82,10 @@ export function parsePorcelain(porcelain: string): string[] {
 async function dirtyFilesToday(
   repoPath: string,
   paths: string[],
-  sinceMs: number,
+  sinceMs: number
 ): Promise<string[]> {
   const checked = await Promise.all(
-    paths.slice(0, 200).map(async rel => {
+    paths.slice(0, 200).map(async (rel) => {
       const full = isAbsolute(rel) ? rel : join(repoPath, rel)
       try {
         const stat = await fs.stat(full)
@@ -88,7 +93,7 @@ async function dirtyFilesToday(
       } catch {
         return null
       }
-    }),
+    })
   )
   return checked.filter((p): p is string => p !== null)
 }
@@ -96,16 +101,19 @@ async function dirtyFilesToday(
 function summarizeDirty(files: string[]): string {
   const shown = files.slice(0, MAX_LISTED_DIRTY_FILES)
   const more = files.length - shown.length
-  const suffix = more > 0 ? `, +${more} more` : ''
-  return `${files.length} file${files.length > 1 ? 's' : ''} changed today: ${shown.join(', ')}${suffix}`
+  const suffix = more > 0 ? `, +${more} more` : ""
+  return `${files.length} file${files.length > 1 ? "s" : ""} changed today: ${shown.join(", ")}${suffix}`
 }
 
-async function gatherRepo(repoPath: string, sinceIso: string): Promise<RepoEvidence | null> {
-  const branch = await git(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])
+async function gatherRepo(
+  repoPath: string,
+  sinceIso: string
+): Promise<RepoEvidence | null> {
+  const branch = await git(repoPath, ["rev-parse", "--abbrev-ref", "HEAD"])
   if (branch === null) return null // not a usable repo
 
   const sinceMs = new Date(sinceIso).getTime()
-  const email = await git(repoPath, ['config', 'user.email'])
+  const email = await git(repoPath, ["config", "user.email"])
 
   // `--since` filters COMMITTER date, which a rebase, amend or cherry-pick
   // rewrites - that is how months-old commits show up as today's work. Use it
@@ -113,9 +121,13 @@ async function gatherRepo(repoPath: string, sinceIso: string): Promise<RepoEvide
   // Scoped to local branches + HEAD rather than `--all`, so merely fetching a
   // remote branch does not turn its commits into evidence.
   const logArgs = [
-    'log', '--branches', 'HEAD', '--no-merges', `--since=${sinceIso}`,
+    "log",
+    "--branches",
+    "HEAD",
+    "--no-merges",
+    `--since=${sinceIso}`,
     `-n${MAX_COMMITS_PER_REPO}`,
-    '--date=format:%H:%M',
+    "--date=format:%H:%M",
     `--pretty=format:%aI${FIELD_SEP}%h${FIELD_SEP}%ad${FIELD_SEP}%s`,
   ]
   if (email) logArgs.push(`--author=${email}`)
@@ -123,7 +135,7 @@ async function gatherRepo(repoPath: string, sinceIso: string): Promise<RepoEvide
 
   const seen = new Set<string>()
   const commitsToday: string[] = []
-  for (const line of log ? log.split('\n') : []) {
+  for (const line of log ? log.split("\n") : []) {
     if (!line.trim()) continue
     const [authorIso, short, time, ...subjectParts] = line.split(FIELD_SEP)
     const authoredMs = new Date(authorIso).getTime()
@@ -134,8 +146,14 @@ async function gatherRepo(repoPath: string, sinceIso: string): Promise<RepoEvide
     commitsToday.push(`${short} [${time}] ${subjectParts.join(FIELD_SEP)}`)
   }
 
-  const porcelain = await git(repoPath, ['status', '--porcelain', '--untracked-files=no'])
-  const dirtyToday = porcelain ? await dirtyFilesToday(repoPath, parsePorcelain(porcelain), sinceMs) : []
+  const porcelain = await git(repoPath, [
+    "status",
+    "--porcelain",
+    "--untracked-files=no",
+  ])
+  const dirtyToday = porcelain
+    ? await dirtyFilesToday(repoPath, parsePorcelain(porcelain), sinceMs)
+    : []
 
   return {
     repoPath,
@@ -150,9 +168,16 @@ async function gatherRepo(repoPath: string, sinceIso: string): Promise<RepoEvide
  * repos are silently skipped. Only repos with actual signal today (commits
  * authored today, or files dirtied today) are returned.
  */
-export async function gatherGitEvidence(repoPaths: string[], sinceIso: string): Promise<RepoEvidence[]> {
-  const unique = Array.from(new Set(repoPaths.filter(p => p && isGitRepo(p)))).slice(0, MAX_REPOS)
-  const settled = await Promise.all(unique.map(p => gatherRepo(p, sinceIso).catch(() => null)))
+export async function gatherGitEvidence(
+  repoPaths: string[],
+  sinceIso: string
+): Promise<RepoEvidence[]> {
+  const unique = Array.from(
+    new Set(repoPaths.filter((p) => p && isGitRepo(p)))
+  ).slice(0, MAX_REPOS)
+  const settled = await Promise.all(
+    unique.map((p) => gatherRepo(p, sinceIso).catch(() => null))
+  )
   return settled.filter((r): r is RepoEvidence => {
     if (!r) return false
     return r.commitsToday.length > 0 || r.uncommitted !== null

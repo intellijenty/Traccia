@@ -32,7 +32,10 @@ const GROUPS: ShortcutGroup[] = [
     title: "Reorder",
     entries: [
       { action: "Move item up / down", keys: ["Alt", "↑", { text: "/" }, "↓"] },
-      { action: "Move block up / down", keys: ["Alt", "⇧", "↑", { text: "/" }, "↓"] },
+      {
+        action: "Move block up / down",
+        keys: ["Alt", "⇧", "↑", { text: "/" }, "↓"],
+      },
     ],
   },
   {
@@ -110,7 +113,10 @@ interface EodKeyboardDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function EodKeyboardDialog({ open, onOpenChange }: EodKeyboardDialogProps) {
+export function EodKeyboardDialog({
+  open,
+  onOpenChange,
+}: EodKeyboardDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -153,17 +159,21 @@ export function EodKeyboardDialog({ open, onOpenChange }: EodKeyboardDialogProps
           <div className="space-y-2 px-2">
             <SectionTitle>Lazy Inputs — auto-formatting</SectionTitle>
             <p className="text-xs leading-snug text-muted-foreground">
-              Type naturally; on <Kbd>Enter</Kbd> or blur the entry auto-formats.
-              Append tokens at the end in any order — both optional.{" "}
-              <Kbd>Ctrl</Kbd> <Kbd>Z</Kbd> undoes.
+              Type naturally; on <Kbd>Enter</Kbd> or blur the entry
+              auto-formats. Append tokens at the end in any order — both
+              optional. <Kbd>Ctrl</Kbd> <Kbd>Z</Kbd> undoes.
             </p>
 
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border bg-muted/40 px-2 py-1.5 font-mono text-[11px]">
-              <span className="text-foreground/70">TASK-123 - Fix login bug</span>
+              <span className="text-foreground/70">
+                TASK-123 - Fix login bug
+              </span>
               <span className="text-amber-400/90">2.5</span>
               <span className="text-emerald-400/90">wip</span>
               <span className="px-1 text-muted-foreground/50">→</span>
-              <span className="text-foreground/70">TASK-123 - Fix login bug</span>
+              <span className="text-foreground/70">
+                TASK-123 - Fix login bug
+              </span>
               <span className="text-amber-400/90">(2.5 hr)</span>
               <span className="text-muted-foreground/40">→</span>
               <span className="text-emerald-400/90">WIP</span>
@@ -174,8 +184,8 @@ export function EodKeyboardDialog({ open, onOpenChange }: EodKeyboardDialogProps
                 Hours <Kbd>2h</Kbd> <Kbd>2.5hr</Kbd> <Kbd>2</Kbd>
               </span>
               <span className="flex items-center gap-1">
-                Status <Kbd>done</Kbd>/<Kbd>dd</Kbd> <Kbd>wip</Kbd>/<Kbd>ww</Kbd>{" "}
-                <Kbd>hold</Kbd>
+                Status <Kbd>done</Kbd>/<Kbd>dd</Kbd> <Kbd>wip</Kbd>/
+                <Kbd>ww</Kbd> <Kbd>hold</Kbd>
               </span>
             </div>
           </div>

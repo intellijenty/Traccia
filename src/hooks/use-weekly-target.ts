@@ -62,7 +62,8 @@ export function useWeeklyTarget(
       .reduce((sum, s) => {
         const mark = dayMarks.get(s.date)
         const autoMP = s.missPunchCount > 0
-        if (mark === "mp" || (autoMP && mark !== "fl" && mark !== "hl")) return sum
+        if (mark === "mp" || (autoMP && mark !== "fl" && mark !== "hl"))
+          return sum
         if (mark === "fl") return sum + 480
         if (mark === "hl") return sum + Math.floor(s.totalSeconds / 60) + 240
         return sum + Math.floor(s.totalSeconds / 60)
@@ -111,7 +112,10 @@ export function useWeeklyTarget(
             if (s.date >= today) return false
             const mark = dayMarks.get(s.date)
             const autoMP = s.missPunchCount > 0
-            return !(mark === "mp" || (autoMP && mark !== "fl" && mark !== "hl"))
+            return !(
+              mark === "mp" ||
+              (autoMP && mark !== "fl" && mark !== "hl")
+            )
           }).length
           const weekBalanceMinutes = workedBeforeToday - pastWorkingDays * 480
           const raw = 480 + flexGoal - weekBalanceMinutes
@@ -134,13 +138,21 @@ export function useWeeklyTarget(
             return m !== "fl" && m !== "mp"
           }).length
           const remaining = Math.max(0, WEEKLY_TARGET_MIN - workedBeforeToday)
-          minutes = remainingWorkdays > 0 ? Math.round(remaining / remainingWorkdays) : 480
+          minutes =
+            remainingWorkdays > 0
+              ? Math.round(remaining / remainingWorkdays)
+              : 480
           alreadyMet = remaining <= 0
           break
         }
       }
 
-      const tooltipText = buildCustomTooltip(todayCustomTarget, minutes, alreadyMet, workedBeforeToday)
+      const tooltipText = buildCustomTooltip(
+        todayCustomTarget,
+        minutes,
+        alreadyMet,
+        workedBeforeToday
+      )
 
       return {
         adjustedTargetMinutes: minutes,
@@ -215,13 +227,21 @@ function buildCustomTooltip(
       return `Leave at ${target.value ?? "?"}`
     case "flex-balance": {
       const sign = parseInt(target.value ?? "0", 10)
-      const label = sign > 0 ? `+${fmtHM(sign)}` : sign < 0 ? `-${fmtHM(Math.abs(sign))}` : "±0"
+      const label =
+        sign > 0
+          ? `+${fmtHM(sign)}`
+          : sign < 0
+            ? `-${fmtHM(Math.abs(sign))}`
+            : "±0"
       if (alreadyMet) return `Flex goal ${label} — already met`
       return `Flex goal ${label} · ${fmtHM(resolvedMinutes)} today`
     }
     case "weekly-distribute": {
       if (alreadyMet) return "Distribute — weekly target complete"
-      const remaining = Math.max(0, WEEKLY_TARGET_MIN - (workedBeforeToday ?? 0))
+      const remaining = Math.max(
+        0,
+        WEEKLY_TARGET_MIN - (workedBeforeToday ?? 0)
+      )
       return `Distribute · ${fmtHM(remaining)} left = ${fmtHM(resolvedMinutes)} today`
     }
   }

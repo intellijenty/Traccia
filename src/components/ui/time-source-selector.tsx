@@ -39,7 +39,7 @@ export function TimeSourceSelector({
       }}
       disabled={disabled}
       className={cn(
-        "inline-flex rounded-md border border-border/40 bg-muted/30 p-0.5 gap-0.5",
+        "inline-flex gap-0.5 rounded-md border border-border/40 bg-muted/30 p-0.5",
         className
       )}
     >

@@ -13,10 +13,10 @@
  *     server failures do not cause repeated retries. The next app start will try again.
  */
 
-import fs from 'fs'
-import os from 'os'
-import path from 'path'
-import ElectronStore from 'electron-store'
+import fs from "fs"
+import os from "os"
+import path from "path"
+import ElectronStore from "electron-store"
 import { syncLeaves, type LeaveSyncResult } from "./leave-sync"
 import { syncNonPermanentDays, type SyncSummary } from "./portal-sync"
 import { getSetting, setSetting } from "./database"
@@ -54,7 +54,9 @@ function isSyncDue(): boolean {
 
 // ── Core sync operations ──────────────────────────────────────────────────────
 
-async function runSyncOperations(): Promise<Pick<DailySyncReport, "leaves" | "portalDays">> {
+async function runSyncOperations(): Promise<
+  Pick<DailySyncReport, "leaves" | "portalDays">
+> {
   const leaves = await syncLeaves()
   const portalDays = await syncNonPermanentDays()
   return { leaves, portalDays }
@@ -66,7 +68,7 @@ async function runEodTempCleanup(): Promise<void> {
   try {
     const now = Date.now()
     const pending: string[] =
-      (store.get('pendingEodTempDirs') as string[] | undefined) || []
+      (store.get("pendingEodTempDirs") as string[] | undefined) || []
     const newPending: string[] = []
 
     // Attempt cleanup of pending dirs older than 5 minutes
@@ -82,10 +84,13 @@ async function runEodTempCleanup(): Promise<void> {
           const base = path.basename(resolved)
 
           const isInsideTmp = resolved.startsWith(tmpRoot)
-          const hasExpectedPrefix = base.startsWith('traccia-eod-')
+          const hasExpectedPrefix = base.startsWith("traccia-eod-")
 
           if (!isInsideTmp || !hasExpectedPrefix) {
-            console.warn('[eod-cleanup] Refusing to delete unsafe path:', resolved)
+            console.warn(
+              "[eod-cleanup] Refusing to delete unsafe path:",
+              resolved
+            )
             continue
           }
 
@@ -102,25 +107,31 @@ async function runEodTempCleanup(): Promise<void> {
       }
     }
 
-    store.set('pendingEodTempDirs', newPending)
+    store.set("pendingEodTempDirs", newPending)
 
     // Scan os.tmpdir for stray EOD temp files/dirs older than 1 hour
     const tmp = os.tmpdir()
     const entries = fs.readdirSync(tmp)
     for (const e of entries) {
-      const isEodDir = e.startsWith('traccia-eod-')
-      const isEodEml = e.startsWith('eod-draft-') && e.endsWith('.eml')
+      const isEodDir = e.startsWith("traccia-eod-")
+      const isEodEml = e.startsWith("eod-draft-") && e.endsWith(".eml")
       if (!isEodDir && !isEodEml) continue
       const full = path.join(tmp, e)
       try {
         const st = fs.statSync(full)
         if (now - st.mtimeMs >= 60 * 60 * 1000) {
-          try { fs.rmSync(full, { recursive: true, force: true }) } catch { /* ignore */ }
+          try {
+            fs.rmSync(full, { recursive: true, force: true })
+          } catch {
+            /* ignore */
+          }
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   } catch (err) {
-    console.error('[eod-cleanup] Unexpected error during cleanup:', err)
+    console.error("[eod-cleanup] Unexpected error during cleanup:", err)
   }
 }
 
@@ -139,7 +150,9 @@ export async function runDailySync(force = false): Promise<DailySyncReport> {
     return { date: today, skipped: true, skipReason: "already_synced" }
   }
 
-  runEodTempCleanup().catch((err) => console.error('[eod-cleanup] Failed:', err))
+  runEodTempCleanup().catch((err) =>
+    console.error("[eod-cleanup] Failed:", err)
+  )
 
   if (!getHrmsConnectionStatus().hasCredentials) {
     console.log("[daily-sync] No HRMS credentials configured, skipping")
@@ -154,7 +167,7 @@ export async function runDailySync(force = false): Promise<DailySyncReport> {
 
   console.log(
     `[daily-sync] Done - leaves: ${results.leaves?.success ? `${results.leaves.synced} synced, ${results.leaves.daysMarked} days marked` : `failed (${results.leaves?.message})`}` +
-    ` | portal: ${results.portalDays?.synced} synced, ${results.portalDays?.promoted} promoted, ${results.portalDays?.failed} failed`
+      ` | portal: ${results.portalDays?.synced} synced, ${results.portalDays?.promoted} promoted, ${results.portalDays?.failed} failed`
   )
 
   return { date: today, skipped: false, ...results }

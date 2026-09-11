@@ -2,7 +2,7 @@
 // Imported by both the renderer (dialog) and the main process (orchestrator),
 // mirroring the outlook-meetings.ts cross-import pattern.
 
-export type EodAiPhaseId = 'sessions' | 'gather' | 'jira' | 'write'
+export type EodAiPhaseId = "sessions" | "gather" | "jira" | "write"
 
 export interface EodAiPhaseEvent {
   requestId: string
@@ -14,7 +14,7 @@ export interface EodAiPhaseEvent {
 export interface EodAiDraft {
   projects: Array<{
     name: string
-    status: 'green' | 'yellow' | 'red' | 'none'
+    status: "green" | "yellow" | "red" | "none"
     statusNote: string | null
     tasksCompleted: Array<{
       text: string
@@ -62,7 +62,7 @@ export interface EodAiGeneratePayload {
   /** Per-run user notes — authoritative facts/corrections for today. May be ''. */
   notes: string
   /** Project filter applied code-side before any prompt is built. */
-  filterMode: 'blocklist' | 'allowlist'
+  filterMode: "blocklist" | "allowlist"
   /** Paths for the active mode (excluded in blocklist, included in allowlist). */
   filterPaths: string[]
   /** Standing instructions doc — style rules + declared recurring work. */
@@ -87,8 +87,8 @@ export interface EodAiProjectInfo {
 export interface EodFactTicket {
   key: string
   title: string
-  titleSource: 'jira' | 'pastEod' | 'branch-only' | string
-  statusSignal: 'done' | 'wip' | string
+  titleSource: "jira" | "pastEod" | "branch-only" | string
+  statusSignal: "done" | "wip" | string
   statusEvidence: string
   actions: Array<{ text: string; source: string }>
 }

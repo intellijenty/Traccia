@@ -25,7 +25,8 @@ export function useUpdater() {
         toast(`${__APP_VERSION__} → ${info.version}`, {
           id: PROMPT_TOAST_ID,
           duration: Infinity,
-          description: "A new version of Traccia is available. Download and install now?",
+          description:
+            "A new version of Traccia is available. Download and install now?",
           cancel: {
             label: "Later",
             onClick: () => toast.dismiss(PROMPT_TOAST_ID),
@@ -79,14 +80,20 @@ export function useUpdater() {
     // Clear any stale update UI before re-checking
     toast.dismiss(PROMPT_TOAST_ID)
     toast.dismiss(READY_TOAST_ID)
-    toast.loading("Checking for updates…", { id: CHECK_TOAST_ID, duration: Infinity })
+    toast.loading("Checking for updates…", {
+      id: CHECK_TOAST_ID,
+      duration: Infinity,
+    })
 
     window.electronAPI.checkForUpdates()
 
     // Temp listeners scoped to this manual check — all cleaned up once we get a response.
     // Array pattern avoids let + circular-reference between cleanup and the unsub consts.
     const unsubs: Array<() => void> = []
-    const cleanup = () => { unsubs.forEach((u) => u()); unsubs.length = 0 }
+    const cleanup = () => {
+      unsubs.forEach((u) => u())
+      unsubs.length = 0
+    }
 
     unsubs.push(
       window.electronAPI.onUpdateNotAvailable(() => {

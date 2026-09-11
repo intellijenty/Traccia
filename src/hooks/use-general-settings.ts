@@ -5,7 +5,7 @@ const isElectron = typeof window !== "undefined" && !!window.electronAPI
 export interface GeneralSettings {
   autoStart: boolean
   workBoundaryStart: string // "HH:MM" or ""
-  workBoundaryEnd: string   // "HH:MM" or ""
+  workBoundaryEnd: string // "HH:MM" or ""
   nightShiftEnabled: boolean
   nightShiftStart: string
   nightShiftEnd: string
@@ -20,7 +20,9 @@ const DEFAULTS: GeneralSettings = {
   nightShiftEnd: "06:00",
 }
 
-function parseSettings(raw: Awaited<ReturnType<typeof window.electronAPI.getSettings>>): GeneralSettings {
+function parseSettings(
+  raw: Awaited<ReturnType<typeof window.electronAPI.getSettings>>
+): GeneralSettings {
   return {
     autoStart: raw.autoStart ?? DEFAULTS.autoStart,
     workBoundaryStart: raw.workBoundaryStart ?? "",
@@ -43,7 +45,9 @@ export function useGeneralSettings() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => {
+    reload()
+  }, [reload])
 
   // Re-sync when main process signals a data change (e.g. settings saved by another hook instance)
   useEffect(() => {

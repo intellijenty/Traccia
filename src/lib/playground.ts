@@ -62,14 +62,18 @@ export interface LocalSession {
 }
 
 const ms = (iso: string): number => new Date(iso).getTime()
-const byTime = <T extends { time: string }>(a: T, b: T): number => ms(a.time) - ms(b.time)
+const byTime = <T extends { time: string }>(a: T, b: T): number =>
+  ms(a.time) - ms(b.time)
 
 /** Stable id for a new punch/suggestion. */
 let idCounter = 0
 function newId(prefix: string): string {
   idCounter += 1
   // crypto.randomUUID exists in the renderer; fall back to a counter.
-  const rand = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${idCounter}`
+  const rand =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${idCounter}`
   return `${prefix}_${rand}`
 }
 
@@ -84,10 +88,22 @@ export function unpairPortal(entries: PortalEntry[]): DraftPunch[] {
   const punches: DraftPunch[] = []
   for (const e of entries) {
     if (e.intime) {
-      punches.push({ id: newId("anchor"), time: e.intime, origin: "anchor", reason: "", gate: null })
+      punches.push({
+        id: newId("anchor"),
+        time: e.intime,
+        origin: "anchor",
+        reason: "",
+        gate: null,
+      })
     }
     if (e.outtime) {
-      punches.push({ id: newId("anchor"), time: e.outtime, origin: "anchor", reason: "", gate: null })
+      punches.push({
+        id: newId("anchor"),
+        time: e.outtime,
+        origin: "anchor",
+        reason: "",
+        gate: null,
+      })
     }
   }
   return punches.sort(byTime)
@@ -109,7 +125,10 @@ export function pairPunches(punches: { time: string }[]): PairResult {
   const sorted = [...punches].sort(byTime)
   const sessions: Session[] = []
   for (let i = 0; i < sorted.length; i += 2) {
-    sessions.push({ inTime: sorted[i].time, outTime: sorted[i + 1]?.time ?? null })
+    sessions.push({
+      inTime: sorted[i].time,
+      outTime: sorted[i + 1]?.time ?? null,
+    })
   }
   const danglingCount = sorted.length % 2
   return { sessions, danglingCount, balanced: danglingCount === 0 }
@@ -135,25 +154,44 @@ export function localSessions(events: PunchEntry[]): LocalSession[] {
     if (e.type === "LOGIN") {
       // A new LOGIN while one is open → close the previous as dangling first.
       if (open) {
-        sessions.push({ inTime: open.timestamp, inTrigger: open.trigger, outTime: null, outTrigger: null })
+        sessions.push({
+          inTime: open.timestamp,
+          inTrigger: open.trigger,
+          outTime: null,
+          outTrigger: null,
+        })
       }
       open = e
     } else {
       // LOGOUT
       if (open) {
-        sessions.push({ inTime: open.timestamp, inTrigger: open.trigger, outTime: e.timestamp, outTrigger: e.trigger })
+        sessions.push({
+          inTime: open.timestamp,
+          inTrigger: open.trigger,
+          outTime: e.timestamp,
+          outTrigger: e.trigger,
+        })
         open = null
       }
       // LOGOUT with no open LOGIN → ignore (can't form a session).
     }
   }
-  if (open) sessions.push({ inTime: open.timestamp, inTrigger: open.trigger, outTime: null, outTrigger: null })
+  if (open)
+    sessions.push({
+      inTime: open.timestamp,
+      inTrigger: open.trigger,
+      outTime: null,
+      outTrigger: null,
+    })
   return sessions
 }
 
 /** Format an ISO timestamp as a short clock e.g. "6:45 PM". */
 export function formatClock(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  })
 }
 
 /** Format minutes as "8h 32m". */
@@ -187,7 +225,11 @@ export interface Wire {
  * Returns true when the ISO timestamp falls within a HH:MM work window range.
  * Handles midnight-crossing windows (e.g. night shift 22:00 – 06:00).
  */
-export function isInTimeRange(iso: string, start: string, end: string): boolean {
+export function isInTimeRange(
+  iso: string,
+  start: string,
+  end: string
+): boolean {
   const d = new Date(iso)
   const ev = d.getHours() * 60 + d.getMinutes()
   const [sh, sm] = start.split(":").map(Number)

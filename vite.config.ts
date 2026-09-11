@@ -5,7 +5,9 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import electron from "vite-plugin-electron"
 
-const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as { version: string }
+const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as {
+  version: string
+}
 
 // https://vite.dev/config/
 export default defineConfig({

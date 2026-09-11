@@ -1,4 +1,4 @@
-export type TaskStatus = 'WIP' | 'Done' | 'Hold'
+export type TaskStatus = "WIP" | "Done" | "Hold"
 
 export interface ParsedTaskText {
   taskId: string | null
@@ -18,28 +18,38 @@ const CANONICAL_STATUS_RE = /\s*(?:->|>|→|–>)\s*(wip|done|hold)\s*$/i
 // Hours suffix: handles "2hr", "(2 hr)", "2.5 hours", "(2.5hrs)" etc.
 // Lookbehind ensures it starts at a word boundary (space or string start).
 // The (?<![^\s]) negative lookbehind = "not preceded by non-whitespace".
-const HOURS_SUFFIX_RE = /(?<![^\s])\(?(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\)?$/i
+const HOURS_SUFFIX_RE =
+  /(?<![^\s])\(?(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\)?$/i
 
 // Bare number at end: "2", "2.5" — only accepted when < 10.
 const BARE_NUMBER_SUFFIX_RE = /(?<![^\s])(\d+(?:\.\d+)?)$/
 
 const STATUS_ALIASES: Record<string, TaskStatus> = {
-  wip: 'WIP', inprogress: 'WIP', wp: 'WIP', ww: 'WIP',
-  done: 'Done', complete: 'Done', completed: 'Done', finish: 'Done', finished: 'Done', dd: 'Done',
-  hold: 'Hold', onhold: 'Hold',
+  wip: "WIP",
+  inprogress: "WIP",
+  wp: "WIP",
+  ww: "WIP",
+  done: "Done",
+  complete: "Done",
+  completed: "Done",
+  finish: "Done",
+  finished: "Done",
+  dd: "Done",
+  hold: "Hold",
+  onhold: "Hold",
 }
 
 // Multi-word phrases, checked before single-word (order: longest first)
 const MULTI_STATUS_PHRASES: [phrase: string, status: TaskStatus][] = [
-  ['in progress', 'WIP'],
-  ['on hold', 'Hold'],
+  ["in progress", "WIP"],
+  ["on hold", "Hold"],
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function lastToken(s: string): [token: string, rest: string] {
-  const i = s.lastIndexOf(' ')
-  return i === -1 ? [s, ''] : [s.slice(i + 1), s.slice(0, i).trimEnd()]
+  const i = s.lastIndexOf(" ")
+  return i === -1 ? [s, ""] : [s.slice(i + 1), s.slice(0, i).trimEnd()]
 }
 
 function tryConsumeHours(s: string): [hours: number | null, rest: string] {
@@ -53,12 +63,15 @@ function tryConsumeHours(s: string): [hours: number | null, rest: string] {
   const nm = s.match(BARE_NUMBER_SUFFIX_RE)
   if (nm) {
     const n = parseFloat(nm[1])
-    if (n > 0 && n < 10) return [n, s.slice(0, s.length - nm[0].length).trimEnd()]
+    if (n > 0 && n < 10)
+      return [n, s.slice(0, s.length - nm[0].length).trimEnd()]
   }
   return [null, s]
 }
 
-function tryConsumeStatus(s: string): [status: TaskStatus | null, rest: string] {
+function tryConsumeStatus(
+  s: string
+): [status: TaskStatus | null, rest: string] {
   // Multi-word phrases first
   for (const [phrase, sv] of MULTI_STATUS_PHRASES) {
     if (s.toLowerCase().endsWith(phrase)) {
@@ -91,7 +104,9 @@ export function parseTaskText(input: string): ParsedTaskText {
   const canonicalMatch = remaining.match(CANONICAL_STATUS_RE)
   if (canonicalMatch) {
     status = STATUS_ALIASES[canonicalMatch[1].toLowerCase()] ?? null
-    remaining = remaining.slice(0, remaining.length - canonicalMatch[0].length).trimEnd()
+    remaining = remaining
+      .slice(0, remaining.length - canonicalMatch[0].length)
+      .trimEnd()
   }
 
   // 3. Right-to-left tail consumption: up to 2 passes for hours + status in any order
@@ -102,26 +117,39 @@ export function parseTaskText(input: string): ParsedTaskText {
 
     if (status === null) {
       const [sv, rest] = tryConsumeStatus(remaining)
-      if (sv !== null) { status = sv; remaining = rest; consumed = true }
+      if (sv !== null) {
+        status = sv
+        remaining = rest
+        consumed = true
+      }
     }
 
     if (hours === null) {
       const [h, rest] = tryConsumeHours(remaining)
-      if (h !== null) { hours = h; remaining = rest; consumed = true }
+      if (h !== null) {
+        hours = h
+        remaining = rest
+        consumed = true
+      }
     }
 
     if (!consumed) break
   }
 
   // 4. Clean up any orphaned arrow left in description (e.g. "Fix bug →" after consuming status)
-  const description = remaining.trim().replace(/\s*(?:->|>|→|–>)\s*$/, '')
+  const description = remaining.trim().replace(/\s*(?:->|>|→|–>)\s*$/, "")
 
   return { taskId, description, hours, status }
 }
 
 // ── Formatter ─────────────────────────────────────────────────────────────────
 
-export function formatTaskText({ taskId, description, hours, status }: ParsedTaskText): string {
+export function formatTaskText({
+  taskId,
+  description,
+  hours,
+  status,
+}: ParsedTaskText): string {
   let s = taskId ? `${taskId} - ${description}` : description
   if (hours !== null) {
     // Integer hours: "2 hr", decimal: "2.5 hr"

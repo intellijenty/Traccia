@@ -17,7 +17,11 @@ import {
   formatSignedHM,
   formatHM,
 } from "@/lib/week-utils"
-import { getYearMonth, getMonthRange, getWeekdaysInMonth } from "@/lib/month-utils"
+import {
+  getYearMonth,
+  getMonthRange,
+  getWeekdaysInMonth,
+} from "@/lib/month-utils"
 import { cn } from "@/lib/utils"
 
 export function NarrowBalanceChips() {

@@ -32,20 +32,32 @@ interface MergeResult {
   appliedTimes: string[]
 }
 
-function mergeDraft(freshAnchors: DraftPunch[], persisted: DraftPunch[]): MergeResult {
+function mergeDraft(
+  freshAnchors: DraftPunch[],
+  persisted: DraftPunch[]
+): MergeResult {
   const persistedAnchors = persisted.filter((p) => p.origin === "anchor")
-  const persistedAnchorMinutes = new Set(persistedAnchors.map((p) => minuteKey(p.time)))
+  const persistedAnchorMinutes = new Set(
+    persistedAnchors.map((p) => minuteKey(p.time))
+  )
   const freshAnchorMinutes = new Set(freshAnchors.map((a) => minuteKey(a.time)))
 
   // Gate assignments on anchors must survive the fresh-anchor rebuild.
-  const persistedAnchorByMinute = new Map(persistedAnchors.map((p) => [minuteKey(p.time), p]))
+  const persistedAnchorByMinute = new Map(
+    persistedAnchors.map((p) => [minuteKey(p.time), p])
+  )
 
   const appliedTimes: string[] = []
   const keptAdded = persisted
     .filter((p) => p.origin === "added")
     .filter((p) => {
       if (freshAnchorMinutes.has(minuteKey(p.time))) {
-        appliedTimes.push(new Date(p.time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }))
+        appliedTimes.push(
+          new Date(p.time).toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        )
         return false
       }
       return true
@@ -60,7 +72,11 @@ function mergeDraft(freshAnchors: DraftPunch[], persisted: DraftPunch[]): MergeR
     return prev?.gate ? { ...a, gate: prev.gate } : a
   })
 
-  return { draft: [...mergedAnchors, ...keptAdded], portalChanged, appliedTimes }
+  return {
+    draft: [...mergedAnchors, ...keptAdded],
+    portalChanged,
+    appliedTimes,
+  }
 }
 
 export interface UsePlaygroundResult {
@@ -107,10 +123,16 @@ export function usePlayground(date: string): UsePlaygroundResult {
   const [events, setEvents] = useState<PunchEntry[]>([])
   const [portalEntries, setPortalEntries] = useState<PortalEntry[]>([])
   const [draft, setDraft] = useState<DraftPunch[]>([])
-  const [notice, setNotice] = useState<{ portalChanged: boolean; appliedTimes: string[] } | null>(null)
+  const [notice, setNotice] = useState<{
+    portalChanged: boolean
+    appliedTimes: string[]
+  } | null>(null)
   const [wires, setWires] = useState<Wire[]>([])
   const [hiddenLocalTimes, setHiddenLocalTimes] = useState<string[]>([])
-  const [localTimeRange, setLocalTimeRange] = useState<{ start: string; end: string } | null>(null)
+  const [localTimeRange, setLocalTimeRange] = useState<{
+    start: string
+    end: string
+  } | null>(null)
   const [workWindow, setWorkWindow] = useState<WorkWindow | null>(null)
 
   const ready = useRef(false)
@@ -124,23 +146,33 @@ export function usePlayground(date: string): UsePlaygroundResult {
 
     async function load() {
       if (!isElectron) {
-        if (!cancelled) { setLoading(false); ready.current = true }
+        if (!cancelled) {
+          setLoading(false)
+          ready.current = true
+        }
         return
       }
 
       const rawEvents = await window.electronAPI.getEvents(date).catch(() => [])
       const localEvents = rawEvents.map((e) => ({
         ...e,
-        trigger: e.trigger ?? (e as unknown as { trigger_label?: PunchEntry["trigger"] }).trigger_label,
+        trigger:
+          e.trigger ??
+          (e as unknown as { trigger_label?: PunchEntry["trigger"] })
+            .trigger_label,
       }))
 
       let entries: PortalEntry[] = []
       let isOffline = false
-      const live = await window.electronAPI.portalGetDay(date, true).catch(() => null)
+      const live = await window.electronAPI
+        .portalGetDay(date, true)
+        .catch(() => null)
       if (live?.data?.success) {
         entries = live.data.entries
       } else {
-        const cached = await window.electronAPI.portalGetDay(date, false).catch(() => null)
+        const cached = await window.electronAPI
+          .portalGetDay(date, false)
+          .catch(() => null)
         if (cached?.data?.success) entries = cached.data.entries
         isOffline = true
       }
@@ -151,21 +183,32 @@ export function usePlayground(date: string): UsePlaygroundResult {
 
       const freshAnchors = unpairPortal(entries)
 
-      const storedRaw = await window.electronAPI.misspunchDraftGet(date).catch(() => null)
+      const storedRaw = await window.electronAPI
+        .misspunchDraftGet(date)
+        .catch(() => null)
       let nextDraft = freshAnchors
       let nextWires: Wire[] = []
       let nextHidden: string[] = []
-      let nextRange: { start: string; end: string } | null = ww ? { start: ww.start, end: ww.end } : null
-      let nextNotice: { portalChanged: boolean; appliedTimes: string[] } | null = null
+      let nextRange: { start: string; end: string } | null = ww
+        ? { start: ww.start, end: ww.end }
+        : null
+      let nextNotice: {
+        portalChanged: boolean
+        appliedTimes: string[]
+      } | null = null
 
       if (storedRaw) {
         try {
           const parsed = JSON.parse(storedRaw)
-          const persisted: DraftPunch[] = Array.isArray(parsed) ? parsed : (parsed.draft ?? [])
+          const persisted: DraftPunch[] = Array.isArray(parsed)
+            ? parsed
+            : (parsed.draft ?? [])
           nextWires = Array.isArray(parsed) ? [] : (parsed.wires ?? [])
 
           // Load filter state — undefined means field absent (old draft) → use defaults.
-          nextHidden = Array.isArray(parsed) ? [] : (parsed.hiddenLocalTimes ?? [])
+          nextHidden = Array.isArray(parsed)
+            ? []
+            : (parsed.hiddenLocalTimes ?? [])
           nextRange = Array.isArray(parsed)
             ? nextRange
             : parsed.localTimeRange !== undefined
@@ -175,7 +218,10 @@ export function usePlayground(date: string): UsePlaygroundResult {
           const merged = mergeDraft(freshAnchors, persisted)
           nextDraft = merged.draft
           if (merged.portalChanged || merged.appliedTimes.length > 0) {
-            nextNotice = { portalChanged: merged.portalChanged, appliedTimes: merged.appliedTimes }
+            nextNotice = {
+              portalChanged: merged.portalChanged,
+              appliedTimes: merged.appliedTimes,
+            }
           }
         } catch {
           nextDraft = freshAnchors
@@ -197,7 +243,9 @@ export function usePlayground(date: string): UsePlaygroundResult {
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [date])
 
   // ── Persist ───────────────────────────────────────────────────────────────
@@ -205,20 +253,32 @@ export function usePlayground(date: string): UsePlaygroundResult {
   useEffect(() => {
     if (!ready.current || !isElectron) return
     window.electronAPI
-      .misspunchDraftSet(date, JSON.stringify({ draft, wires, hiddenLocalTimes, localTimeRange }))
+      .misspunchDraftSet(
+        date,
+        JSON.stringify({ draft, wires, hiddenLocalTimes, localTimeRange })
+      )
       .catch(() => {})
   }, [draft, wires, hiddenLocalTimes, localTimeRange, date])
 
   // ── Draft mutations ───────────────────────────────────────────────────────
 
-  const addPunch = useCallback((hours: number, minutes: number) => {
-    setDraft((d) => [...d, makeAddedPunch(isoFromLocal(date, hours, minutes))])
-  }, [date])
+  const addPunch = useCallback(
+    (hours: number, minutes: number) => {
+      setDraft((d) => [
+        ...d,
+        makeAddedPunch(isoFromLocal(date, hours, minutes)),
+      ])
+    },
+    [date]
+  )
 
-  const editPunch = useCallback((id: string, hours: number, minutes: number) => {
-    const iso = isoFromLocal(date, hours, minutes)
-    setDraft((d) => d.map((p) => (p.id === id ? { ...p, time: iso } : p)))
-  }, [date])
+  const editPunch = useCallback(
+    (id: string, hours: number, minutes: number) => {
+      const iso = isoFromLocal(date, hours, minutes)
+      setDraft((d) => d.map((p) => (p.id === id ? { ...p, time: iso } : p)))
+    },
+    [date]
+  )
 
   const removePunch = useCallback((id: string) => {
     setDraft((d) => d.filter((p) => !(p.id === id && p.origin === "added")))
@@ -240,9 +300,12 @@ export function usePlayground(date: string): UsePlaygroundResult {
     setWires((ws) => ws.filter((w) => w.localTime !== time))
   }, [])
 
-  const setTimeRange = useCallback((range: { start: string; end: string } | null) => {
-    setLocalTimeRange(range)
-  }, [])
+  const setTimeRange = useCallback(
+    (range: { start: string; end: string } | null) => {
+      setLocalTimeRange(range)
+    },
+    []
+  )
 
   // ── Reset mutations ───────────────────────────────────────────────────────
 
@@ -255,7 +318,9 @@ export function usePlayground(date: string): UsePlaygroundResult {
 
   const resetLocal = useCallback(() => {
     setHiddenLocalTimes([])
-    setLocalTimeRange(workWindow ? { start: workWindow.start, end: workWindow.end } : null)
+    setLocalTimeRange(
+      workWindow ? { start: workWindow.start, end: workWindow.end } : null
+    )
   }, [workWindow])
 
   const reset = useCallback(() => {
@@ -263,7 +328,9 @@ export function usePlayground(date: string): UsePlaygroundResult {
     setWires([])
     setNotice(null)
     setHiddenLocalTimes([])
-    setLocalTimeRange(workWindow ? { start: workWindow.start, end: workWindow.end } : null)
+    setLocalTimeRange(
+      workWindow ? { start: workWindow.start, end: workWindow.end } : null
+    )
   }, [portalEntries, workWindow])
 
   const dismissNotice = useCallback(() => setNotice(null), [])
@@ -272,7 +339,9 @@ export function usePlayground(date: string): UsePlaygroundResult {
 
   const addWire = useCallback((draftTime: string, localTime: string) => {
     setWires((ws) => {
-      const filtered = ws.filter((w) => w.draftTime !== draftTime && w.localTime !== localTime)
+      const filtered = ws.filter(
+        (w) => w.draftTime !== draftTime && w.localTime !== localTime
+      )
       return [...filtered, { draftTime, localTime }]
     })
   }, [])
@@ -282,7 +351,9 @@ export function usePlayground(date: string): UsePlaygroundResult {
   }, [])
 
   const cycleGate = useCallback((id: string) => {
-    setDraft((d) => d.map((p) => (p.id === id ? { ...p, gate: nextGate(p.gate ?? null) } : p)))
+    setDraft((d) =>
+      d.map((p) => (p.id === id ? { ...p, gate: nextGate(p.gate ?? null) } : p))
+    )
   }, [])
 
   const setGate = useCallback((id: string, gate: Gate) => {

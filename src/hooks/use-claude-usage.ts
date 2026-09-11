@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useRef, useReducer } from 'react'
-import { relativeTime } from '@/lib/utils'
+import { useState, useEffect, useCallback, useRef, useReducer } from "react"
+import { relativeTime } from "@/lib/utils"
 
 const THROTTLE_MS = 30_000
 
 export type ClaudeUsageWindow = {
-  utilization: number  // 0–100
-  resetsAt: string     // ISO 8601
+  utilization: number // 0–100
+  resetsAt: string // ISO 8601
 }
 
 export type ClaudeUsageData = {
@@ -20,11 +20,13 @@ export function useClaudeUsage() {
   const [loading, setLoading] = useState(true)
   const lastFetchRef = useRef(0)
   const mountedRef = useRef(true)
-  const [, forceUpdate] = useReducer(n => n + 1, 0)
+  const [, forceUpdate] = useReducer((n) => n + 1, 0)
 
   useEffect(() => {
     mountedRef.current = true
-    return () => { mountedRef.current = false }
+    return () => {
+      mountedRef.current = false
+    }
   }, [])
 
   const fetchUsage = useCallback(async (force = false) => {
@@ -34,7 +36,7 @@ export function useClaudeUsage() {
     }
     const now = Date.now()
     if (!force && now - lastFetchRef.current < THROTTLE_MS) return
-    lastFetchRef.current = now  // stamp before await — blocks concurrent callers immediately
+    lastFetchRef.current = now // stamp before await — blocks concurrent callers immediately
     setLoading(true)
     try {
       const result = await window.electronAPI.getClaudeUsage()
@@ -43,13 +45,13 @@ export function useClaudeUsage() {
         setData(result.data)
         setError(null)
       } else {
-        lastFetchRef.current = 0  // reset on error — allows retry next focus
+        lastFetchRef.current = 0 // reset on error — allows retry next focus
         setData(null)
         setError(result.error)
       }
     } catch (e) {
       if (!mountedRef.current) return
-      lastFetchRef.current = 0  // reset on error — allows retry next focus
+      lastFetchRef.current = 0 // reset on error — allows retry next focus
       setData(null)
       setError(String(e))
     } finally {
@@ -57,12 +59,14 @@ export function useClaudeUsage() {
     }
   }, [])
 
-  useEffect(() => { fetchUsage(true) }, [fetchUsage])
+  useEffect(() => {
+    fetchUsage(true)
+  }, [fetchUsage])
 
   useEffect(() => {
     const handleFocus = () => fetchUsage()
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
+    window.addEventListener("focus", handleFocus)
+    return () => window.removeEventListener("focus", handleFocus)
   }, [fetchUsage])
 
   // Tick every minute to recompute countdown strings without re-fetching
@@ -77,7 +81,7 @@ export function useClaudeUsage() {
 // ── Time formatting helpers ────────────────────────────────────────────────────
 
 export function formatCountdown(resetsAt: string): string {
-  if (!resetsAt) return ''
+  if (!resetsAt) return ""
   const target = new Date(resetsAt).getTime()
   const diff = Math.max(0, target - Date.now())
   const totalMins = Math.floor(diff / 60_000)
@@ -87,13 +91,17 @@ export function formatCountdown(resetsAt: string): string {
   if (hours >= 24) return `${Math.floor(hours / 24)}d`
   if (hours >= 1) return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
   if (totalMins > 0) return `${totalMins}m`
-  return 'now'
+  return "now"
 }
 
 export function formatResetDay(resetsAt: string): string {
-  if (!resetsAt) return ''
+  if (!resetsAt) return ""
   const d = new Date(resetsAt)
-  return d.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  })
 }
 
 export function formatRelativeTime(fetchedAt: number): string {

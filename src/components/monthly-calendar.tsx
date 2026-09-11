@@ -45,7 +45,11 @@ interface MonthlyCalendarProps {
   onDeleteWorkWindow?: (date: string) => void
   nightShift?: NightShiftConfig
   dayTargets?: Map<string, DayTarget>
-  onSetTarget?: (date: string, type: DayTargetType, value: string | null) => Promise<void>
+  onSetTarget?: (
+    date: string,
+    type: DayTargetType,
+    value: string | null
+  ) => Promise<void>
   onDeleteTarget?: (date: string) => Promise<void>
 }
 

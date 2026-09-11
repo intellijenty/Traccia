@@ -15,7 +15,9 @@ export function useWorkWindows() {
     setLoaded(true)
   }, [])
 
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => {
+    reload()
+  }, [reload])
 
   useEffect(() => {
     if (!isElectron) return
@@ -23,13 +25,23 @@ export function useWorkWindows() {
   }, [reload])
 
   const setWorkWindow = useCallback(
-    async (date: string, startTime: string, endTime: string, source: WorkWindowSource) => {
+    async (
+      date: string,
+      startTime: string,
+      endTime: string,
+      source: WorkWindowSource
+    ) => {
       if (isElectron) {
         await window.electronAPI.setWorkWindow(date, startTime, endTime, source)
       }
       setWindows((prev) => {
         const next = new Map(prev)
-        next.set(date, { date, start_time: startTime || null, end_time: endTime || null, source })
+        next.set(date, {
+          date,
+          start_time: startTime || null,
+          end_time: endTime || null,
+          source,
+        })
         return next
       })
     },

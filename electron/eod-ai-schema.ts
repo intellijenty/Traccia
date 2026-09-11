@@ -8,82 +8,95 @@
 // longer be the thing standing between the model and a parse failure.
 
 const textItems = {
-  type: 'array',
+  type: "array",
   items: {
-    type: 'object',
-    properties: { text: { type: 'string' } },
-    required: ['text'],
+    type: "object",
+    properties: { text: { type: "string" } },
+    required: ["text"],
     additionalProperties: false,
   },
 } as const
 
 const simpleSection = {
-  type: 'object',
-  properties: { items: textItems, isNA: { type: 'boolean' } },
-  required: ['items', 'isNA'],
+  type: "object",
+  properties: { items: textItems, isNA: { type: "boolean" } },
+  required: ["items", "isNA"],
   additionalProperties: false,
 } as const
 
 /** Gather phase output — evidence-tagged fact sheet. */
 export const FACT_SHEET_SCHEMA = {
-  type: 'object',
+  type: "object",
   properties: {
     tickets: {
-      type: 'array',
+      type: "array",
       items: {
-        type: 'object',
+        type: "object",
         properties: {
-          key: { type: 'string' },
-          title: { type: 'string' },
-          titleSource: { type: 'string', enum: ['jira', 'pastEod', 'branch-only'] },
-          statusSignal: { type: 'string', enum: ['done', 'wip'] },
-          statusEvidence: { type: 'string' },
+          key: { type: "string" },
+          title: { type: "string" },
+          titleSource: {
+            type: "string",
+            enum: ["jira", "pastEod", "branch-only"],
+          },
+          statusSignal: { type: "string", enum: ["done", "wip"] },
+          statusEvidence: { type: "string" },
           actions: {
-            type: 'array',
+            type: "array",
             items: {
-              type: 'object',
+              type: "object",
               properties: {
-                text: { type: 'string' },
-                source: { type: 'string', enum: ['session', 'git', 'jira', 'user'] },
+                text: { type: "string" },
+                source: {
+                  type: "string",
+                  enum: ["session", "git", "jira", "user"],
+                },
               },
-              required: ['text', 'source'],
+              required: ["text", "source"],
               additionalProperties: false,
             },
           },
         },
-        required: ['key', 'title', 'titleSource', 'statusSignal', 'statusEvidence', 'actions'],
+        required: [
+          "key",
+          "title",
+          "titleSource",
+          "statusSignal",
+          "statusEvidence",
+          "actions",
+        ],
         additionalProperties: false,
       },
     },
-    unmatchedWork: { type: 'array', items: { type: 'string' } },
+    unmatchedWork: { type: "array", items: { type: "string" } },
   },
-  required: ['tickets', 'unmatchedWork'],
+  required: ["tickets", "unmatchedWork"],
   additionalProperties: false,
 } as const
 
 /** Write / refine phase output — EodFormState minus ids and date. */
 export const EOD_DRAFT_SCHEMA = {
-  type: 'object',
+  type: "object",
   properties: {
     projects: {
-      type: 'array',
+      type: "array",
       items: {
-        type: 'object',
+        type: "object",
         properties: {
-          name: { type: 'string' },
-          status: { type: 'string', enum: ['green', 'yellow', 'red', 'none'] },
-          statusNote: { type: ['string', 'null'] },
+          name: { type: "string" },
+          status: { type: "string", enum: ["green", "yellow", "red", "none"] },
+          statusNote: { type: ["string", "null"] },
           tasksCompleted: {
-            type: 'array',
+            type: "array",
             items: {
-              type: 'object',
-              properties: { text: { type: 'string' }, subBullets: textItems },
-              required: ['text', 'subBullets'],
+              type: "object",
+              properties: { text: { type: "string" }, subBullets: textItems },
+              required: ["text", "subBullets"],
               additionalProperties: false,
             },
           },
         },
-        required: ['name', 'status', 'statusNote', 'tasksCompleted'],
+        required: ["name", "status", "statusNote", "tasksCompleted"],
         additionalProperties: false,
       },
     },
@@ -92,6 +105,12 @@ export const EOD_DRAFT_SCHEMA = {
     nextDayPlan: simpleSection,
     upcomingHolidays: simpleSection,
   },
-  required: ['projects', 'otherTasks', 'concerns', 'nextDayPlan', 'upcomingHolidays'],
+  required: [
+    "projects",
+    "otherTasks",
+    "concerns",
+    "nextDayPlan",
+    "upcomingHolidays",
+  ],
   additionalProperties: false,
 } as const

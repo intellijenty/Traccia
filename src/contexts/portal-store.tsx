@@ -6,7 +6,11 @@ import {
   useRef,
   useState,
 } from "react"
-import type { HrmsConnectionStatus, PortalData, PortalRangeResult } from "@/lib/types"
+import type {
+  HrmsConnectionStatus,
+  PortalData,
+  PortalRangeResult,
+} from "@/lib/types"
 
 const isElectron = typeof window !== "undefined" && !!window.electronAPI
 
@@ -61,7 +65,12 @@ function getMockPortalData(date: string): PortalData {
 }
 
 function getMockHrmsStatus(): HrmsConnectionStatus {
-  return { connected: true, userName: "John Doe", userId: 132, hasCredentials: true }
+  return {
+    connected: true,
+    userName: "John Doe",
+    userId: 132,
+    hasCredentials: true,
+  }
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -103,7 +112,11 @@ const PortalStoreContext = createContext<PortalStoreContextType | null>(null)
 
 const THROTTLE_MS = 60_000
 
-export function PortalStoreProvider({ children }: { children: React.ReactNode }) {
+export function PortalStoreProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const [status, setStatus] = useState<HrmsConnectionStatus>({
     connected: false,
     userName: null,
@@ -170,7 +183,12 @@ export function PortalStoreProvider({ children }: { children: React.ReactNode })
       setSyncing(new Set(syncingRef.current))
 
       try {
-        let result: { data: PortalData | null; fromCache: boolean; permanent: boolean; error?: string }
+        let result: {
+          data: PortalData | null
+          fromCache: boolean
+          permanent: boolean
+          error?: string
+        }
 
         if (!isElectron) {
           result = {
@@ -308,7 +326,11 @@ export function PortalStoreProvider({ children }: { children: React.ReactNode })
         setStatus(getMockHrmsStatus())
         return { success: true }
       }
-      const result = await window.electronAPI.hrmsLogin(email, password, baseUrl)
+      const result = await window.electronAPI.hrmsLogin(
+        email,
+        password,
+        baseUrl
+      )
       if (result.success) {
         await fetchStatus()
       }
@@ -319,7 +341,12 @@ export function PortalStoreProvider({ children }: { children: React.ReactNode })
 
   const logout = useCallback(async () => {
     if (isElectron) await window.electronAPI.hrmsLogout()
-    setStatus({ connected: false, userName: null, userId: null, hasCredentials: false })
+    setStatus({
+      connected: false,
+      userName: null,
+      userId: null,
+      hasCredentials: false,
+    })
     setCache({})
     setErrors({})
   }, [])
@@ -405,6 +432,9 @@ export function PortalStoreProvider({ children }: { children: React.ReactNode })
 
 export function usePortalStoreContext(): PortalStoreContextType {
   const ctx = useContext(PortalStoreContext)
-  if (!ctx) throw new Error("usePortalStoreContext must be used inside PortalStoreProvider")
+  if (!ctx)
+    throw new Error(
+      "usePortalStoreContext must be used inside PortalStoreProvider"
+    )
   return ctx
 }

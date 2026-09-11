@@ -16,7 +16,11 @@ interface DayViewProps {
   todayCustomTarget?: import("@/lib/types").DayTarget | null
 }
 
-export function DayView({ date, showHeader = false, todayCustomTarget }: DayViewProps) {
+export function DayView({
+  date,
+  showHeader = false,
+  todayCustomTarget,
+}: DayViewProps) {
   const today = getLocalDate()
   const isViewingToday = date === today
 
@@ -32,7 +36,9 @@ export function DayView({ date, showHeader = false, todayCustomTarget }: DayView
     deletePair,
   } = usePunchData(date)
 
-  const liveMinutes = isViewingToday ? Math.floor((status?.workingSecondsToday ?? 0) / 60) : 0
+  const liveMinutes = isViewingToday
+    ? Math.floor((status?.workingSecondsToday ?? 0) / 60)
+    : 0
 
   const { adjustedTargetMinutes } = useWeeklyTarget(
     liveMinutes,
@@ -53,10 +59,10 @@ export function DayView({ date, showHeader = false, todayCustomTarget }: DayView
   return (
     <div className="flex h-full flex-col">
       {showHeader && (
-        <header className="shrink-0 border-b border-border/50 px-5 py-3 flex items-center gap-3">
+        <header className="flex shrink-0 items-center gap-3 border-b border-border/50 px-5 py-3">
           <p className="text-sm font-medium">{formatDateDisplay(date)}</p>
           {!isToday && (
-            <Badge variant="outline" className="text-muted-foreground" >
+            <Badge variant="outline" className="text-muted-foreground">
               Past data
             </Badge>
           )}
@@ -70,18 +76,25 @@ export function DayView({ date, showHeader = false, todayCustomTarget }: DayView
             date={date}
             variant="wide"
             todayCustomTarget={isViewingToday ? todayCustomTarget : null}
-            workWindowStart={isViewingToday ? (status.workWindow?.start ?? null) : null}
+            workWindowStart={
+              isViewingToday ? (status.workWindow?.start ?? null) : null
+            }
             localEvents={events}
           />
         </div>
 
         {/* Local divider */}
-        <div className="flex shrink-0 items-center gap-2" data-tour="local-section">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <div
+          className="flex shrink-0 items-center gap-2"
+          data-tour="local-section"
+        >
+          <h2 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
             Local
           </h2>
           <div className="h-px flex-1 bg-border/50" />
-          {events.length > 0 && <EntriesExportButton entries={events} date={date} />}
+          {events.length > 0 && (
+            <EntriesExportButton entries={events} date={date} />
+          )}
         </div>
 
         {/* Cards */}
@@ -89,9 +102,15 @@ export function DayView({ date, showHeader = false, todayCustomTarget }: DayView
           <StatusCard status={status} />
           <TotalCard
             totalSeconds={status.totalSecondsToday}
-            workingSeconds={status.workMode !== "all" ? status.workingSecondsToday : undefined}
+            workingSeconds={
+              status.workMode !== "all" ? status.workingSecondsToday : undefined
+            }
             isIn={status.isIn}
-            breakSeconds={computeLocalBreakSeconds(events, status.workWindow, status.workMode)}
+            breakSeconds={computeLocalBreakSeconds(
+              events,
+              status.workWindow,
+              status.workMode
+            )}
             targetMinutes={isViewingToday ? adjustedTargetMinutes : 480}
           />
         </div>
@@ -99,7 +118,11 @@ export function DayView({ date, showHeader = false, todayCustomTarget }: DayView
         {/* Manual entry — hidden for future dates */}
         {date <= new Date().toLocaleDateString("en-CA") && (
           <div className="shrink-0" data-tour="manual-entry">
-            <ManualEntry date={date} onAddEntry={addEntry} onAddEntryPair={addEntryPair} />
+            <ManualEntry
+              date={date}
+              onAddEntry={addEntry}
+              onAddEntryPair={addEntryPair}
+            />
           </div>
         )}
 

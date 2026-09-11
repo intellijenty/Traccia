@@ -14,9 +14,9 @@ import { setDayMark } from "./database"
 
 export interface LeaveSyncResult {
   success: boolean
-  synced: number      // approved leaves stored
-  total: number       // total leaves returned by API
-  daysMarked: number  // day_marks rows written
+  synced: number // approved leaves stored
+  total: number // total leaves returned by API
+  daysMarked: number // day_marks rows written
   message?: string
 }
 
@@ -92,7 +92,13 @@ export async function syncLeaves(): Promise<LeaveSyncResult> {
   const result = await fetchLeaveApplications()
 
   if (!result.success) {
-    return { success: false, synced: 0, total: 0, daysMarked: 0, message: result.message }
+    return {
+      success: false,
+      synced: 0,
+      total: 0,
+      daysMarked: 0,
+      message: result.message,
+    }
   }
 
   // Store every leave regardless of status — future features can use non-approved ones
@@ -117,7 +123,9 @@ export async function syncLeaves(): Promise<LeaveSyncResult> {
   }
 
   // Only status=5 (Approved by HR) drives day_marks
-  const approved = result.data.filter((l) => l.status === LEAVE_STATUS.APPROVED_BY_HR)
+  const approved = result.data.filter(
+    (l) => l.status === LEAVE_STATUS.APPROVED_BY_HR
+  )
   const daysMarked = applyLeavesToDayMarks()
 
   return {

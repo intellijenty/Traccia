@@ -82,7 +82,11 @@ function AppNotifications() {
   const todayCustomTarget = dayTargets.get(today) ?? null
   const { workWindows } = useWorkWindows()
   const todayWorkWindowStart = workWindows.get(today)?.start_time ?? null
-  const { adjustedTargetMinutes } = useWeeklyTarget(todayLiveMinutes, todayCustomTarget, todayWorkWindowStart)
+  const { adjustedTargetMinutes } = useWeeklyTarget(
+    todayLiveMinutes,
+    todayCustomTarget,
+    todayWorkWindowStart
+  )
   const targetChangeKey = todayCustomTarget
     ? `${todayCustomTarget.type}:${todayCustomTarget.value ?? ""}`
     : ""
@@ -130,7 +134,9 @@ function NarrowLayout({
     deletePair,
   } = usePunchData(selectedDate)
 
-  const liveMinutes = isToday ? Math.floor((status?.workingSecondsToday ?? 0) / 60) : 0
+  const liveMinutes = isToday
+    ? Math.floor((status?.workingSecondsToday ?? 0) / 60)
+    : 0
 
   const { adjustedTargetMinutes } = useWeeklyTarget(
     liveMinutes,
@@ -145,104 +151,117 @@ function NarrowLayout({
       <div className="scrollbar-hide flex flex-1 flex-col overflow-y-auto">
         {(loading || !status) && (
           <>
-            <header className="sticky top-0 z-10 h-16 bg-background/50 backdrop-blur-md border-b border-border/30"/>
+            <header className="sticky top-0 z-10 h-16 border-b border-border/30 bg-background/50 backdrop-blur-md" />
             <div className="flex flex-col gap-4 px-5 pt-2 pb-5">
               <PortalCardsSkeleton />
             </div>
           </>
         )}
-        {!loading && status && (<>
-        <header className="sticky top-0 z-10 px-5 pt-4 pb-2 bg-background/50 backdrop-blur-md border-b border-border/30">
-          <div className="flex items-center justify-between">
-            {/* Date */}
-            <div className="flex items-center gap-1">
-              <HugeiconsIcon
-                icon={Calendar02Icon}
-                size={15}
-                className="shrink-0"
+        {!loading && status && (
+          <>
+            <header className="sticky top-0 z-10 border-b border-border/30 bg-background/50 px-5 pt-4 pb-2 backdrop-blur-md">
+              <div className="flex items-center justify-between">
+                {/* Date */}
+                <div className="flex items-center gap-1">
+                  <HugeiconsIcon
+                    icon={Calendar02Icon}
+                    size={15}
+                    className="shrink-0"
+                  />
+                  {/* If today then show "Today" */}
+                  <span className="text-sm font-medium tracking-tight text-muted-foreground">
+                    {isToday ? (
+                      <>
+                        <span className="flex gap-1.5">
+                          <span className="text-foreground">Today</span>
+                          <span className="font-bold">&middot;</span>
+                          <span>
+                            {new Date().toLocaleString("en-GB", {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </span>
+                      </>
+                    ) : (
+                      headerDate
+                    )}
+                  </span>
+                  {!isToday && (
+                    <Badge
+                      variant="outline"
+                      className="ml-1 text-muted-foreground"
+                    >
+                      Past data
+                    </Badge>
+                  )}
+                </div>
+                {/* Right: balance chips */}
+                <div className="flex items-center gap-2">
+                  <NarrowBalanceChips />
+                </div>
+              </div>
+            </header>
+
+            <div className="flex flex-col gap-4 px-5 pt-2 pb-5">
+              <div className="shrink-0">
+                <PortalSection
+                  date={selectedDate}
+                  todayCustomTarget={isToday ? todayCustomTarget : null}
+                  workWindowStart={
+                    isToday ? (status?.workWindow?.start ?? null) : null
+                  }
+                  localEvents={events}
+                />
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                <h2 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                  Local
+                </h2>
+                <div className="h-px flex-1 bg-border/50" />
+              </div>
+
+              <div className="grid shrink-0 grid-cols-2 gap-3">
+                <StatusCard status={status} />
+                <TotalCard
+                  totalSeconds={status.totalSecondsToday}
+                  workingSeconds={
+                    status.workMode !== "all"
+                      ? status.workingSecondsToday
+                      : undefined
+                  }
+                  isIn={status.isIn}
+                  breakSeconds={computeLocalBreakSeconds(
+                    events,
+                    status.workWindow,
+                    status.workMode
+                  )}
+                  targetMinutes={isToday ? adjustedTargetMinutes : 480}
+                />
+              </div>
+
+              <div className="shrink-0">
+                <ManualEntry
+                  date={selectedDate}
+                  onAddEntry={addEntry}
+                  onAddEntryPair={addEntryPair}
+                />
+              </div>
+
+              <EventLog
+                entries={events}
+                workWindow={status.workWindow}
+                workMode={status.workMode}
+                onDelete={deleteEntry}
+                onDeletePair={deletePair}
+                onEdit={editEntry}
               />
-              {/* If today then show "Today" */}
-              <span className="text-sm font-medium tracking-tight text-muted-foreground">
-                {isToday ? (
-                  <>
-                    <span className="flex gap-1.5">
-                      <span className="text-foreground">Today</span>
-                      <span className="font-bold">&middot;</span>
-                      <span>
-                        {new Date().toLocaleString("en-GB", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </span>
-                  </>
-                ) : (
-                  headerDate
-                )}
-              </span>
-              {!isToday && (
-                <Badge variant="outline" className="ml-1 text-muted-foreground">
-                  Past data
-                </Badge>
-              )}
             </div>
-            {/* Right: balance chips */}
-            <div className="flex items-center gap-2">
-              <NarrowBalanceChips />
-            </div>
-          </div>
-        </header>
-
-        <div className="flex flex-col gap-4 px-5 pt-2 pb-5">
-          <div className="shrink-0">
-            <PortalSection
-              date={selectedDate}
-              todayCustomTarget={isToday ? todayCustomTarget : null}
-              workWindowStart={isToday ? (status?.workWindow?.start ?? null) : null}
-              localEvents={events}
-            />
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <h2 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-              Local
-            </h2>
-            <div className="h-px flex-1 bg-border/50" />
-          </div>
-
-          <div className="grid shrink-0 grid-cols-2 gap-3">
-            <StatusCard status={status} />
-            <TotalCard
-              totalSeconds={status.totalSecondsToday}
-              workingSeconds={
-                status.workMode !== "all" ? status.workingSecondsToday : undefined
-              }
-              isIn={status.isIn}
-              breakSeconds={computeLocalBreakSeconds(
-                events,
-                status.workWindow,
-                status.workMode
-              )}
-              targetMinutes={isToday ? adjustedTargetMinutes : 480}
-            />
-          </div>
-
-          <div className="shrink-0">
-            <ManualEntry date={selectedDate} onAddEntry={addEntry} onAddEntryPair={addEntryPair} />
-          </div>
-
-          <EventLog
-            entries={events}
-            workWindow={status.workWindow}
-            workMode={status.workMode}
-            onDelete={deleteEntry}
-            onDeletePair={deletePair}
-            onEdit={editEntry}
-          />
-        </div>
-        </>)}
+          </>
+        )}
       </div>
     </div>
   )
@@ -269,7 +288,11 @@ interface WideLayoutProps {
   onDeleteWorkWindow: (date: string) => void
   nightShift: import("@/lib/types").NightShiftConfig
   dayTargets: Map<string, import("@/lib/types").DayTarget>
-  onSetTarget: (date: string, type: import("@/lib/types").DayTargetType, value: string | null) => Promise<void>
+  onSetTarget: (
+    date: string,
+    type: import("@/lib/types").DayTargetType,
+    value: string | null
+  ) => Promise<void>
   onDeleteTarget: (date: string) => Promise<void>
 }
 
@@ -369,7 +392,11 @@ function WideLayout({
 
       {/* Right panel — day view */}
       <main className="flex w-[480px] shrink-0 flex-col overflow-hidden">
-        <DayView date={selectedDate} showHeader todayCustomTarget={todayCustomTarget} />
+        <DayView
+          date={selectedDate}
+          showHeader
+          todayCustomTarget={todayCustomTarget}
+        />
       </main>
     </div>
   )
@@ -525,7 +552,11 @@ function UltraWideLayout({
 
       {/* Right — day view */}
       <main className="flex w-[480px] shrink-0 flex-col overflow-hidden">
-        <DayView date={selectedDate} showHeader todayCustomTarget={todayCustomTarget} />
+        <DayView
+          date={selectedDate}
+          showHeader
+          todayCustomTarget={todayCustomTarget}
+        />
       </main>
     </div>
   )
@@ -572,7 +603,11 @@ interface AppInnerProps {
   onDeleteWorkWindow: (date: string) => void
   nightShift: import("@/lib/types").NightShiftConfig
   dayTargets: Map<string, import("@/lib/types").DayTarget>
-  onSetTarget: (date: string, type: import("@/lib/types").DayTargetType, value: string | null) => Promise<void>
+  onSetTarget: (
+    date: string,
+    type: import("@/lib/types").DayTargetType,
+    value: string | null
+  ) => Promise<void>
   onDeleteTarget: (date: string) => Promise<void>
 }
 
@@ -597,9 +632,15 @@ function AppInner({
   const todayCustomTarget = dayTargets.get(today) ?? null
   const { cache } = usePortalStoreContext()
   const todayPortalData = cache[today]?.data
-  const todayLiveMinutes = todayPortalData?.success ? todayPortalData.totalMinutes : 0
+  const todayLiveMinutes = todayPortalData?.success
+    ? todayPortalData.totalMinutes
+    : 0
   const todayWorkWindowStart = workWindows.get(today)?.start_time ?? null
-  const { weeklyComplete } = useWeeklyTarget(todayLiveMinutes, todayCustomTarget, todayWorkWindowStart)
+  const { weeklyComplete } = useWeeklyTarget(
+    todayLiveMinutes,
+    todayCustomTarget,
+    todayWorkWindowStart
+  )
 
   const homeLayoutProps = {
     selectedDate,
@@ -632,7 +673,11 @@ function AppInner({
           <EodPage />
         )
       ) : (
-        <NarrowLayout selectedDate={selectedDate} onSelectDate={onSelectDate} todayCustomTarget={todayCustomTarget} />
+        <NarrowLayout
+          selectedDate={selectedDate}
+          onSelectDate={onSelectDate}
+          todayCustomTarget={todayCustomTarget}
+        />
       )}
     </>
   )
@@ -742,12 +787,16 @@ export default function App() {
       if (isElectron) window.electronAPI.windowHide()
     },
     "nav-home": () => {
-      if (!isWide) { pendingPage.current = "home"; if (isElectron) window.electronAPI.windowToggleSize() }
-      else setActivePage("home")
+      if (!isWide) {
+        pendingPage.current = "home"
+        if (isElectron) window.electronAPI.windowToggleSize()
+      } else setActivePage("home")
     },
     "nav-eod": () => {
-      if (!isWide) { pendingPage.current = "eod"; if (isElectron) window.electronAPI.windowToggleSize() }
-      else setActivePage("eod")
+      if (!isWide) {
+        pendingPage.current = "eod"
+        if (isElectron) window.electronAPI.windowToggleSize()
+      } else setActivePage("eod")
     },
     "week-prev": () => {
       if (!isWide || activePage !== "home") return

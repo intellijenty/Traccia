@@ -614,7 +614,9 @@ function AccessibilityTab() {
           </div>
           <Switch
             checked={settings.enabled}
-            onCheckedChange={() => save({ ...settings, enabled: !settings.enabled })}
+            onCheckedChange={() =>
+              save({ ...settings, enabled: !settings.enabled })
+            }
           />
         </div>
 
@@ -833,7 +835,7 @@ export function SettingsDialog() {
               <TabsContent
                 key={value}
                 value={value}
-                className="mt-0 flex h-full flex-col overflow-y-auto px-7 pt-6 pb-7 no-scrollbar"
+                className="mt-0 no-scrollbar flex h-full flex-col overflow-y-auto px-7 pt-6 pb-7"
               >
                 <div className="mb-5">
                   <h2 className="text-sm font-semibold">{label}</h2>

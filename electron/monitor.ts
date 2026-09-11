@@ -13,14 +13,17 @@ const RESUME_FALLBACK_MS = 10000
 
 function logEvent(type: "LOGIN" | "LOGOUT", trigger: string): void {
   const last = getLastEntry()
-  if (last?.type === type) return  // already in this state — skip
+  if (last?.type === type) return // already in this state — skip
   insertEntry(type, "auto", trigger)
   writeHeartbeat()
   onChangeCallback?.()
 }
 
 function cancelFallback(): void {
-  if (resumeFallbackTimer) { clearTimeout(resumeFallbackTimer); resumeFallbackTimer = null }
+  if (resumeFallbackTimer) {
+    clearTimeout(resumeFallbackTimer)
+    resumeFallbackTimer = null
+  }
 }
 
 export function startMonitoring(onChange: EventCallback): void {

@@ -29,8 +29,12 @@ export interface CacheStatus {
 
 export function getFromCache(date: string): CacheEntry | null {
   const row = getDb()
-    .prepare("SELECT data, cached_at, is_permanent FROM portal_cache WHERE date = ?")
-    .get(date) as { data: string; cached_at: string; is_permanent: number } | undefined
+    .prepare(
+      "SELECT data, cached_at, is_permanent FROM portal_cache WHERE date = ?"
+    )
+    .get(date) as
+    | { data: string; cached_at: string; is_permanent: number }
+    | undefined
   if (!row) return null
   return {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -51,7 +55,9 @@ export function setToCache(date: string, data: any): void {
 }
 
 export function isCachedDate(date: string): boolean {
-  return !!getDb().prepare("SELECT 1 FROM portal_cache WHERE date = ?").get(date)
+  return !!getDb()
+    .prepare("SELECT 1 FROM portal_cache WHERE date = ?")
+    .get(date)
 }
 
 export function getCacheStatus(date: string): CacheStatus {
@@ -59,12 +65,18 @@ export function getCacheStatus(date: string): CacheStatus {
     .prepare("SELECT cached_at, is_permanent FROM portal_cache WHERE date = ?")
     .get(date) as { cached_at: string; is_permanent: number } | undefined
   if (!row) return { cached: false, permanent: false, cachedAt: null }
-  return { cached: true, permanent: row.is_permanent === 1, cachedAt: row.cached_at }
+  return {
+    cached: true,
+    permanent: row.is_permanent === 1,
+    cachedAt: row.cached_at,
+  }
 }
 
 export function getNonPermanentCachedDates(): string[] {
   const rows = getDb()
-    .prepare("SELECT date FROM portal_cache WHERE is_permanent = 0 ORDER BY date ASC")
+    .prepare(
+      "SELECT date FROM portal_cache WHERE is_permanent = 0 ORDER BY date ASC"
+    )
     .all() as { date: string }[]
   return rows.map((r) => r.date)
 }

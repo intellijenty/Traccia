@@ -3,10 +3,10 @@
 // not a model instruction). Case-insensitive path-prefix matching: a filter
 // entry matches the path itself and everything under it.
 
-export type EodAiFilterMode = 'blocklist' | 'allowlist'
+export type EodAiFilterMode = "blocklist" | "allowlist"
 
 function normPath(p: string): string {
-  return p.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase()
+  return p.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase()
 }
 
 /**
@@ -17,15 +17,16 @@ function normPath(p: string): string {
  */
 export function makeProjectFilter(
   mode: EodAiFilterMode,
-  filterPaths: string[],
+  filterPaths: string[]
 ): (candidate: string) => boolean {
   const normalized = filterPaths.map(normPath).filter(Boolean)
   const matches = (candidate: string): boolean => {
     const c = normPath(candidate)
-    return normalized.some(f => c === f || c.startsWith(f + '\\'))
+    return normalized.some((f) => c === f || c.startsWith(f + "\\"))
   }
-  if (mode === 'blocklist') {
-    return candidate => !candidate || normalized.length === 0 || !matches(candidate)
+  if (mode === "blocklist") {
+    return (candidate) =>
+      !candidate || normalized.length === 0 || !matches(candidate)
   }
-  return candidate => !!candidate && matches(candidate)
+  return (candidate) => !!candidate && matches(candidate)
 }

@@ -164,7 +164,10 @@ export function WeeklyStats({
                 : "0h"}
             </p>
           </div>
-          <div className="rounded-lg border-2 border-card bg-muted/30 px-3 py-2.5" data-tour="flex-balance">
+          <div
+            className="rounded-lg border-2 border-card bg-muted/30 px-3 py-2.5"
+            data-tour="flex-balance"
+          >
             <p className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
               Flex Balance
             </p>
@@ -182,7 +185,10 @@ export function WeeklyStats({
       </div>
 
       {/* ── Progress bar ───────────────────────────────────────────────────── */}
-      <div className="h-1 w-full overflow-hidden rounded-full bg-muted/60" data-tour="weekly-progress">
+      <div
+        className="h-1 w-full overflow-hidden rounded-full bg-muted/60"
+        data-tour="weekly-progress"
+      >
         <div
           className={cn(
             "h-full rounded-full transition-all duration-500",

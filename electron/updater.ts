@@ -25,7 +25,10 @@ export function initAutoUpdater(getWindow: () => BrowserWindow | null): void {
   })
 
   autoUpdater.on("update-available", (info) => {
-    push("update:available", { version: info.version, releaseNotes: info.releaseNotes })
+    push("update:available", {
+      version: info.version,
+      releaseNotes: info.releaseNotes,
+    })
   })
 
   autoUpdater.on("update-not-available", () => {

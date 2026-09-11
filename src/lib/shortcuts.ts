@@ -84,7 +84,8 @@ export const SHORTCUTS: readonly AppShortcut[] = [
     id: "week-prev",
     defaultKey: "ArrowUp",
     label: "Previous Week",
-    description: "Navigate to the same day in the previous week (wide view only)",
+    description:
+      "Navigate to the same day in the previous week (wide view only)",
     configurable: false,
   },
   {

@@ -56,43 +56,43 @@ import {
 } from "./portal-cache"
 import { syncNonPermanentDays } from "./portal-sync"
 import { runDailySync } from "./daily-sync"
-import { getOutlookMeetings } from '../src/lib/outlook-meetings'
-import type { OutlookMeeting } from '../src/lib/outlook-meetings'
-import { claude } from './claude-service'
-import type { GenerateOptions } from './claude-service'
-import { claudeUsage } from './claude-usage-service'
-import { digestTodaySessions } from './eod-session-digest'
-import { effectiveDayStart, workDate } from '../src/lib/eod-workday'
-import { gatherGitEvidence } from './eod-git-evidence'
+import { getOutlookMeetings } from "../src/lib/outlook-meetings"
+import type { OutlookMeeting } from "../src/lib/outlook-meetings"
+import { claude } from "./claude-service"
+import type { GenerateOptions } from "./claude-service"
+import { claudeUsage } from "./claude-usage-service"
+import { digestTodaySessions } from "./eod-session-digest"
+import { effectiveDayStart, workDate } from "../src/lib/eod-workday"
+import { gatherGitEvidence } from "./eod-git-evidence"
 import {
   buildGatherPrompt,
   buildWritePrompt,
   buildRefinePrompt,
   extractTicketIndex,
-} from './eod-ai-prompt'
+} from "./eod-ai-prompt"
 import {
   collectEvidenceKeys,
   extractDeclaredKeys,
   learnProjectPrefixes,
-} from './eod-ai-keys'
+} from "./eod-ai-keys"
 import {
   extractJson,
   coerceFactSheet,
   isEmptyFactSheet,
   screenFactSheet,
   verifyDraft,
-} from './eod-ai-verify'
-import { makeProjectFilter } from './eod-ai-filter'
-import { startRunLog } from './eod-ai-log'
-import { FACT_SHEET_SCHEMA, EOD_DRAFT_SCHEMA } from './eod-ai-schema'
+} from "./eod-ai-verify"
+import { makeProjectFilter } from "./eod-ai-filter"
+import { startRunLog } from "./eod-ai-log"
+import { FACT_SHEET_SCHEMA, EOD_DRAFT_SCHEMA } from "./eod-ai-schema"
 import type {
   EodAiGeneratePayload,
   EodAiPhaseId,
   EodAiProjectInfo,
   EodAiRefinePayload,
-} from '../src/lib/eod-ai-types'
-import ElectronStore from 'electron-store';
-import { LicenseEngine } from './license-engine';
+} from "../src/lib/eod-ai-types"
+import ElectronStore from "electron-store"
+import { LicenseEngine } from "./license-engine"
 
 function getLocalDate(): string {
   return new Date().toLocaleDateString("en-CA") // YYYY-MM-DD
@@ -111,11 +111,15 @@ function buildSettingsResponse(raw: Record<string, string>) {
     hotkeyEnabled: raw.hotkeyEnabled !== "false",
     // Notifications
     notifyTargetEnabled: raw.notifyTargetEnabled === "true",
-    notifyTargetMessage: raw.notifyTargetMessage || "Target completed for today",
-    notifyTargetSource: (raw.notifyTargetSource || "local") as "local" | "portal",
+    notifyTargetMessage:
+      raw.notifyTargetMessage || "Target completed for today",
+    notifyTargetSource: (raw.notifyTargetSource || "local") as
+      | "local"
+      | "portal",
     notifyEodEnabled: raw.notifyEodEnabled === "true",
     notifyEodMinutes: parseInt(raw.notifyEodMinutes || "5", 10),
-    notifyEodMessage: raw.notifyEodMessage || "EOD Reminder! We are close to reach our target!",
+    notifyEodMessage:
+      raw.notifyEodMessage || "EOD Reminder! We are close to reach our target!",
     notifyEodSource: (raw.notifyEodSource || "local") as "local" | "portal",
     // Work boundary
     workBoundaryStart: raw.workBoundaryStart || "",
@@ -141,8 +145,8 @@ function buildSettingsResponse(raw: Record<string, string>) {
 const NARROW_WIDTH = 480
 const NARROW_HEIGHT = 780
 
-const electronStore = new ElectronStore();
-const licenseEngine = new LicenseEngine();
+const electronStore = new ElectronStore()
+const licenseEngine = new LicenseEngine()
 
 // ── New Outlook pre-warm ──────────────────────────────────────────────────────
 // olk.exe spawned as a side-effect of opening an EML doesn't have its cloud
@@ -151,12 +155,15 @@ const licenseEngine = new LicenseEngine();
 // race. Gated on .eml-handler check so classic-Outlook / Thunderbird users
 // don't pay the latency.
 
-type OutlookPhase = 'prewarming' | 'done'
+type OutlookPhase = "prewarming" | "done"
 type PhaseEmitter = (phase: OutlookPhase) => void
 
 // Runs a one-shot powershell command and resolves to its trimmed stdout, or
 // `null` on spawn error / timeout.
-function runPowerShell(script: string, timeoutMs: number): Promise<string | null> {
+function runPowerShell(
+  script: string,
+  timeoutMs: number
+): Promise<string | null> {
   return new Promise((resolve) => {
     let settled = false
     const finish = (v: string | null) => {
@@ -164,14 +171,25 @@ function runPowerShell(script: string, timeoutMs: number): Promise<string | null
       settled = true
       resolve(v)
     }
-    const ps = spawn('powershell.exe', [
-      '-NoProfile', '-NonInteractive', '-Command', script,
-    ], { stdio: ['ignore', 'pipe', 'ignore'] })
-    let out = ''
-    ps.stdout?.on('data', (d: Buffer) => { out += d.toString() })
-    ps.on('close', () => finish(out.trim()))
-    ps.on('error', () => finish(null))
-    setTimeout(() => { try { ps.kill() } catch { /* ignore */ }; finish(null) }, timeoutMs)
+    const ps = spawn(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { stdio: ["ignore", "pipe", "ignore"] }
+    )
+    let out = ""
+    ps.stdout?.on("data", (d: Buffer) => {
+      out += d.toString()
+    })
+    ps.on("close", () => finish(out.trim()))
+    ps.on("error", () => finish(null))
+    setTimeout(() => {
+      try {
+        ps.kill()
+      } catch {
+        /* ignore */
+      }
+      finish(null)
+    }, timeoutMs)
   })
 }
 
@@ -179,51 +197,61 @@ let cachedShouldPrewarm: boolean | null = null
 
 async function shouldPrewarmNewOutlook(): Promise<boolean> {
   if (cachedShouldPrewarm !== null) return cachedShouldPrewarm
-  const out = await runPowerShell(`
+  const out = await runPowerShell(
+    `
     $installed = $null -ne (Get-AppxPackage Microsoft.OutlookForWindows -ErrorAction SilentlyContinue)
     $progId = (Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.eml\\UserChoice' -ErrorAction SilentlyContinue).ProgId
     $isClassicHandler = $progId -and ($progId -like 'Outlook.File.eml*')
     $installed -and -not $isClassicHandler
-  `.trim(), 5_000)
-  cachedShouldPrewarm = out?.toLowerCase() === 'true'
+  `.trim(),
+    5_000
+  )
+  cachedShouldPrewarm = out?.toLowerCase() === "true"
   return cachedShouldPrewarm
 }
 
 // MainWindowTitle becomes non-empty only after WebView2 + the PWA shell have
 // rendered — the earliest point olk.exe can route an EML hand-off.
 async function isOlkWindowReady(): Promise<boolean> {
-  const out = await runPowerShell(`
+  const out = await runPowerShell(
+    `
     $p = Get-Process olk -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -ne '' } | Select-Object -First 1
     if ($p) { 'true' } else { 'false' }
-  `.trim(), 3_000)
-  return out?.toLowerCase() === 'true'
+  `.trim(),
+    3_000
+  )
+  return out?.toLowerCase() === "true"
 }
 
 async function ensureNewOutlookReady(onPhase?: PhaseEmitter): Promise<void> {
   if (!(await shouldPrewarmNewOutlook())) return
   if (await isOlkWindowReady()) return
 
-  onPhase?.('prewarming')
+  onPhase?.("prewarming")
   try {
-    try { await shell.openExternal('ms-outlook://') } catch { return }
+    try {
+      await shell.openExternal("ms-outlook://")
+    } catch {
+      return
+    }
 
     const POLL_INTERVAL_MS = 1_000
-    const MAX_WAIT_MS      = 20_000
+    const MAX_WAIT_MS = 20_000
     // Post-window settle: cloud profile + signature sync runs after the
     // window paints. EML hand-off during this window still loses the autosig.
     const POST_READY_DELAY = 4_000
 
     const start = Date.now()
     while (Date.now() - start < MAX_WAIT_MS) {
-      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
       if (await isOlkWindowReady()) {
-        await new Promise(r => setTimeout(r, POST_READY_DELAY))
+        await new Promise((r) => setTimeout(r, POST_READY_DELAY))
         return
       }
     }
     // Timeout — fall through; worst case is the original cold-start behavior.
   } finally {
-    onPhase?.('done')
+    onPhase?.("done")
   }
 }
 
@@ -236,7 +264,10 @@ void shouldPrewarmNewOutlook()
 // ── EML helper ───────────────────────────────────────────────────────────────
 
 // Returns null on success, or an error string if shell.openPath failed.
-async function openViaEml(payload: OutlookPayload, onPhase?: PhaseEmitter): Promise<string | null> {
+async function openViaEml(
+  payload: OutlookPayload,
+  onPhase?: PhaseEmitter
+): Promise<string | null> {
   // Per-call unique id used for both the MIME boundary and the Message-ID.
   const uid = randomUUID()
   const boundary = `eod-${uid}`
@@ -252,9 +283,9 @@ async function openViaEml(payload: OutlookPayload, onPhase?: PhaseEmitter): Prom
     `Message-ID: ${messageId}`,
     `X-Unsent: 1`,
     `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`
   )
-  const plainText = (payload.plainText ?? '').replace(/\r?\n/g, '\r\n')
+  const plainText = (payload.plainText ?? "").replace(/\r?\n/g, "\r\n")
   const eml = [
     ...headers,
     ``,
@@ -271,10 +302,13 @@ async function openViaEml(payload: OutlookPayload, onPhase?: PhaseEmitter): Prom
     payload.htmlBody,
     ``,
     `--${boundary}--`,
-  ].join('\r\n')
+  ].join("\r\n")
 
-  const filePath = path.join(os.tmpdir(), `eod-draft-${Date.now()}-${uid.slice(0, 8)}.eml`)
-  fs.writeFileSync(filePath, eml, 'utf-8')
+  const filePath = path.join(
+    os.tmpdir(),
+    `eod-draft-${Date.now()}-${uid.slice(0, 8)}.eml`
+  )
+  fs.writeFileSync(filePath, eml, "utf-8")
   await ensureNewOutlookReady(onPhase)
   const err = await shell.openPath(filePath)
   setTimeout(() => fs.unlink(filePath, () => {}), 30_000)
@@ -284,13 +318,17 @@ async function openViaEml(payload: OutlookPayload, onPhase?: PhaseEmitter): Prom
 // ── Outlook COM helper ────────────────────────────────────────────────────────
 
 interface OutlookPayload {
-  to: string; cc: string; subject: string; htmlBody: string; plainText?: string
+  to: string
+  cc: string
+  subject: string
+  htmlBody: string
+  plainText?: string
 }
 
 async function openViaOutlookCOM(payload: OutlookPayload): Promise<void> {
   // Create a per-operation temp directory to hold params and images. This allows
   // atomic removal of all artifacts and makes housekeeping straightforward.
-  const prefix = path.join(os.tmpdir(), 'traccia-eod-')
+  const prefix = path.join(os.tmpdir(), "traccia-eod-")
   const tempDir = fs.mkdtempSync(prefix)
 
   const tempImageFiles: string[] = []
@@ -301,26 +339,30 @@ async function openViaOutlookCOM(payload: OutlookPayload): Promise<void> {
     /src="(data:image\/(png|jpe?g|gif|webp);base64,[^"]+)"/g,
     (_match, dataUri: string, ext: string) => {
       const cid = `eod-img-${imgIdx++}`
-      const fileExt = ext === 'jpeg' ? 'jpg' : ext
+      const fileExt = ext === "jpeg" ? "jpg" : ext
       const tmpPath = path.join(tempDir, `${cid}.${fileExt}`)
-      const base64Data = dataUri.replace(/^data:image\/[^;]+;base64,/, '')
-      fs.writeFileSync(tmpPath, Buffer.from(base64Data, 'base64'))
+      const base64Data = dataUri.replace(/^data:image\/[^;]+;base64,/, "")
+      fs.writeFileSync(tmpPath, Buffer.from(base64Data, "base64"))
       tempImageFiles.push(tmpPath)
-      cidMeta.push({ path: tmpPath.replace(/\\/g, '/'), cid })
+      cidMeta.push({ path: tmpPath.replace(/\\/g, "/"), cid })
       return `src="cid:${cid}"`
     }
   )
 
   const paramsFile = path.join(tempDir, `eod-params-${Date.now()}.json`)
-  fs.writeFileSync(paramsFile, JSON.stringify({
-    to: payload.to,
-    cc: payload.cc,
-    subject: payload.subject,
-    htmlBody: processedHtml,
-    cidMeta,
-  }), 'utf-8')
+  fs.writeFileSync(
+    paramsFile,
+    JSON.stringify({
+      to: payload.to,
+      cc: payload.cc,
+      subject: payload.subject,
+      htmlBody: processedHtml,
+      cidMeta,
+    }),
+    "utf-8"
+  )
 
-  const psPath = paramsFile.replace(/\\/g, '/')
+  const psPath = paramsFile.replace(/\\/g, "/")
 
   const psScript = `
     $ErrorActionPreference = 'Stop'
@@ -369,66 +411,90 @@ async function openViaOutlookCOM(payload: OutlookPayload): Promise<void> {
     }
     try {
       const pending: string[] =
-        (electronStore.get('pendingEodTempDirs') as string[] | undefined) || []
+        (electronStore.get("pendingEodTempDirs") as string[] | undefined) || []
       if (!pending.includes(dir)) {
         pending.push(dir)
-        electronStore.set('pendingEodTempDirs', pending)
+        electronStore.set("pendingEodTempDirs", pending)
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return false
   }
 
   await new Promise<void>((resolve, reject) => {
-    const ps = spawn('powershell.exe', [
-      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript,
-    ], { stdio: ['ignore', 'ignore', 'pipe'] })
+    const ps = spawn(
+      "powershell.exe",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript],
+      { stdio: ["ignore", "ignore", "pipe"] }
+    )
 
-    let stderrBuf = ''
+    let stderrBuf = ""
     let settled = false
 
-    ps.stderr?.on('data', (d: Buffer) => { stderrBuf += d.toString() })
+    ps.stderr?.on("data", (d: Buffer) => {
+      stderrBuf += d.toString()
+    })
 
-    const settle = (fn: () => void) => { if (!settled) { settled = true; fn() } }
-
-    ps.on('error', (e) => settle(() => {
-      tryRemoveTempDir(tempDir)
-      reject(e)
-    }))
-
-    ps.on('close', (code) => settle(() => {
-      tryRemoveTempDir(tempDir)
-      if (code === 0) {
-        resolve()
-      } else {
-        reject(new Error(stderrBuf.trim() || `PowerShell exited ${code}`))
+    const settle = (fn: () => void) => {
+      if (!settled) {
+        settled = true
+        fn()
       }
-    }))
+    }
 
-    setTimeout(() => settle(() => { tryRemoveTempDir(tempDir); ps.unref(); resolve() }), 5000)
+    ps.on("error", (e) =>
+      settle(() => {
+        tryRemoveTempDir(tempDir)
+        reject(e)
+      })
+    )
+
+    ps.on("close", (code) =>
+      settle(() => {
+        tryRemoveTempDir(tempDir)
+        if (code === 0) {
+          resolve()
+        } else {
+          reject(new Error(stderrBuf.trim() || `PowerShell exited ${code}`))
+        }
+      })
+    )
+
+    setTimeout(
+      () =>
+        settle(() => {
+          tryRemoveTempDir(tempDir)
+          ps.unref()
+          resolve()
+        }),
+      5000
+    )
   })
 }
-
 
 export function registerIpcHandlers(
   onDataChange: () => void,
   getWindow: () => BrowserWindow | null
 ): void {
   // Alpha feature flag
-  ipcMain.handle('alpha:is-user', () => isAlphaUser())
+  ipcMain.handle("alpha:is-user", () => isAlphaUser())
 
   // License handlers
-  ipcMain.handle('license:get-hwid', () => licenseEngine.getHardwareId());
-  
-  ipcMain.handle('license:check-status', () => licenseEngine.verify(electronStore.get('license_key') as string));
-  
-  ipcMain.handle('license:submit', (_event, key: string) => {
+  ipcMain.handle("license:get-hwid", () => licenseEngine.getHardwareId())
+
+  ipcMain.handle("license:check-status", () =>
+    licenseEngine.verify(electronStore.get("license_key") as string)
+  )
+
+  ipcMain.handle("license:submit", (_event, key: string) => {
     if (licenseEngine.verify(key)) {
-      electronStore.set('license_key', key);
-      return { success: true };
+      electronStore.set("license_key", key)
+      return { success: true }
     }
-    return { success: false, message: 'Invalid License Key' };
-  });
-  
+    return { success: false, message: "Invalid License Key" }
+  })
+
   ipcMain.handle("shell:open-external", (_event, url: string) => {
     shell.openExternal(url)
   })
@@ -472,7 +538,8 @@ export function registerIpcHandlers(
     const workingSecondsToday = calculateWorkingSecondsForDate(targetDate)
     const eventCount = getEventCountForDate(targetDate)
     const mode = resolveEffectiveMode(targetDate)
-    const workWindow = mode.type === "window" ? { start: mode.start, end: mode.end } : null
+    const workWindow =
+      mode.type === "window" ? { start: mode.start, end: mode.end } : null
 
     return {
       isIn,
@@ -508,7 +575,12 @@ export function registerIpcHandlers(
     "add-entry",
     (
       _event,
-      data: { date: string; time: string; type: "LOGIN" | "LOGOUT"; notes?: string }
+      data: {
+        date: string
+        time: string
+        type: "LOGIN" | "LOGOUT"
+        notes?: string
+      }
     ) => {
       const timestamp = new Date(`${data.date}T${data.time}`).toISOString()
 
@@ -519,12 +591,18 @@ export function registerIpcHandlers(
 
       // Reject exact duplicate timestamps on the same date
       const existing = getEntriesByDate(data.date)
-      if (existing.some(e => e.timestamp === timestamp)) {
+      if (existing.some((e) => e.timestamp === timestamp)) {
         throw new Error("An entry with this exact timestamp already exists")
       }
 
       // insertEntry handles consecutive-type guard (throws for manual source)
-      const entry = insertEntry(data.type, "manual", "via manual", timestamp, data.notes)
+      const entry = insertEntry(
+        data.type,
+        "manual",
+        "via manual",
+        timestamp,
+        data.notes
+      )
       onDataChange()
       return entry
     }
@@ -532,10 +610,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(
     "add-entry-pair",
-    (
-      _event,
-      data: { date: string; time1: string; time2: string }
-    ) => {
+    (_event, data: { date: string; time1: string; time2: string }) => {
       const ts1 = new Date(`${data.date}T${data.time1}`).toISOString()
       const ts2 = new Date(`${data.date}T${data.time2}`).toISOString()
 
@@ -570,7 +645,7 @@ export function registerIpcHandlers(
   })
 
   ipcMain.handle("delete-entries", (_event, ids: number[]) => {
-    ids.forEach(id => deleteEntry(id))
+    ids.forEach((id) => deleteEntry(id))
     onDataChange()
   })
 
@@ -657,12 +732,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(
     "hrms-login",
-    async (
-      _event,
-      email: string,
-      password: string,
-      baseUrl?: string
-    ) => {
+    async (_event, email: string, password: string, baseUrl?: string) => {
       if (baseUrl) setSetting("hrmsBaseUrl", baseUrl)
       return hrmsLogin(email, password)
     }
@@ -749,12 +819,21 @@ export function registerIpcHandlers(
   async function fetchAndCacheDay(
     date: string,
     force: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): Promise<{ data: any | null; fromCache: boolean; permanent: boolean; error?: string }> {
-
+  ): Promise<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data: any | null
+    fromCache: boolean
+    permanent: boolean
+    error?: string
+  }> {
     // Reject future dates — portal API has no data for them
     if (date > getLocalDate()) {
-      return { data: null, fromCache: false, permanent: false, error: "Future date" }
+      return {
+        data: null,
+        fromCache: false,
+        permanent: false,
+        error: "Future date",
+      }
     }
 
     // Today's data is NEVER stored in SQLite — always fetch fresh from the API.
@@ -782,7 +861,8 @@ export function registerIpcHandlers(
     // Non-permanent past dates: serve from cache unless forced
     if (!force) {
       const cached = getFromCache(date)
-      if (cached) return { data: cached.data, fromCache: true, permanent: false }
+      if (cached)
+        return { data: cached.data, fromCache: true, permanent: false }
     }
 
     // Fetch from HRMS API and store in SQLite
@@ -837,9 +917,12 @@ export function registerIpcHandlers(
     return getMisspunchDraft(date)
   })
 
-  ipcMain.handle("misspunch-draft-set", (_event, date: string, data: string) => {
-    setMisspunchDraft(date, data)
-  })
+  ipcMain.handle(
+    "misspunch-draft-set",
+    (_event, date: string, data: string) => {
+      setMisspunchDraft(date, data)
+    }
+  )
 
   ipcMain.handle("misspunch-draft-delete", (_event, date: string) => {
     deleteMisspunchDraft(date)
@@ -872,140 +955,189 @@ export function registerIpcHandlers(
 
   // ── EOD Draft ──
 
-  ipcMain.handle("eod:open-in-outlook", async (_event, payload: {
-    to: string
-    cc: string
-    subject: string
-    htmlBody: string
-    plainText: string
-  }): Promise<{ method: 'com' | 'mailto' | 'eml' }> => {
-    if (!payload.subject || !payload.htmlBody) {
-      throw new Error("subject and htmlBody are required")
-    }
+  ipcMain.handle(
+    "eod:open-in-outlook",
+    async (
+      _event,
+      payload: {
+        to: string
+        cc: string
+        subject: string
+        htmlBody: string
+        plainText: string
+      }
+    ): Promise<{ method: "com" | "mailto" | "eml" }> => {
+      if (!payload.subject || !payload.htmlBody) {
+        throw new Error("subject and htmlBody are required")
+      }
 
-    // ── Primary: EML file + shell.openPath ──────────────────────────────────────
-    // shell.openPath routes to whatever the OS default .eml handler is.
-    // New Outlook users get New Outlook; classic Outlook users get classic.
-    // COM is kept as a fallback only for cases where EML routing fails.
-    const emitPhase: PhaseEmitter = (phase) => {
-      getWindow()?.webContents.send('eod:outlook-phase', phase)
-    }
-    const emlResult = await openViaEml(payload, emitPhase)
-    if (emlResult === null) return { method: 'eml' }
+      // ── Primary: EML file + shell.openPath ──────────────────────────────────────
+      // shell.openPath routes to whatever the OS default .eml handler is.
+      // New Outlook users get New Outlook; classic Outlook users get classic.
+      // COM is kept as a fallback only for cases where EML routing fails.
+      const emitPhase: PhaseEmitter = (phase) => {
+        getWindow()?.webContents.send("eod:outlook-phase", phase)
+      }
+      const emlResult = await openViaEml(payload, emitPhase)
+      if (emlResult === null) return { method: "eml" }
 
-    // ── Fallback: PowerShell COM (classic Outlook only) ──────────────────────
-    try {
-      await openViaOutlookCOM(payload)
-      return { method: 'com' }
-    } catch (comErr) {
-      throw new Error(`Failed to open in Outlook. EML: ${emlResult} | COM: ${String(comErr)}`)
+      // ── Fallback: PowerShell COM (classic Outlook only) ──────────────────────
+      try {
+        await openViaOutlookCOM(payload)
+        return { method: "com" }
+      } catch (comErr) {
+        throw new Error(
+          `Failed to open in Outlook. EML: ${emlResult} | COM: ${String(comErr)}`
+        )
+      }
     }
-  })
+  )
 
   // ── EOD meetings ──
 
-  ipcMain.handle('eod:get-meetings-today', async (): Promise<
-    { ok: true; meetings: OutlookMeeting[] } | { ok: false; error: string }
-  > => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    try {
-      const meetings = await getOutlookMeetings({ from: today, days: 1 })
-      if (process.env.TRACCIA_OUTLOOK_DEBUG === '1') {
-        try {
-          const dump = path.join(app.getPath('userData'), 'last-meetings.json')
-          fs.writeFileSync(dump, JSON.stringify({
-            at: new Date().toISOString(),
-            from: today.toISOString(),
-            days: 1,
-            count: meetings.length,
-            meetings,
-          }, null, 2))
-        } catch { /* ignore */ }
-      }
-      return { ok: true, meetings }
-    } catch (err) {
-      const msg = String(err)
+  ipcMain.handle(
+    "eod:get-meetings-today",
+    async (): Promise<
+      { ok: true; meetings: OutlookMeeting[] } | { ok: false; error: string }
+    > => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
       try {
-        const logPath = path.join(app.getPath('userData'), 'meeting-sync-errors.log')
-        fs.appendFileSync(logPath, `${new Date().toISOString()}  ${msg}\n`)
-      } catch { /* ignore */ }
-      return { ok: false, error: msg }
+        const meetings = await getOutlookMeetings({ from: today, days: 1 })
+        if (process.env.TRACCIA_OUTLOOK_DEBUG === "1") {
+          try {
+            const dump = path.join(
+              app.getPath("userData"),
+              "last-meetings.json"
+            )
+            fs.writeFileSync(
+              dump,
+              JSON.stringify(
+                {
+                  at: new Date().toISOString(),
+                  from: today.toISOString(),
+                  days: 1,
+                  count: meetings.length,
+                  meetings,
+                },
+                null,
+                2
+              )
+            )
+          } catch {
+            /* ignore */
+          }
+        }
+        return { ok: true, meetings }
+      } catch (err) {
+        const msg = String(err)
+        try {
+          const logPath = path.join(
+            app.getPath("userData"),
+            "meeting-sync-errors.log"
+          )
+          fs.appendFileSync(logPath, `${new Date().toISOString()}  ${msg}\n`)
+        } catch {
+          /* ignore */
+        }
+        return { ok: false, error: msg }
+      }
     }
-  })
+  )
 
   // ── EOD leaves ──
 
-  ipcMain.handle('eod:get-upcoming-leaves', async (
-    _event,
-    windowDays: number
-  ): Promise<{ ok: true; dates: string[] } | { ok: false; error: string }> => {
-    try {
-      // Use local date strings throughout — toISOString() returns UTC and causes
-      // off-by-one errors in timezones ahead of UTC (e.g. IST = UTC+5:30)
-      const localDateStr = (d: Date): string =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  ipcMain.handle(
+    "eod:get-upcoming-leaves",
+    async (
+      _event,
+      windowDays: number
+    ): Promise<
+      { ok: true; dates: string[] } | { ok: false; error: string }
+    > => {
+      try {
+        // Use local date strings throughout — toISOString() returns UTC and causes
+        // off-by-one errors in timezones ahead of UTC (e.g. IST = UTC+5:30)
+        const localDateStr = (d: Date): string =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const from = localDateStr(today)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const from = localDateStr(today)
 
-      const toDate = new Date(today)
-      toDate.setDate(toDate.getDate() + windowDays - 1)
-      const to = localDateStr(toDate)
+        const toDate = new Date(today)
+        toDate.setDate(toDate.getDate() + windowDays - 1)
+        const to = localDateStr(toDate)
 
-      const leaves = getUpcomingApprovedLeaves(from, to)
+        const leaves = getUpcomingApprovedLeaves(from, to)
 
-      // Expand date ranges into individual dates within [from, to]
-      const dateSet = new Set<string>()
-      for (const leave of leaves) {
-        const leaveStart = new Date(leave.start_date + 'T00:00:00')
-        const leaveEnd = new Date(leave.end_date + 'T00:00:00')
-        const cursor = new Date(Math.max(leaveStart.getTime(), today.getTime()))
-        while (cursor <= leaveEnd && cursor <= toDate) {
-          dateSet.add(localDateStr(cursor))
-          cursor.setDate(cursor.getDate() + 1)
+        // Expand date ranges into individual dates within [from, to]
+        const dateSet = new Set<string>()
+        for (const leave of leaves) {
+          const leaveStart = new Date(leave.start_date + "T00:00:00")
+          const leaveEnd = new Date(leave.end_date + "T00:00:00")
+          const cursor = new Date(
+            Math.max(leaveStart.getTime(), today.getTime())
+          )
+          while (cursor <= leaveEnd && cursor <= toDate) {
+            dateSet.add(localDateStr(cursor))
+            cursor.setDate(cursor.getDate() + 1)
+          }
         }
-      }
 
-      return { ok: true, dates: Array.from(dateSet).sort() }
-    } catch (err) {
-      return { ok: false, error: String(err) }
+        return { ok: true, dates: Array.from(dateSet).sort() }
+      } catch (err) {
+        return { ok: false, error: String(err) }
+      }
     }
-  })
+  )
 
   // ── AI / Claude ──────────────────────────────────────────────────────────────
 
   // Buffered: resolves with the complete result when generation finishes
-  ipcMain.handle('ai:generate', async (_event, options: GenerateOptions) => {
+  ipcMain.handle("ai:generate", async (_event, options: GenerateOptions) => {
     return claude.generate(options)
   })
 
   // Streaming: starts generation and returns requestId immediately.
   // Text arrives via 'ai:chunk' push events; completion via 'ai:done' or 'ai:error'.
-  ipcMain.handle('ai:stream', (event, options: GenerateOptions) => {
+  ipcMain.handle("ai:stream", (event, options: GenerateOptions) => {
     const requestId: string = options.requestId ?? randomUUID()
 
-    void claude.stream({ ...options, requestId }, {
-      onChunk: (chunk) => event.sender.send('ai:chunk', { requestId, chunk }),
-    }).then((result) => {
-      if (result.ok) {
-        event.sender.send('ai:done', { requestId, text: result.text, durationMs: result.durationMs })
-      } else {
-        event.sender.send('ai:error', { requestId, error: result.error, code: result.code })
-      }
-    })
+    void claude
+      .stream(
+        { ...options, requestId },
+        {
+          onChunk: (chunk) =>
+            event.sender.send("ai:chunk", { requestId, chunk }),
+        }
+      )
+      .then((result) => {
+        if (result.ok) {
+          event.sender.send("ai:done", {
+            requestId,
+            text: result.text,
+            durationMs: result.durationMs,
+          })
+        } else {
+          event.sender.send("ai:error", {
+            requestId,
+            error: result.error,
+            code: result.code,
+          })
+        }
+      })
 
     return { requestId }
   })
 
   // Cancel an in-flight generate or stream request by requestId
-  ipcMain.handle('ai:cancel', (_event, requestId: string) => {
+  ipcMain.handle("ai:cancel", (_event, requestId: string) => {
     claude.cancel(requestId)
   })
 
   // Check if Claude Code is installed and accessible
-  ipcMain.handle('ai:available', () => {
+  ipcMain.handle("ai:available", () => {
     return claude.available()
   })
 
@@ -1019,20 +1151,20 @@ export function registerIpcHandlers(
   // Model pinning: the analyst phase is tool-heavy and latency-sensitive; the
   // writer phase is a small prompt where style mimicry matters. Both declare a
   // fallback so an overloaded model degrades instead of failing the run.
-  const GATHER_MODEL = 'sonnet'
-  const GATHER_FALLBACK = 'opus'
-  const WRITE_MODEL = 'opus'
-  const WRITE_FALLBACK = 'sonnet'
+  const GATHER_MODEL = "sonnet"
+  const GATHER_FALLBACK = "opus"
+  const WRITE_MODEL = "opus"
+  const WRITE_FALLBACK = "sonnet"
   // No built-in tools at all. Every piece of local evidence is already inlined
   // into the prompt, and Jira arrives over MCP, which this list does not affect
   // (verified). Read-only therefore becomes structural rather than a request:
   // the analyst has no shell and no file access to misuse.
-  const GATHER_TOOLS = ''
+  const GATHER_TOOLS = ""
   // Failures worth a tool-free second attempt. A run that stalls talking to MCP
   // connectors still has everything it needs sitting in the prompt, so retrying
   // without tools usually succeeds in seconds. Auth, quota and cancellation are
   // excluded — retrying those just fails twice.
-  const GATHER_RETRY_CODES = new Set(['timeout', 'empty-response', 'unknown'])
+  const GATHER_RETRY_CODES = new Set(["timeout", "empty-response", "unknown"])
 
   let activeEodAiRequestId: string | null = null
 
@@ -1040,64 +1172,97 @@ export function registerIpcHandlers(
   // removed them. Nothing reads them now; clear them out once at startup so the
   // store does not keep growing a key per day.
   try {
-    for (const key of Object.keys((electronStore as unknown as { store: Record<string, unknown> }).store)) {
-      if (key.startsWith('eodAiLastRun:')) electronStore.delete(key as never)
+    for (const key of Object.keys(
+      (electronStore as unknown as { store: Record<string, unknown> }).store
+    )) {
+      if (key.startsWith("eodAiLastRun:")) electronStore.delete(key as never)
     }
-  } catch { /* store unavailable — nothing to clean */ }
-
-  const readKnownRepos = (): string[] => {
-    const stored = electronStore.get('eodAiKnownRepos')
-    return Array.isArray(stored) ? (stored as string[]).filter(p => typeof p === 'string') : []
+  } catch {
+    /* store unavailable — nothing to clean */
   }
 
-  ipcMain.handle('eod:ai-generate', (event, payload: EodAiGeneratePayload) => {
+  const readKnownRepos = (): string[] => {
+    const stored = electronStore.get("eodAiKnownRepos")
+    return Array.isArray(stored)
+      ? (stored as string[]).filter((p) => typeof p === "string")
+      : []
+  }
+
+  ipcMain.handle("eod:ai-generate", (event, payload: EodAiGeneratePayload) => {
     // Only one generation at a time — a new run supersedes the previous one
     if (activeEodAiRequestId) claude.cancel(activeEodAiRequestId)
     const requestId = randomUUID()
     activeEodAiRequestId = requestId
-    const log = startRunLog(requestId, 'generate')
+    const log = startRunLog(requestId, "generate")
 
     const send = (channel: string, data: Record<string, unknown>): void => {
       try {
-        if (!event.sender.isDestroyed()) event.sender.send(channel, { requestId, ...data })
-      } catch { /* window closed mid-generation */ }
+        if (!event.sender.isDestroyed())
+          event.sender.send(channel, { requestId, ...data })
+      } catch {
+        /* window closed mid-generation */
+      }
     }
     const fail = (error: string, code: string, raw?: string): void => {
       if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
-      log.set({ outcome: 'error', error, code, raw })
+      log.set({ outcome: "error", error, code, raw })
       log.write()
-      send('eod:ai-error', { error, code, logPath: log.path, ...(raw ? { raw } : {}) })
+      send("eod:ai-error", {
+        error,
+        code,
+        logPath: log.path,
+        ...(raw ? { raw } : {}),
+      })
     }
 
-    let currentPhase: EodAiPhaseId = 'sessions'
+    let currentPhase: EodAiPhaseId = "sessions"
     let jiraToolCalled = false
     const setPhase = (phase: EodAiPhaseId, label: string): void => {
       if (phase === currentPhase) return
       currentPhase = phase
-      send('eod:ai-phase', { phase, label })
+      send("eod:ai-phase", { phase, label })
     }
     const phaseForTool = (tool: string): void => {
       const t = tool.toLowerCase()
-      if (t.includes('jira') || t.includes('atlassian') || t.includes('confluence')) {
+      if (
+        t.includes("jira") ||
+        t.includes("atlassian") ||
+        t.includes("confluence")
+      ) {
         jiraToolCalled = true
-        setPhase('jira', 'Querying Jira...')
+        setPhase("jira", "Querying Jira...")
       }
     }
 
     // Sanitize renderer-supplied payload before it reaches any prompt
     const pastEods = (Array.isArray(payload?.pastEods) ? payload.pastEods : [])
-      .filter(e => e && typeof e.plainText === 'string' && typeof e.date === 'string')
+      .filter(
+        (e) =>
+          e && typeof e.plainText === "string" && typeof e.date === "string"
+      )
       .slice(0, 5)
-      .map(e => ({ date: e.date, plainText: e.plainText }))
+      .map((e) => ({ date: e.date, plainText: e.plainText }))
     const meetings = (Array.isArray(payload?.meetings) ? payload.meetings : [])
-      .filter(m => m && typeof m.title === 'string' && m.title.trim().length > 0)
+      .filter(
+        (m) => m && typeof m.title === "string" && m.title.trim().length > 0
+      )
       .slice(0, 20)
-      .map(m => ({ title: m.title.trim(), durationMin: Math.max(0, Math.round(Number(m.durationMin) || 0)) }))
-    const notes = (typeof payload?.notes === 'string' ? payload.notes : '').slice(0, 2_000)
-    const instructions = (typeof payload?.instructions === 'string' ? payload.instructions : '').slice(0, 4_000)
-    const filterMode = payload?.filterMode === 'allowlist' ? 'allowlist' : 'blocklist'
-    const filterPaths = (Array.isArray(payload?.filterPaths) ? payload.filterPaths : [])
-      .filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+      .map((m) => ({
+        title: m.title.trim(),
+        durationMin: Math.max(0, Math.round(Number(m.durationMin) || 0)),
+      }))
+    const notes = (
+      typeof payload?.notes === "string" ? payload.notes : ""
+    ).slice(0, 2_000)
+    const instructions = (
+      typeof payload?.instructions === "string" ? payload.instructions : ""
+    ).slice(0, 4_000)
+    const filterMode =
+      payload?.filterMode === "allowlist" ? "allowlist" : "blocklist"
+    const filterPaths = (
+      Array.isArray(payload?.filterPaths) ? payload.filterPaths : []
+    )
+      .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
       .slice(0, 100)
 
     const startedAt = Date.now()
@@ -1107,45 +1272,68 @@ export function registerIpcHandlers(
       // two-minute run that can only end in a rate-limit error.
       const usage = await claudeUsage.fetch()
       if (usage.ok) {
-        const spent = usage.data.session.utilization >= 100
-          ? usage.data.session
-          : usage.data.weekly.utilization >= 100
-            ? usage.data.weekly
-            : null
+        const spent =
+          usage.data.session.utilization >= 100
+            ? usage.data.session
+            : usage.data.weekly.utilization >= 100
+              ? usage.data.weekly
+              : null
         if (spent) {
           const resetsAt = new Date(spent.resetsAt)
           const when = Number.isNaN(resetsAt.getTime())
-            ? 'later'
-            : resetsAt.toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', weekday: 'short' })
-          return fail(`Claude usage limit reached — resets ${when}.`, 'rate-limited')
+            ? "later"
+            : resetsAt.toLocaleString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+                weekday: "short",
+              })
+          return fail(
+            `Claude usage limit reached — resets ${when}.`,
+            "rate-limited"
+          )
         }
       }
 
       // 1. Deterministic evidence (fast, no AI)
-      send('eod:ai-phase', { phase: 'sessions', label: 'Reading your Claude sessions...' })
+      send("eod:ai-phase", {
+        phase: "sessions",
+        label: "Reading your Claude sessions...",
+      })
       const { digests: allDigests, repoPaths } = await digestTodaySessions()
 
       // Project discovery happens BEFORE filtering so the settings checklist
       // can show everything; the filter itself is a hard code-side guarantee —
       // excluded projects never reach any prompt.
-      const seenProjects = Array.from(new Set(allDigests.map(d => d.cwd).filter(Boolean)))
+      const seenProjects = Array.from(
+        new Set(allDigests.map((d) => d.cwd).filter(Boolean))
+      )
       const keepPath = makeProjectFilter(filterMode, filterPaths)
-      const digests = allDigests.filter(d => keepPath(d.cwd))
+      const digests = allDigests.filter((d) => keepPath(d.cwd))
 
       // Union today's repos with previously seen ones so manual work in a repo
       // not touched via Claude today still gets git-scanned. Same filter applies.
       const knownRepos = readKnownRepos()
-      const allRepos = Array.from(new Set([...repoPaths, ...knownRepos])).filter(keepPath)
+      const allRepos = Array.from(
+        new Set([...repoPaths, ...knownRepos])
+      ).filter(keepPath)
       const dayStart = effectiveDayStart()
       const git = await gatherGitEvidence(allRepos, dayStart.toISOString())
       try {
         // Prune: only keep repos active today (session or git activity).
         // Repos not touched today fall off naturally; no manual cleanup needed.
-        const activeToday = new Set([...repoPaths, ...git.map(e => e.repoPath)])
-        const pruned = knownRepos.filter(p => activeToday.has(p))
-        const merged = Array.from(new Set([...repoPaths, ...pruned])).slice(0, 30)
-        electronStore.set('eodAiKnownRepos', merged)
-      } catch { /* non-fatal */ }
+        const activeToday = new Set([
+          ...repoPaths,
+          ...git.map((e) => e.repoPath),
+        ])
+        const pruned = knownRepos.filter((p) => activeToday.has(p))
+        const merged = Array.from(new Set([...repoPaths, ...pruned])).slice(
+          0,
+          30
+        )
+        electronStore.set("eodAiKnownRepos", merged)
+      } catch {
+        /* non-fatal */
+      }
 
       const todayDate = workDate()
       // Past EODs write tickets as "KEY - title", which makes them a
@@ -1153,8 +1341,11 @@ export function registerIpcHandlers(
       // Those codes are then exempt from the "looks like a standard, not a
       // ticket" filter (UTF-8, SHA-256, ...) everywhere else.
       const ticketIndex = extractTicketIndex(pastEods)
-      const knownPrefixes = learnProjectPrefixes(ticketIndex.map(t => t.key))
-      const declaredKeys = extractDeclaredKeys(instructions + '\n' + notes, knownPrefixes)
+      const knownPrefixes = learnProjectPrefixes(ticketIndex.map((t) => t.key))
+      const declaredKeys = extractDeclaredKeys(
+        instructions + "\n" + notes,
+        knownPrefixes
+      )
       // Ground truth for screening the analyst's output: keys that literally
       // appear in evidence we collected ourselves.
       const evidenceKeys = collectEvidenceKeys(digests, git, knownPrefixes)
@@ -1163,20 +1354,24 @@ export function registerIpcHandlers(
       // reporting them and Traccia adds attended meetings to the draft itself,
       // so a meetings-only day would burn a full agentic run to produce nothing.
       const hasWorkEvidence =
-        digests.length > 0 || git.length > 0 ||
-        notes.trim().length > 0 || declaredKeys.length > 0
+        digests.length > 0 ||
+        git.length > 0 ||
+        notes.trim().length > 0 ||
+        declaredKeys.length > 0
       if (!hasWorkEvidence) {
-        const hint = filterMode === 'allowlist' && seenProjects.length > 0
-          ? ` Your project filter (only report selected projects) excluded all ${seenProjects.length} project(s) seen today — check Personalize settings.`
-          : ''
-        const reason = meetings.length > 0
-          ? 'Only meetings found for today — Traccia adds those to your draft automatically, so there is nothing for the AI to write.'
-          : 'No work evidence found for today (no Claude sessions, git activity or notes).'
-        return fail(`${reason}${hint}`, 'no-evidence')
+        const hint =
+          filterMode === "allowlist" && seenProjects.length > 0
+            ? ` Your project filter (only report selected projects) excluded all ${seenProjects.length} project(s) seen today — check Personalize settings.`
+            : ""
+        const reason =
+          meetings.length > 0
+            ? "Only meetings found for today — Traccia adds those to your draft automatically, so there is nothing for the AI to write."
+            : "No work evidence found for today (no Claude sessions, git activity or notes)."
+        return fail(`${reason}${hint}`, "no-evidence")
       }
 
       // 2. Gather facts (agentic: Jira over MCP)
-      setPhase('gather', 'Cross-referencing Jira...')
+      setPhase("gather", "Cross-referencing Jira...")
       const gatherPrompt = buildGatherPrompt({
         todayDate,
         digests,
@@ -1194,16 +1389,22 @@ export function registerIpcHandlers(
           prompt: gatherPrompt,
           requestId,
           timeoutMs: 240_000,
-          profile: 'gather',
+          profile: "gather",
           tools: GATHER_TOOLS,
           jsonSchema: FACT_SHEET_SCHEMA,
           model: GATHER_MODEL,
           fallbackModel: GATHER_FALLBACK,
         },
-        { onChunk: () => {}, onToolUse: phaseForTool },
+        { onChunk: () => {}, onToolUse: phaseForTool }
       )
       if (activeEodAiRequestId !== requestId) return // superseded by a newer run
-      log.set({ gather: { ok: gatherResult.ok, code: gatherResult.ok ? null : gatherResult.code, text: gatherResult.ok ? gatherResult.text : gatherResult.error } })
+      log.set({
+        gather: {
+          ok: gatherResult.ok,
+          code: gatherResult.ok ? null : gatherResult.code,
+          text: gatherResult.ok ? gatherResult.text : gatherResult.error,
+        },
+      })
 
       // The agentic attempt can stall on MCP connectors it did not need. All
       // the evidence is already in the prompt, so retry once with no tools at
@@ -1211,32 +1412,56 @@ export function registerIpcHandlers(
       let gatherRetried = false
       if (!gatherResult.ok && GATHER_RETRY_CODES.has(gatherResult.code)) {
         gatherRetried = true
-        send('eod:ai-phase', { phase: 'gather', label: 'Retrying without external tools...' })
+        send("eod:ai-phase", {
+          phase: "gather",
+          label: "Retrying without external tools...",
+        })
         gatherResult = await claude.generate({
           prompt: buildGatherPrompt({
-            todayDate, digests, git, meetings, ticketIndex, notes, instructions, offline: true,
+            todayDate,
+            digests,
+            git,
+            meetings,
+            ticketIndex,
+            notes,
+            instructions,
+            offline: true,
           }),
           requestId,
           timeoutMs: 90_000,
-          profile: 'write',
-          tools: '',
+          profile: "write",
+          tools: "",
           jsonSchema: FACT_SHEET_SCHEMA,
           model: GATHER_MODEL,
           fallbackModel: GATHER_FALLBACK,
         })
         if (activeEodAiRequestId !== requestId) return
-        log.set({ gatherRetry: { ok: gatherResult.ok, code: gatherResult.ok ? null : gatherResult.code } })
+        log.set({
+          gatherRetry: {
+            ok: gatherResult.ok,
+            code: gatherResult.ok ? null : gatherResult.code,
+          },
+        })
       }
       if (!gatherResult.ok) return fail(gatherResult.error, gatherResult.code)
 
       // Schema-enforced output arrives pre-parsed; text extraction is only a
       // fallback for an older CLI that ignored --json-schema.
-      const rawFactSheet = coerceFactSheet(gatherResult.structured ?? extractJson(gatherResult.text))
+      const rawFactSheet = coerceFactSheet(
+        gatherResult.structured ?? extractJson(gatherResult.text)
+      )
       if (!rawFactSheet) {
-        return fail('Could not extract a usable fact sheet from the analysis step.', 'parse', gatherResult.text.slice(0, 4000))
+        return fail(
+          "Could not extract a usable fact sheet from the analysis step.",
+          "parse",
+          gatherResult.text.slice(0, 4000)
+        )
       }
       if (isEmptyFactSheet(rawFactSheet)) {
-        return fail('The analysis found no reportable work for today.', 'no-evidence')
+        return fail(
+          "The analysis found no reportable work for today.",
+          "no-evidence"
+        )
       }
 
       // Screen the analyst before the writer ever sees its output — otherwise
@@ -1255,45 +1480,65 @@ export function registerIpcHandlers(
       log.set({ factSheet, droppedTickets, jiraConsulted, gatherRetried })
       if (isEmptyFactSheet(factSheet)) {
         return fail(
-          `Every ticket the analysis reported is unsupported by today's evidence (${droppedTickets.join(', ')}). Nothing left to write.`,
-          'no-evidence',
+          `Every ticket the analysis reported is unsupported by today's evidence (${droppedTickets.join(", ")}). Nothing left to write.`,
+          "no-evidence"
         )
       }
 
       // 3. Write in the user's voice (plain call, no tool use expected)
-      setPhase('write', 'Writing your EOD...')
-      const writePrompt = buildWritePrompt({ todayDate, factSheet, pastEods, instructions, notes })
+      setPhase("write", "Writing your EOD...")
+      const writePrompt = buildWritePrompt({
+        todayDate,
+        factSheet,
+        pastEods,
+        instructions,
+        notes,
+      })
       log.set({ writePrompt })
       const writeResult = await claude.generate({
         prompt: writePrompt,
         requestId,
         timeoutMs: 120_000,
-        profile: 'write',
-        tools: '', // no tools: the writer only transforms the fact sheet
+        profile: "write",
+        tools: "", // no tools: the writer only transforms the fact sheet
         jsonSchema: EOD_DRAFT_SCHEMA,
         model: WRITE_MODEL,
         fallbackModel: WRITE_FALLBACK,
       })
       if (activeEodAiRequestId !== requestId) return
-      log.set({ write: { ok: writeResult.ok, text: writeResult.ok ? writeResult.text : writeResult.error } })
+      log.set({
+        write: {
+          ok: writeResult.ok,
+          text: writeResult.ok ? writeResult.text : writeResult.error,
+        },
+      })
       if (!writeResult.ok) return fail(writeResult.error, writeResult.code)
 
       // 4. Deterministic verification (anti-hallucination + shape coercion).
       // User-declared keys count as evidence and can never be dropped.
-      const verified = verifyDraft(writeResult.structured ?? extractJson(writeResult.text), factSheet, declaredKeys, knownPrefixes)
+      const verified = verifyDraft(
+        writeResult.structured ?? extractJson(writeResult.text),
+        factSheet,
+        declaredKeys,
+        knownPrefixes
+      )
       if (!verified) {
-        return fail('Could not parse the generated EOD draft.', 'parse', writeResult.text.slice(0, 4000))
+        return fail(
+          "Could not parse the generated EOD draft.",
+          "parse",
+          writeResult.text.slice(0, 4000)
+        )
       }
 
       if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
       log.set({
-        outcome: 'ok',
+        outcome: "ok",
         draft: verified.draft,
         dropped: verified.dropped,
         durationMs: Date.now() - startedAt,
       })
       log.write()
-      send('eod:ai-done', {
+      send("eod:ai-done", {
         draft: verified.draft,
         dropped: verified.dropped,
         droppedTickets,
@@ -1302,8 +1547,8 @@ export function registerIpcHandlers(
         seenProjects,
         jiraUnavailable: !jiraConsulted,
       })
-    })().catch(err => {
-      fail(String(err instanceof Error ? err.message : err), 'unknown')
+    })().catch((err) => {
+      fail(String(err instanceof Error ? err.message : err), "unknown")
     })
 
     return { requestId }
@@ -1311,36 +1556,56 @@ export function registerIpcHandlers(
 
   // Write-phase-only rerun: revise the existing draft per one instruction.
   // No digest, no gather — ~25s instead of minutes.
-  ipcMain.handle('eod:ai-refine', (event, payload: EodAiRefinePayload) => {
+  ipcMain.handle("eod:ai-refine", (event, payload: EodAiRefinePayload) => {
     if (activeEodAiRequestId) claude.cancel(activeEodAiRequestId)
     const requestId = randomUUID()
     activeEodAiRequestId = requestId
-    const log = startRunLog(requestId, 'refine')
+    const log = startRunLog(requestId, "refine")
 
     const send = (channel: string, data: Record<string, unknown>): void => {
       try {
-        if (!event.sender.isDestroyed()) event.sender.send(channel, { requestId, ...data })
-      } catch { /* window closed mid-generation */ }
+        if (!event.sender.isDestroyed())
+          event.sender.send(channel, { requestId, ...data })
+      } catch {
+        /* window closed mid-generation */
+      }
     }
     const fail = (error: string, code: string, raw?: string): void => {
       if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
-      log.set({ outcome: 'error', error, code, raw })
+      log.set({ outcome: "error", error, code, raw })
       log.write()
-      send('eod:ai-error', { error, code, logPath: log.path, ...(raw ? { raw } : {}) })
+      send("eod:ai-error", {
+        error,
+        code,
+        logPath: log.path,
+        ...(raw ? { raw } : {}),
+      })
     }
 
-    const instruction = (typeof payload?.instruction === 'string' ? payload.instruction : '').slice(0, 500)
-    const instructions = (typeof payload?.instructions === 'string' ? payload.instructions : '').slice(0, 4_000)
+    const instruction = (
+      typeof payload?.instruction === "string" ? payload.instruction : ""
+    ).slice(0, 500)
+    const instructions = (
+      typeof payload?.instructions === "string" ? payload.instructions : ""
+    ).slice(0, 4_000)
     // Re-coerce the round-tripped fact sheet — renderer data is untrusted
     const factSheet = coerceFactSheet(payload?.factSheet)
-    if (!factSheet || isEmptyFactSheet(factSheet) || !instruction.trim() || !payload?.previousDraft) {
-      fail('Refine request is missing the draft, fact sheet or instruction.', 'bad-request')
+    if (
+      !factSheet ||
+      isEmptyFactSheet(factSheet) ||
+      !instruction.trim() ||
+      !payload?.previousDraft
+    ) {
+      fail(
+        "Refine request is missing the draft, fact sheet or instruction.",
+        "bad-request"
+      )
       return { requestId }
     }
-    const declaredKeys = extractDeclaredKeys(instructions + '\n' + instruction)
+    const declaredKeys = extractDeclaredKeys(instructions + "\n" + instruction)
     const startedAt = Date.now()
 
-    send('eod:ai-phase', { phase: 'write', label: 'Rewriting your EOD...' })
+    send("eod:ai-phase", { phase: "write", label: "Rewriting your EOD..." })
 
     void (async () => {
       const refinePrompt = buildRefinePrompt({
@@ -1355,33 +1620,47 @@ export function registerIpcHandlers(
         prompt: refinePrompt,
         requestId,
         timeoutMs: 120_000,
-        profile: 'write',
-        tools: '',
+        profile: "write",
+        tools: "",
         jsonSchema: EOD_DRAFT_SCHEMA,
         model: WRITE_MODEL,
         fallbackModel: WRITE_FALLBACK,
       })
       if (activeEodAiRequestId !== requestId) return
-      log.set({ write: { ok: result.ok, text: result.ok ? result.text : result.error } })
+      log.set({
+        write: { ok: result.ok, text: result.ok ? result.text : result.error },
+      })
       if (!result.ok) return fail(result.error, result.code)
 
-      const verified = verifyDraft(result.structured ?? extractJson(result.text), factSheet, declaredKeys)
+      const verified = verifyDraft(
+        result.structured ?? extractJson(result.text),
+        factSheet,
+        declaredKeys
+      )
       if (!verified) {
-        return fail('Could not parse the refined EOD draft.', 'parse', result.text.slice(0, 4000))
+        return fail(
+          "Could not parse the refined EOD draft.",
+          "parse",
+          result.text.slice(0, 4000)
+        )
       }
 
       if (activeEodAiRequestId === requestId) activeEodAiRequestId = null
-      log.set({ outcome: 'ok', draft: verified.draft, dropped: verified.dropped })
+      log.set({
+        outcome: "ok",
+        draft: verified.draft,
+        dropped: verified.dropped,
+      })
       log.write()
-      send('eod:ai-done', {
+      send("eod:ai-done", {
         draft: verified.draft,
         dropped: verified.dropped,
         durationMs: Date.now() - startedAt,
         factSheet,
         seenProjects: [],
       })
-    })().catch(err => {
-      fail(String(err instanceof Error ? err.message : err), 'unknown')
+    })().catch((err) => {
+      fail(String(err instanceof Error ? err.message : err), "unknown")
     })
 
     return { requestId }
@@ -1389,30 +1668,45 @@ export function registerIpcHandlers(
 
   // Fast project discovery for the Personalize checklist (~200ms): today's
   // session cwds merged with every repo previously seen.
-  ipcMain.handle('eod:ai-list-projects', async (): Promise<EodAiProjectInfo[]> => {
-    try {
-      const { digests } = await digestTodaySessions()
-      const counts = new Map<string, number>()
-      for (const d of digests) {
-        if (d.cwd) counts.set(d.cwd, (counts.get(d.cwd) ?? 0) + 1)
+  ipcMain.handle(
+    "eod:ai-list-projects",
+    async (): Promise<EodAiProjectInfo[]> => {
+      try {
+        const { digests } = await digestTodaySessions()
+        const counts = new Map<string, number>()
+        for (const d of digests) {
+          if (d.cwd) counts.set(d.cwd, (counts.get(d.cwd) ?? 0) + 1)
+        }
+        const known = readKnownRepos()
+        const merged = Array.from(new Set([...counts.keys(), ...known])).slice(
+          0,
+          30
+        )
+        try {
+          electronStore.set("eodAiKnownRepos", merged)
+        } catch {
+          /* non-fatal */
+        }
+        return merged
+          .map((path) => ({ path, sessionsToday: counts.get(path) ?? 0 }))
+          .sort(
+            (a, b) =>
+              b.sessionsToday - a.sessionsToday || a.path.localeCompare(b.path)
+          )
+      } catch {
+        return []
       }
-      const known = readKnownRepos()
-      const merged = Array.from(new Set([...counts.keys(), ...known])).slice(0, 30)
-      try { electronStore.set('eodAiKnownRepos', merged) } catch { /* non-fatal */ }
-      return merged
-        .map(path => ({ path, sessionsToday: counts.get(path) ?? 0 }))
-        .sort((a, b) => b.sessionsToday - a.sessionsToday || a.path.localeCompare(b.path))
-    } catch {
-      return []
     }
-  })
+  )
 
   // ── Claude usage ──
 
-  ipcMain.handle('usage:claude-get', async () => {
+  ipcMain.handle("usage:claude-get", async () => {
     const result = await claudeUsage.fetch()
     if (result.ok) {
-      console.log(`[claude-usage] Response: session=${result.data.session.utilization}% weekly=${result.data.weekly.utilization}%`)
+      console.log(
+        `[claude-usage] Response: session=${result.data.session.utilization}% weekly=${result.data.weekly.utilization}%`
+      )
     } else {
       console.log(`[claude-usage] Error: ${result.error}`)
     }
@@ -1432,18 +1726,28 @@ export function registerIpcHandlers(
 
   ipcMain.handle(
     "entries:export-file",
-    async (_event, { format, date }: { format: "csv" | "json"; date: string }) => {
+    async (
+      _event,
+      { format, date }: { format: "csv" | "json"; date: string }
+    ) => {
       try {
-        const { formatDBEntriesAsCSV, formatDBEntriesAsJSON } = await import("./export-utils")
+        const { formatDBEntriesAsCSV, formatDBEntriesAsJSON } =
+          await import("./export-utils")
         const entries = getEntriesByDate(date)
-        const content = format === "csv" ? formatDBEntriesAsCSV(entries) : formatDBEntriesAsJSON(entries)
+        const content =
+          format === "csv"
+            ? formatDBEntriesAsCSV(entries)
+            : formatDBEntriesAsJSON(entries)
         const ext = format === "csv" ? "csv" : "json"
         const filename = `traccia-entries-${date}.${ext}`
         const filePath = path.join(app.getPath("downloads"), filename)
         fs.writeFileSync(filePath, content, "utf-8")
         return { success: true, filePath }
       } catch (err) {
-        return { success: false, error: String(err instanceof Error ? err.message : err) }
+        return {
+          success: false,
+          error: String(err instanceof Error ? err.message : err),
+        }
       }
     }
   )

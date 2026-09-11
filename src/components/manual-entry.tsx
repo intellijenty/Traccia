@@ -39,7 +39,11 @@ interface ManualEntryProps {
   }) => Promise<void>
 }
 
-export function ManualEntry({ date, onAddEntry, onAddEntryPair }: ManualEntryProps) {
+export function ManualEntry({
+  date,
+  onAddEntry,
+  onAddEntryPair,
+}: ManualEntryProps) {
   const entryDate = date ?? new Date().toLocaleDateString("en-CA")
 
   const [isOpen, setIsOpen] = useState(false)
@@ -51,7 +55,9 @@ export function ManualEntry({ date, onAddEntry, onAddEntryPair }: ManualEntryPro
 
   // Pair mode state
   const [pairTime1, setPairTime1] = useState(getLocalTime)
-  const [pairTime2, setPairTime2] = useState(() => addMinutes(getLocalTime(), 5))
+  const [pairTime2, setPairTime2] = useState(() =>
+    addMinutes(getLocalTime(), 5)
+  )
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -78,7 +84,11 @@ export function ManualEntry({ date, onAddEntry, onAddEntryPair }: ManualEntryPro
   async function handleSubmitPair() {
     setSubmitting(true)
     try {
-      await onAddEntryPair({ date: entryDate, time1: pairTime1, time2: pairTime2 })
+      await onAddEntryPair({
+        date: entryDate,
+        time1: pairTime1,
+        time2: pairTime2,
+      })
       const now = getLocalTime()
       setPairTime1(now)
       setPairTime2(addMinutes(now, 5))
@@ -106,8 +116,10 @@ export function ManualEntry({ date, onAddEntry, onAddEntryPair }: ManualEntryPro
           <ToggleGroup
             type="single"
             value={mode}
-            onValueChange={(v) => { if (v) setMode(v as "single" | "break") }}
-            className="h-8 flex gap-1 w-full rounded-md border border-border/50 bg-muted/20 p-0.5"
+            onValueChange={(v) => {
+              if (v) setMode(v as "single" | "break")
+            }}
+            className="flex h-8 w-full gap-1 rounded-md border border-border/50 bg-muted/20 p-0.5"
           >
             <ToggleGroupItem
               value="single"
@@ -128,7 +140,9 @@ export function ManualEntry({ date, onAddEntry, onAddEntryPair }: ManualEntryPro
               <div className="flex gap-3">
                 {/* Time input */}
                 <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Time</label>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Time
+                  </label>
                   <Input
                     type="time"
                     step="1"
@@ -140,22 +154,26 @@ export function ManualEntry({ date, onAddEntry, onAddEntryPair }: ManualEntryPro
 
                 {/* Type toggle */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Type</label>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Type
+                  </label>
                   <ToggleGroup
                     type="single"
                     value={type}
-                    onValueChange={(v) => { if (v) setType(v as EntryType) }}
+                    onValueChange={(v) => {
+                      if (v) setType(v as EntryType)
+                    }}
                     className="h-9 rounded-md border border-border/50 bg-muted/20 p-0.5"
                   >
                     <ToggleGroupItem
                       value="LOGIN"
-                      className="h-8 px-4 text-xs font-semibold data-[state=on]:text-emerald-400 data-[state=on]:border-emerald-500/30 data-[state=on]:bg-emerald-500/10"
+                      className="h-8 px-4 text-xs font-semibold data-[state=on]:border-emerald-500/30 data-[state=on]:bg-emerald-500/10 data-[state=on]:text-emerald-400"
                     >
                       IN
                     </ToggleGroupItem>
                     <ToggleGroupItem
                       value="LOGOUT"
-                      className="h-8 px-4 text-xs font-semibold data-[state=on]:text-red-400 data-[state=on]:border-red-500/30 data-[state=on]:bg-red-500/10"
+                      className="h-8 px-4 text-xs font-semibold data-[state=on]:border-red-500/30 data-[state=on]:bg-red-500/10 data-[state=on]:text-red-400"
                     >
                       OUT
                     </ToggleGroupItem>
@@ -179,7 +197,9 @@ export function ManualEntry({ date, onAddEntry, onAddEntryPair }: ManualEntryPro
               </p>
               <div className="flex gap-3">
                 <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Time 1</label>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Time 1
+                  </label>
                   <Input
                     type="time"
                     step="1"
@@ -189,7 +209,9 @@ export function ManualEntry({ date, onAddEntry, onAddEntryPair }: ManualEntryPro
                   />
                 </div>
                 <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Time 2</label>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Time 2
+                  </label>
                   <Input
                     type="time"
                     step="1"

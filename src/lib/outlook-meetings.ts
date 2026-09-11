@@ -99,29 +99,47 @@ export async function getOutlookMeetings(
   end.setDate(end.getDate() + days)
 
   const suffix = Math.random().toString(36).slice(2, 8)
-  const tmpScript = path.join(os.tmpdir(), `outlook-meetings-${Date.now()}-${process.pid}-${suffix}.ps1`)
-  await fs.writeFile(tmpScript, buildScript(start.toISOString(), end.toISOString()), "utf8")
+  const tmpScript = path.join(
+    os.tmpdir(),
+    `outlook-meetings-${Date.now()}-${process.pid}-${suffix}.ps1`
+  )
+  await fs.writeFile(
+    tmpScript,
+    buildScript(start.toISOString(), end.toISOString()),
+    "utf8"
+  )
 
   try {
     const { stdout } = await execFileAsync(
       "powershell",
-      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", tmpScript],
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        tmpScript,
+      ],
       { encoding: "utf8", windowsHide: true, maxBuffer: 16 * 1024 * 1024 }
     )
 
     const raw = stdout.trim()
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    const arr = (Array.isArray(parsed) ? parsed : parsed ? [parsed] : []) as OutlookMeeting[]
+    const arr = (
+      Array.isArray(parsed) ? parsed : parsed ? [parsed] : []
+    ) as OutlookMeeting[]
 
     const fromMs = start.getTime()
     const toMs = end.getTime()
-    return arr.filter(m => {
+    return arr.filter((m) => {
       const t = Date.parse(m.start)
       return Number.isFinite(t) && t >= fromMs && t < toMs
     })
   } finally {
-    await fs.unlink(tmpScript).catch(() => { /* ignore */ })
+    await fs.unlink(tmpScript).catch(() => {
+      /* ignore */
+    })
   }
 }
 

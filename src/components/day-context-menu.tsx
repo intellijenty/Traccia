@@ -33,7 +33,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { usePortalStoreContext } from "@/contexts/portal-store"
 import { getLocalDate, type DayMark } from "@/lib/week-utils"
-import type { DayWorkWindow, NightShiftConfig, DayTarget, DayTargetType } from "@/lib/types"
+import type {
+  DayWorkWindow,
+  NightShiftConfig,
+  DayTarget,
+  DayTargetType,
+} from "@/lib/types"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Database02Icon,
@@ -62,11 +67,11 @@ const MARK_DEFS: MarkDef[] = [
 // ── Target presets ────────────────────────────────────────────────────────────
 
 const ADD_REDUCE_PRESETS = [
-  { label: "− 2hrs",    value: "-120" },
-  { label: "+ 30min",   value: "30"   },
-  { label: "+ 1hr",    value: "60"   },
-  { label: "+ 1hr 30min", value: "90"   },
-  { label: "+ 2hrs",    value: "120"  },
+  { label: "− 2hrs", value: "-120" },
+  { label: "+ 30min", value: "30" },
+  { label: "+ 1hr", value: "60" },
+  { label: "+ 1hr 30min", value: "90" },
+  { label: "+ 2hrs", value: "120" },
 ]
 
 const WORK_UNTIL_PRESETS = [
@@ -78,18 +83,18 @@ const WORK_UNTIL_PRESETS = [
 ]
 
 const FLEX_BECOMES_PRESETS = [
-  { label: "− 1hr",     value: "-60" },
-  { label: "Zero",    value: "0"   },
-  { label: "+ 30min",    value: "30"  },
-  { label: "+ 1hr",     value: "60"  },
-  { label: "+ 2hr",     value: "120" },
+  { label: "− 1hr", value: "-60" },
+  { label: "Zero", value: "0" },
+  { label: "+ 30min", value: "30" },
+  { label: "+ 1hr", value: "60" },
+  { label: "+ 2hr", value: "120" },
 ]
 
 const SET_HOURS_PRESETS = [
-  { label: "6 hours",     value: "360" },
-  { label: "7 hours",     value: "420" },
+  { label: "6 hours", value: "360" },
+  { label: "7 hours", value: "420" },
   { label: "8 hrs 30 min", value: "510" },
-  { label: "9 hours",     value: "540" },
+  { label: "9 hours", value: "540" },
 ]
 
 // ── Format helpers ────────────────────────────────────────────────────────────
@@ -109,18 +114,18 @@ function fmtOffset(v: number): string {
 // ── Target labels & summary ───────────────────────────────────────────────────
 
 const TARGET_LABELS: Record<DayTargetType, string> = {
-  "relative-offset":   "Add/Reduce",
-  "end-time":          "Work until",
-  "flex-balance":      "Flex becomes",
-  "fixed":             "Set Hours",
+  "relative-offset": "Add/Reduce",
+  "end-time": "Work until",
+  "flex-balance": "Flex becomes",
+  fixed: "Set Hours",
   "weekly-distribute": "Spread across week",
 }
 
 const TARGET_DESCRIPTIONS: Record<DayTargetType, string> = {
-  "relative-offset":   "Offset from the standard 8h target.",
-  "end-time":          "Stop counting time at this hour.",
-  "flex-balance":      "Target a specific flex balance by end of day.",
-  "fixed":             "Work exactly this many hours today.",
+  "relative-offset": "Offset from the standard 8h target.",
+  "end-time": "Stop counting time at this hour.",
+  "flex-balance": "Target a specific flex balance by end of day.",
+  fixed: "Work exactly this many hours today.",
   "weekly-distribute": "Spread remaining weekly hours evenly.",
 }
 
@@ -175,7 +180,7 @@ function SignToggle({
           key={s}
           type="button"
           onClick={() => onChange(s)}
-          className={`px-3 py-1.5 text-sm font-mono transition-colors ${
+          className={`px-3 py-1.5 font-mono text-sm transition-colors ${
             value === s
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:bg-muted"
@@ -246,7 +251,11 @@ export interface DayContextMenuProps {
   onDeleteWorkWindow?: (date: string) => void
   nightShift?: NightShiftConfig
   dayTarget?: DayTarget | null
-  onSetTarget?: (date: string, type: DayTargetType, value: string | null) => Promise<void>
+  onSetTarget?: (
+    date: string,
+    type: DayTargetType,
+    value: string | null
+  ) => Promise<void>
   onDeleteTarget?: (date: string) => Promise<void>
   children: React.ReactNode
 }
@@ -283,11 +292,14 @@ export function DayContextMenu({
     try {
       const result = await window.electronAPI.exportFile(format, date)
       if (result.success && result.filePath) {
-        const filename = result.filePath.split(/[\\/]/).pop() ?? `traccia-entries-${date}.${format}`
+        const filename =
+          result.filePath.split(/[\\/]/).pop() ??
+          `traccia-entries-${date}.${format}`
         toast.success(`Saved: ${filename}`, {
           action: {
             label: "Show in Folder",
-            onClick: () => window.electronAPI.showItemInFolder(result.filePath!),
+            onClick: () =>
+              window.electronAPI.showItemInFolder(result.filePath!),
           },
         })
       } else {
@@ -392,7 +404,9 @@ export function DayContextMenu({
   function buildTargetValue(): string | null {
     switch (targetType) {
       case "fixed":
-        return String(parseInt(fixedHours || "0") * 60 + parseInt(fixedMins || "0"))
+        return String(
+          parseInt(fixedHours || "0") * 60 + parseInt(fixedMins || "0")
+        )
       case "end-time":
         return endTime
       case "flex-balance": {
@@ -400,7 +414,8 @@ export function DayContextMenu({
         return flexSign === "+" ? String(abs) : String(-abs)
       }
       case "relative-offset": {
-        const abs = parseInt(offsetHours || "0") * 60 + parseInt(offsetMins || "0")
+        const abs =
+          parseInt(offsetHours || "0") * 60 + parseInt(offsetMins || "0")
         return offsetSign === "+" ? String(abs) : String(-abs)
       }
       case "weekly-distribute":
@@ -411,7 +426,8 @@ export function DayContextMenu({
   function isTargetValid(): boolean {
     switch (targetType) {
       case "fixed": {
-        const total = parseInt(fixedHours || "0") * 60 + parseInt(fixedMins || "0")
+        const total =
+          parseInt(fixedHours || "0") * 60 + parseInt(fixedMins || "0")
         return total > 0
       }
       case "end-time":
@@ -419,7 +435,8 @@ export function DayContextMenu({
       case "flex-balance":
         return true
       case "relative-offset": {
-        const total = parseInt(offsetHours || "0") * 60 + parseInt(offsetMins || "0")
+        const total =
+          parseInt(offsetHours || "0") * 60 + parseInt(offsetMins || "0")
         return total > 0
       }
       case "weekly-distribute":
@@ -473,7 +490,8 @@ export function DayContextMenu({
                 {mark ? (
                   <span
                     className={`inline-block size-2 rounded-full ${
-                      MARK_DEFS.find((m) => m.value === mark)?.dotClass ?? "bg-muted"
+                      MARK_DEFS.find((m) => m.value === mark)?.dotClass ??
+                      "bg-muted"
                     }`}
                   />
                 ) : (
@@ -483,15 +501,24 @@ export function DayContextMenu({
               </span>
             </ContextMenuSubTrigger>
             <ContextMenuSubContent>
-              <ContextMenuRadioGroup value={mark ?? ""} onValueChange={handleMarkChange}>
+              <ContextMenuRadioGroup
+                value={mark ?? ""}
+                onValueChange={handleMarkChange}
+              >
                 <ContextMenuRadioItem value="" className="gap-2.5">
                   <span className="inline-block size-2 rounded-full bg-emerald-500/60" />
                   Working Day
                 </ContextMenuRadioItem>
                 <ContextMenuSeparator />
                 {MARK_DEFS.map(({ value, label, dotClass }) => (
-                  <ContextMenuRadioItem key={value} value={value} className="gap-2.5">
-                    <span className={`inline-block size-2 rounded-full ${dotClass}`} />
+                  <ContextMenuRadioItem
+                    key={value}
+                    value={value}
+                    className="gap-2.5"
+                  >
+                    <span
+                      className={`inline-block size-2 rounded-full ${dotClass}`}
+                    />
                     {label}
                   </ContextMenuRadioItem>
                 ))}
@@ -517,10 +544,16 @@ export function DayContextMenu({
                 disabled={!isConnected || isFuture || isPermanent}
                 onClick={handleRefresh}
               >
-                <HugeiconsIcon icon={RefreshIcon} size={14} className="shrink-0" />
+                <HugeiconsIcon
+                  icon={RefreshIcon}
+                  size={14}
+                  className="shrink-0"
+                />
                 Refresh cache
                 {isPermanent && (
-                  <span className="ml-auto text-[10px] text-muted-foreground/50">permanent</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground/50">
+                    permanent
+                  </span>
                 )}
               </ContextMenuItem>
               <ContextMenuItem
@@ -529,7 +562,11 @@ export function DayContextMenu({
                 disabled={!isCached}
                 onClick={handleInvalidate}
               >
-                <HugeiconsIcon icon={Delete02Icon} size={14} className="shrink-0" />
+                <HugeiconsIcon
+                  icon={Delete02Icon}
+                  size={14}
+                  className="shrink-0"
+                />
                 Invalidate cache
               </ContextMenuItem>
 
@@ -550,7 +587,11 @@ export function DayContextMenu({
                     disabled={exporting !== null}
                     onClick={() => handleExportFile("csv")}
                   >
-                    <HugeiconsIcon icon={Download01Icon} size={14} className="shrink-0" />
+                    <HugeiconsIcon
+                      icon={Download01Icon}
+                      size={14}
+                      className="shrink-0"
+                    />
                     {exporting === "csv" ? "Exporting…" : "Export CSV"}
                   </ContextMenuItem>
                   <ContextMenuItem
@@ -558,7 +599,11 @@ export function DayContextMenu({
                     disabled={exporting !== null}
                     onClick={() => handleExportFile("json")}
                   >
-                    <HugeiconsIcon icon={Download01Icon} size={14} className="shrink-0" />
+                    <HugeiconsIcon
+                      icon={Download01Icon}
+                      size={14}
+                      className="shrink-0"
+                    />
                     {exporting === "json" ? "Exporting…" : "Export JSON"}
                   </ContextMenuItem>
                 </ContextMenuSubContent>
@@ -595,7 +640,10 @@ export function DayContextMenu({
                       Default
                     </ContextMenuRadioItem>
                     {nightShift?.enabled && (
-                      <ContextMenuRadioItem value="nightshift" className="gap-2.5">
+                      <ContextMenuRadioItem
+                        value="nightshift"
+                        className="gap-2.5"
+                      >
                         Night Shift
                       </ContextMenuRadioItem>
                     )}
@@ -633,14 +681,19 @@ export function DayContextMenu({
 
                 <ContextMenuSubContent className="min-w-48">
                   {/* Default */}
-                  <ContextMenuItem className="gap-2.5" onClick={handleTargetDelete}>
+                  <ContextMenuItem
+                    className="gap-2.5"
+                    onClick={handleTargetDelete}
+                  >
                     <span
                       className={`size-2 shrink-0 rounded-full ${
                         !dayTarget ? "bg-foreground" : "bg-muted-foreground/20"
                       }`}
                     />
                     Default
-                    <span className="ml-auto text-muted-foreground/40">auto</span>
+                    <span className="ml-auto text-muted-foreground/40">
+                      auto
+                    </span>
                   </ContextMenuItem>
 
                   <ContextMenuSeparator />
@@ -650,7 +703,9 @@ export function DayContextMenu({
                     <ContextMenuSubTrigger className="gap-2.5">
                       <span
                         className={`size-2 shrink-0 rounded-full ${
-                          dayTarget?.type === "relative-offset" ? "bg-primary" : "bg-muted-foreground/20"
+                          dayTarget?.type === "relative-offset"
+                            ? "bg-primary"
+                            : "bg-muted-foreground/20"
                         }`}
                       />
                       Add/Reduce
@@ -662,18 +717,30 @@ export function DayContextMenu({
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent className="min-w-36">
                       <ContextMenuRadioGroup
-                        value={dayTarget?.type === "relative-offset" ? (dayTarget.value ?? "") : ""}
-                        onValueChange={(v) => onSetTarget?.(date, "relative-offset", v)}
+                        value={
+                          dayTarget?.type === "relative-offset"
+                            ? (dayTarget.value ?? "")
+                            : ""
+                        }
+                        onValueChange={(v) =>
+                          onSetTarget?.(date, "relative-offset", v)
+                        }
                       >
                         <ContextMenuItem
                           className="gap-2.5"
-                          onClick={() => openTargetDialogForType("relative-offset")}
+                          onClick={() =>
+                            openTargetDialogForType("relative-offset")
+                          }
                         >
                           Custom
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         {ADD_REDUCE_PRESETS.map((p) => (
-                          <ContextMenuRadioItem key={p.value} value={p.value} className="gap-2.5 font-mono">
+                          <ContextMenuRadioItem
+                            key={p.value}
+                            value={p.value}
+                            className="gap-2.5 font-mono"
+                          >
                             {p.label}
                           </ContextMenuRadioItem>
                         ))}
@@ -686,7 +753,9 @@ export function DayContextMenu({
                     <ContextMenuSubTrigger className="gap-2.5">
                       <span
                         className={`size-2 shrink-0 rounded-full ${
-                          dayTarget?.type === "end-time" ? "bg-primary" : "bg-muted-foreground/20"
+                          dayTarget?.type === "end-time"
+                            ? "bg-primary"
+                            : "bg-muted-foreground/20"
                         }`}
                       />
                       Work until
@@ -698,8 +767,14 @@ export function DayContextMenu({
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent className="min-w-36">
                       <ContextMenuRadioGroup
-                        value={dayTarget?.type === "end-time" ? (dayTarget.value ?? "") : ""}
-                        onValueChange={(v) => onSetTarget?.(date, "end-time", v)}
+                        value={
+                          dayTarget?.type === "end-time"
+                            ? (dayTarget.value ?? "")
+                            : ""
+                        }
+                        onValueChange={(v) =>
+                          onSetTarget?.(date, "end-time", v)
+                        }
                       >
                         <ContextMenuItem
                           className="gap-2.5"
@@ -709,7 +784,11 @@ export function DayContextMenu({
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         {WORK_UNTIL_PRESETS.map((p) => (
-                          <ContextMenuRadioItem key={p.value} value={p.value} className="gap-2.5 font-mono">
+                          <ContextMenuRadioItem
+                            key={p.value}
+                            value={p.value}
+                            className="gap-2.5 font-mono"
+                          >
                             {p.label}
                           </ContextMenuRadioItem>
                         ))}
@@ -722,7 +801,9 @@ export function DayContextMenu({
                     <ContextMenuSubTrigger className="gap-2.5">
                       <span
                         className={`size-2 shrink-0 rounded-full ${
-                          dayTarget?.type === "flex-balance" ? "bg-primary" : "bg-muted-foreground/20"
+                          dayTarget?.type === "flex-balance"
+                            ? "bg-primary"
+                            : "bg-muted-foreground/20"
                         }`}
                       />
                       Flex becomes
@@ -734,18 +815,30 @@ export function DayContextMenu({
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent className="min-w-36">
                       <ContextMenuRadioGroup
-                        value={dayTarget?.type === "flex-balance" ? (dayTarget.value ?? "") : ""}
-                        onValueChange={(v) => onSetTarget?.(date, "flex-balance", v)}
+                        value={
+                          dayTarget?.type === "flex-balance"
+                            ? (dayTarget.value ?? "")
+                            : ""
+                        }
+                        onValueChange={(v) =>
+                          onSetTarget?.(date, "flex-balance", v)
+                        }
                       >
                         <ContextMenuItem
                           className="gap-2.5"
-                          onClick={() => openTargetDialogForType("flex-balance")}
+                          onClick={() =>
+                            openTargetDialogForType("flex-balance")
+                          }
                         >
                           Custom
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         {FLEX_BECOMES_PRESETS.map((p) => (
-                          <ContextMenuRadioItem key={p.value} value={p.value} className="gap-2.5 font-mono">
+                          <ContextMenuRadioItem
+                            key={p.value}
+                            value={p.value}
+                            className="gap-2.5 font-mono"
+                          >
                             {p.label}
                           </ContextMenuRadioItem>
                         ))}
@@ -758,7 +851,9 @@ export function DayContextMenu({
                     <ContextMenuSubTrigger className="gap-2.5">
                       <span
                         className={`size-2 shrink-0 rounded-full ${
-                          dayTarget?.type === "fixed" ? "bg-primary" : "bg-muted-foreground/20"
+                          dayTarget?.type === "fixed"
+                            ? "bg-primary"
+                            : "bg-muted-foreground/20"
                         }`}
                       />
                       Set Hours
@@ -770,7 +865,11 @@ export function DayContextMenu({
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent className="min-w-36">
                       <ContextMenuRadioGroup
-                        value={dayTarget?.type === "fixed" ? (dayTarget.value ?? "") : ""}
+                        value={
+                          dayTarget?.type === "fixed"
+                            ? (dayTarget.value ?? "")
+                            : ""
+                        }
                         onValueChange={(v) => onSetTarget?.(date, "fixed", v)}
                       >
                         <ContextMenuItem
@@ -781,7 +880,11 @@ export function DayContextMenu({
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         {SET_HOURS_PRESETS.map((p) => (
-                          <ContextMenuRadioItem key={p.value} value={p.value} className="gap-2.5 font-mono">
+                          <ContextMenuRadioItem
+                            key={p.value}
+                            value={p.value}
+                            className="gap-2.5 font-mono"
+                          >
                             {p.label}
                           </ContextMenuRadioItem>
                         ))}
@@ -792,14 +895,21 @@ export function DayContextMenu({
                   <ContextMenuSeparator />
 
                   {/* Distribute on week — instant */}
-                  <ContextMenuItem className="gap-2.5" onClick={handleTargetSetDistribute}>
+                  <ContextMenuItem
+                    className="gap-2.5"
+                    onClick={handleTargetSetDistribute}
+                  >
                     <span
                       className={`size-2 shrink-0 rounded-full ${
-                        dayTarget?.type === "weekly-distribute" ? "bg-primary" : "bg-muted-foreground/20"
+                        dayTarget?.type === "weekly-distribute"
+                          ? "bg-primary"
+                          : "bg-muted-foreground/20"
                       }`}
                     />
                     Spread across week
-                    <span className="ml-auto text-muted-foreground/40">auto</span>
+                    <span className="ml-auto text-muted-foreground/40">
+                      auto
+                    </span>
                   </ContextMenuItem>
                 </ContextMenuSubContent>
               </ContextMenuSub>
@@ -812,7 +922,9 @@ export function DayContextMenu({
       <AlertDialog open={customOpen} onOpenChange={setCustomOpen}>
         <AlertDialogContent className="max-w-xs">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm">Custom Work Window</AlertDialogTitle>
+            <AlertDialogTitle className="text-sm">
+              Custom Work Window
+            </AlertDialogTitle>
             <p className="text-xs text-muted-foreground">
               Set a custom time range for {formatDayHeader(date)}
             </p>
@@ -820,7 +932,9 @@ export function DayContextMenu({
 
           <div className="flex items-center gap-3 py-2">
             <div className="flex flex-1 flex-col gap-1">
-              <label className="text-[11px] font-medium text-muted-foreground">Start</label>
+              <label className="text-[11px] font-medium text-muted-foreground">
+                Start
+              </label>
               <Input
                 type="time"
                 value={customStart}
@@ -830,7 +944,9 @@ export function DayContextMenu({
             </div>
             <span className="mt-5 text-xs text-muted-foreground/40">to</span>
             <div className="flex flex-1 flex-col gap-1">
-              <label className="text-[11px] font-medium text-muted-foreground">End</label>
+              <label className="text-[11px] font-medium text-muted-foreground">
+                End
+              </label>
               <Input
                 type="time"
                 value={customEnd}
@@ -841,7 +957,9 @@ export function DayContextMenu({
           </div>
 
           <AlertDialogFooter>
-            <AlertDialogCancel className="h-8 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="h-8 text-xs">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCustomSave}
               disabled={!customValid}
@@ -860,8 +978,12 @@ export function DayContextMenu({
             <AlertDialogTitle className="text-sm">
               {TARGET_LABELS[targetType]}
             </AlertDialogTitle>
-            <p className="text-xs text-muted-foreground/60">{formatDayHeader(date)}</p>
-            <p className="text-xs text-muted-foreground">{TARGET_DESCRIPTIONS[targetType]}</p>
+            <p className="text-xs text-muted-foreground/60">
+              {formatDayHeader(date)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {TARGET_DESCRIPTIONS[targetType]}
+            </p>
           </AlertDialogHeader>
 
           <div className="py">
@@ -915,7 +1037,9 @@ export function DayContextMenu({
           </div>
 
           <AlertDialogFooter>
-            <AlertDialogCancel className="h-8 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="h-8 text-xs">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleTargetSave}
               disabled={!isTargetValid() || isSaving}

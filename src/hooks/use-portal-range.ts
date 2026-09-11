@@ -8,17 +8,25 @@ function getLocalDate(): string {
   return new Date().toLocaleDateString("en-CA")
 }
 
-function portalDataToSummary(date: string, data: {
-  entries: Array<{ outtime: string | null; workingmins: number | null; intime: string }>
-  totalMinutes: number
-  isCurrentlyIn: boolean
-}): WeekDaySummary {
+function portalDataToSummary(
+  date: string,
+  data: {
+    entries: Array<{
+      outtime: string | null
+      workingmins: number | null
+      intime: string
+    }>
+    totalMinutes: number
+    isCurrentlyIn: boolean
+  }
+): WeekDaySummary {
   const today = getLocalDate()
   const openEntries = data.entries.filter((e) => e.outtime === null).length
   // Entries with null outtime on past dates = misspunch; on today = active session (not a misspunch)
-  const missPunchCount = data.isCurrentlyIn && date === today
-    ? Math.max(0, openEntries - 1)
-    : openEntries
+  const missPunchCount =
+    data.isCurrentlyIn && date === today
+      ? Math.max(0, openEntries - 1)
+      : openEntries
 
   return {
     date,
@@ -52,8 +60,12 @@ export function usePortalRange(dates: string[]): UsePortalRangeResult {
   }, [validDatesKey, store.connected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!store.connected || !rangeIncludesToday || validDates.length === 0) return
-    const id = setInterval(() => store.refreshRange(validDates), REFRESH_INTERVAL_MS)
+    if (!store.connected || !rangeIncludesToday || validDates.length === 0)
+      return
+    const id = setInterval(
+      () => store.refreshRange(validDates),
+      REFRESH_INTERVAL_MS
+    )
     return () => clearInterval(id)
   }, [validDatesKey, rangeIncludesToday, store.connected]) // eslint-disable-line react-hooks/exhaustive-deps
 

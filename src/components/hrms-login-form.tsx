@@ -35,7 +35,11 @@ export function HrmsLoginForm({
     setError(null)
     setSubmitting(true)
     try {
-      const result = await onLogin(email, password, showAdvanced ? baseUrl : undefined)
+      const result = await onLogin(
+        email,
+        password,
+        showAdvanced ? baseUrl : undefined
+      )
       if (result.success) {
         setEmail("")
         setPassword("")
@@ -56,7 +60,9 @@ export function HrmsLoginForm({
         </div>
       )}
       <div className="flex flex-col space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Email</label>
+        <label className="text-xs font-medium text-muted-foreground">
+          Email
+        </label>
         <Input
           type="email"
           placeholder="john.wick@roimaint.com"
@@ -66,7 +72,9 @@ export function HrmsLoginForm({
         />
       </div>
       <div className="flex flex-col space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Password</label>
+        <label className="text-xs font-medium text-muted-foreground">
+          Password
+        </label>
         <Input
           type="password"
           value={password}
@@ -88,7 +96,9 @@ export function HrmsLoginForm({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="mt-2 space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Base URL</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Base URL
+            </label>
             <Input
               type="url"
               value={baseUrl}

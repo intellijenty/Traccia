@@ -1,4 +1,4 @@
-export type ProjectStatus = 'green' | 'yellow' | 'red' | 'none'
+export type ProjectStatus = "green" | "yellow" | "red" | "none"
 
 export interface EodSubBullet {
   id: string
@@ -9,21 +9,21 @@ export interface EodTask {
   id: string
   text: string
   subBullets: EodSubBullet[]
-  meetingKey?: string  // set only on system-imported tasks
+  meetingKey?: string // set only on system-imported tasks
 }
 
 export interface EodSectionItem {
   id: string
   text: string
-  meetingKey?: string  // set only on system-imported meeting items
-  leaveKey?: string    // set only on system-imported leave items (YYYY-MM-DD)
+  meetingKey?: string // set only on system-imported meeting items
+  leaveKey?: string // set only on system-imported leave items (YYYY-MM-DD)
 }
 
 export interface EodProject {
   id: string
   name: string
   status: ProjectStatus
-  statusNote: string | null  // null = N/A; shown in email below project name when set
+  statusNote: string | null // null = N/A; shown in email below project name when set
   tasksCompleted: EodTask[]
 }
 
@@ -44,14 +44,14 @@ export interface EodFormState {
 export interface EodEmailSettings {
   to: string[]
   cc: string[]
-  signature: string      // stores HTML
+  signature: string // stores HTML
   embedSignature: boolean
 }
 
 export interface EodHistoryEntry {
   date: string
   subject: string
-  mode: 'form' | 'editor'
+  mode: "form" | "editor"
   htmlBody: string
   plainText: string
   formState?: EodFormState
@@ -63,20 +63,26 @@ export function makeId(): string {
 }
 
 export function makeEmptyTask(): EodTask {
-  return { id: makeId(), text: '', subBullets: [] }
+  return { id: makeId(), text: "", subBullets: [] }
 }
 
 export function makeEmptySimpleSection(defaultNA = true): EodSimpleSection {
   return { items: [], isNA: defaultNA }
 }
 
-export function makeEmptyProject(name = ''): EodProject {
-  return { id: makeId(), name, status: 'green', statusNote: null, tasksCompleted: [] }
+export function makeEmptyProject(name = ""): EodProject {
+  return {
+    id: makeId(),
+    name,
+    status: "green",
+    statusNote: null,
+    tasksCompleted: [],
+  }
 }
 
 export function makeDefaultFormState(): EodFormState {
   return {
-    date: new Date().toLocaleDateString('en-CA'),
+    date: new Date().toLocaleDateString("en-CA"),
     projects: [makeEmptyProject()],
     otherTasks: makeEmptySimpleSection(true),
     concerns: makeEmptySimpleSection(true),

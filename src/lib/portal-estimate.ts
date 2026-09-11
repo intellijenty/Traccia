@@ -23,7 +23,8 @@ export function estimatePortalTotalMinutes(
   // Portal minutes from closed pairs only — drop its own live extrapolation,
   // since the window below replaces it.
   const closedMinutes =
-    portal.totalMinutes - (portal.isCurrentlyIn ? portal.activeSessionMinutes : 0)
+    portal.totalMinutes -
+    (portal.isCurrentlyIn ? portal.activeSessionMinutes : 0)
 
   const sorted = [...localEvents].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -39,7 +40,8 @@ export function estimatePortalTotalMinutes(
     // unknown, so start from the local punch-in instead.
     let boundary = -Infinity
     for (const e of portal.entries) {
-      if (e.outtime) boundary = Math.max(boundary, new Date(e.outtime).getTime())
+      if (e.outtime)
+        boundary = Math.max(boundary, new Date(e.outtime).getTime())
     }
     const firstLogin = sorted.find(
       (e) => e.type === "LOGIN" && new Date(e.timestamp).getTime() > boundary

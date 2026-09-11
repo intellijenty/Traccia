@@ -26,7 +26,10 @@ interface EntriesExportButtonProps {
 
 type ExportFormat = "csv" | "json"
 
-export function EntriesExportButton({ entries, date }: EntriesExportButtonProps) {
+export function EntriesExportButton({
+  entries,
+  date,
+}: EntriesExportButtonProps) {
   const [exporting, setExporting] = useState<ExportFormat | null>(null)
   const { copy } = useCopyToClipboard()
 
@@ -36,11 +39,14 @@ export function EntriesExportButton({ entries, date }: EntriesExportButtonProps)
     try {
       const result = await window.electronAPI.exportFile(format, date)
       if (result.success && result.filePath) {
-        const filename = result.filePath.split(/[\\/]/).pop() ?? `traccia-entries-${date}.${format}`
+        const filename =
+          result.filePath.split(/[\\/]/).pop() ??
+          `traccia-entries-${date}.${format}`
         toast.success(`Saved: ${filename}`, {
           action: {
             label: "Show in Folder",
-            onClick: () => window.electronAPI.showItemInFolder(result.filePath!),
+            onClick: () =>
+              window.electronAPI.showItemInFolder(result.filePath!),
           },
           icon: <HugeiconsIcon icon={FolderOpenIcon} size={14} />,
         })
@@ -57,7 +63,7 @@ export function EntriesExportButton({ entries, date }: EntriesExportButtonProps)
       <Button
         variant="ghost"
         size="sm"
-        className="h-6 rounded-none rounded-l-md border-r border-border/60 px-2 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground"
+        className="h-6 gap-1.5 rounded-none rounded-l-md border-r border-border/60 px-2 text-[11px] text-muted-foreground hover:text-foreground"
         onClick={() => copy(formatEntriesAsText(entries, date))}
       >
         <HugeiconsIcon icon={Copy01Icon} size={12} className="shrink-0" />
@@ -71,7 +77,11 @@ export function EntriesExportButton({ entries, date }: EntriesExportButtonProps)
             size="sm"
             className="h-6 rounded-none rounded-r-md px-1.5 text-muted-foreground hover:text-foreground"
           >
-            <HugeiconsIcon icon={ArrowDown01Icon} size={11} className="shrink-0" />
+            <HugeiconsIcon
+              icon={ArrowDown01Icon}
+              size={11}
+              className="shrink-0"
+            />
           </Button>
         </DropdownMenuTrigger>
 
@@ -80,7 +90,11 @@ export function EntriesExportButton({ entries, date }: EntriesExportButtonProps)
             className="gap-2.5 text-xs"
             onClick={() => copy(formatEntriesAsJSON(entries))}
           >
-            <HugeiconsIcon icon={Copy01Icon} size={13} className="shrink-0 text-muted-foreground" />
+            <HugeiconsIcon
+              icon={Copy01Icon}
+              size={13}
+              className="shrink-0 text-muted-foreground"
+            />
             Copy JSON
           </DropdownMenuItem>
 
@@ -91,7 +105,11 @@ export function EntriesExportButton({ entries, date }: EntriesExportButtonProps)
             disabled={exporting !== null}
             onClick={() => handleExportFile("csv")}
           >
-            <HugeiconsIcon icon={Download01Icon} size={13} className="shrink-0 text-muted-foreground" />
+            <HugeiconsIcon
+              icon={Download01Icon}
+              size={13}
+              className="shrink-0 text-muted-foreground"
+            />
             {exporting === "csv" ? "Exporting…" : "Export CSV"}
           </DropdownMenuItem>
 
@@ -100,7 +118,11 @@ export function EntriesExportButton({ entries, date }: EntriesExportButtonProps)
             disabled={exporting !== null}
             onClick={() => handleExportFile("json")}
           >
-            <HugeiconsIcon icon={Download01Icon} size={13} className="shrink-0 text-muted-foreground" />
+            <HugeiconsIcon
+              icon={Download01Icon}
+              size={13}
+              className="shrink-0 text-muted-foreground"
+            />
             {exporting === "json" ? "Exporting…" : "Export JSON"}
           </DropdownMenuItem>
         </DropdownMenuContent>

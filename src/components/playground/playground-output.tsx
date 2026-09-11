@@ -13,7 +13,10 @@ interface PlaygroundOutputProps {
   onSetReason: (id: string, reason: string) => void
 }
 
-export function PlaygroundOutput({ submittable, onSetReason }: PlaygroundOutputProps) {
+export function PlaygroundOutput({
+  submittable,
+  onSetReason,
+}: PlaygroundOutputProps) {
   const [done, setDone] = useState<Set<string>>(new Set())
   const toggleDone = (id: string) =>
     setDone((prev) => {
@@ -24,83 +27,88 @@ export function PlaygroundOutput({ submittable, onSetReason }: PlaygroundOutputP
     })
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide">
+    <div className="scrollbar-hide h-full overflow-y-auto">
       <div className="flex flex-col gap-4 p-4">
-      <FloorPlan compact className="w-full" />
+        <FloorPlan compact className="w-full" />
 
-      <Separator />
+        <Separator />
 
-      {/* Section 1: submit yourself */}
-      <section>
-        {submittable.length !== 0 && (
-          <>
-            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              Submit yourself
-            </h3>
-            <p className="mb-3 text-[11px] leading-snug text-muted-foreground/70">
-              Add each of these in the portal&apos;s Request Time Entry dialog.
-              Pick the time, paste the reason.
+        {/* Section 1: submit yourself */}
+        <section>
+          {submittable.length !== 0 && (
+            <>
+              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Submit yourself
+              </h3>
+              <p className="mb-3 text-[11px] leading-snug text-muted-foreground/70">
+                Add each of these in the portal&apos;s Request Time Entry
+                dialog. Pick the time, paste the reason.
+              </p>
+            </>
+          )}
+
+          {submittable.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground/60">
+              Nothing to add yet. <br /> Copy from local or add a punch
+              manually.
             </p>
-          </>
-        )}
-
-        {submittable.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground/60">
-            Nothing to add yet. <br/> Copy from local or add a punch manually.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {submittable.map((p) => {
-              const isDone = done.has(p.id)
-              return (
-                <li
-                  key={p.id}
-                  className={cn(
-                    "rounded-lg border border-border/50 bg-card/30 p-2.5 transition-opacity",
-                    isDone && "opacity-50"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleDone(p.id)}
-                      aria-label="Mark entered"
-                      className={cn(
-                        "shrink-0 transition-colors",
-                        isDone ? "text-emerald-400" : "text-muted-foreground/40 hover:text-muted-foreground"
-                      )}
-                    >
-                      <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />
-                    </button>
-                    <span className="font-mono text-sm font-medium tabular-nums">
-                      {formatClock(p.time)}
-                    </span>
-                    <div className="ml-auto">
-                      <CopyButton
-                        text={p.reason}
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={!p.reason.trim()}
-                        title="Copy reason"
-                      />
-                    </div>
-                  </div>
-                  <input
-                    type="text"
-                    value={p.reason}
-                    onChange={(e) => onSetReason(p.id, e.target.value)}
-                    placeholder="Reason for HRMS (required)"
+          ) : (
+            <ul className="space-y-2">
+              {submittable.map((p) => {
+                const isDone = done.has(p.id)
+                return (
+                  <li
+                    key={p.id}
                     className={cn(
-                      "mt-2 w-full rounded-md border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring",
-                      p.reason.trim() ? "border-border" : "border-amber-500/40"
+                      "rounded-lg border border-border/50 bg-card/30 p-2.5 transition-opacity",
+                      isDone && "opacity-50"
                     )}
-                  />
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
+                  >
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleDone(p.id)}
+                        aria-label="Mark entered"
+                        className={cn(
+                          "shrink-0 transition-colors",
+                          isDone
+                            ? "text-emerald-400"
+                            : "text-muted-foreground/40 hover:text-muted-foreground"
+                        )}
+                      >
+                        <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />
+                      </button>
+                      <span className="font-mono text-sm font-medium tabular-nums">
+                        {formatClock(p.time)}
+                      </span>
+                      <div className="ml-auto">
+                        <CopyButton
+                          text={p.reason}
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={!p.reason.trim()}
+                          title="Copy reason"
+                        />
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      value={p.reason}
+                      onChange={(e) => onSetReason(p.id, e.target.value)}
+                      placeholder="Reason for HRMS (required)"
+                      className={cn(
+                        "mt-2 w-full rounded-md border bg-background px-2 py-1.5 text-xs focus:ring-1 focus:ring-ring focus:outline-none",
+                        p.reason.trim()
+                          ? "border-border"
+                          : "border-amber-500/40"
+                      )}
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   )

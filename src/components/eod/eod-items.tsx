@@ -1,17 +1,24 @@
-import { memo, useCallback } from 'react'
-import { cn } from '@/lib/utils'
-import { normalizeTaskText } from '@/lib/task-text-parser'
-import type { EodTask, EodSubBullet, EodSimpleSection, EodSectionItem } from '@/lib/eod-types'
-import { Button } from '../ui/button'
-import { Kbd } from '../ui/kbd'
-import { useDroppable } from '@dnd-kit/core'
+import { memo, useCallback } from "react"
+import { cn } from "@/lib/utils"
+import { normalizeTaskText } from "@/lib/task-text-parser"
+import type {
+  EodTask,
+  EodSubBullet,
+  EodSimpleSection,
+  EodSectionItem,
+} from "@/lib/eod-types"
+import { Button } from "../ui/button"
+import { Kbd } from "../ui/kbd"
+import { useDroppable } from "@dnd-kit/core"
 import {
-  SortableContext, useSortable, verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import type { SectionKey } from './eod-dnd'
-import { BulletRow, bulletKeyDown } from './eod-bullet-row'
-import { useEodApi, useEodDndState, useProjectId } from './eod-form-context'
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import type { SectionKey } from "./eod-dnd"
+import { BulletRow, bulletKeyDown } from "./eod-bullet-row"
+import { useEodApi, useEodDndState, useProjectId } from "./eod-form-context"
 
 // ── SortableSub ───────────────────────────────────────────────────────────────
 
@@ -20,15 +27,25 @@ interface SortableSubProps {
   sub: EodSubBullet
 }
 
-export const SortableSub = memo(function SortableSub({ taskId, sub }: SortableSubProps) {
+export const SortableSub = memo(function SortableSub({
+  taskId,
+  sub,
+}: SortableSubProps) {
   const { actions, focus } = useEodApi()
   const projectId = useProjectId()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: sub.id })
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: sub.id })
 
   const onNormalize = useCallback(() => {
     const normalized = normalizeTaskText(sub.text)
-    if (normalized !== sub.text) actions.updateSub(projectId, taskId, sub.id, normalized)
+    if (normalized !== sub.text)
+      actions.updateSub(projectId, taskId, sub.id, normalized)
   }, [sub.text, sub.id, taskId, projectId, actions])
 
   const onKeyDown = bulletKeyDown(sub.text, {
@@ -42,25 +59,38 @@ export const SortableSub = memo(function SortableSub({ taskId, sub }: SortableSu
     },
     onArrowDown: () => focus.focusNext(`sub:${taskId}:${sub.id}`),
     onArrowUp: () => focus.focusPrev(`sub:${taskId}:${sub.id}`),
-    onAltD:              () => actions.duplicateItem({ type: 'sub', projectId, taskId, subId: sub.id }),
-    onAltArrowUp:        () => actions.moveUp({ type: 'sub', projectId, taskId, subId: sub.id }),
-    onAltArrowDown:      () => actions.moveDown({ type: 'sub', projectId, taskId, subId: sub.id }),
-    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'task', projectId, taskId }); focus.focus(`sub:${taskId}:${sub.id}`) },
-    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'task', projectId, taskId }); focus.focus(`sub:${taskId}:${sub.id}`) },
+    onAltD: () =>
+      actions.duplicateItem({ type: "sub", projectId, taskId, subId: sub.id }),
+    onAltArrowUp: () =>
+      actions.moveUp({ type: "sub", projectId, taskId, subId: sub.id }),
+    onAltArrowDown: () =>
+      actions.moveDown({ type: "sub", projectId, taskId, subId: sub.id }),
+    onAltShiftArrowUp: () => {
+      actions.reorderUp({ type: "task", projectId, taskId })
+      focus.focus(`sub:${taskId}:${sub.id}`)
+    },
+    onAltShiftArrowDown: () => {
+      actions.reorderDown({ type: "task", projectId, taskId })
+      focus.focus(`sub:${taskId}:${sub.id}`)
+    },
   })
 
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(isDragging && 'opacity-40')}
+      className={cn(isDragging && "opacity-40")}
     >
       <BulletRow
-        inputRef={focus.reg(`sub:${taskId}:${sub.id}`) as React.RefCallback<HTMLInputElement>}
+        inputRef={
+          focus.reg(
+            `sub:${taskId}:${sub.id}`
+          ) as React.RefCallback<HTMLInputElement>
+        }
         text={sub.text}
         placeholder="Task detail"
         marker="sub"
-        onUpdate={text => actions.updateSub(projectId, taskId, sub.id, text)}
+        onUpdate={(text) => actions.updateSub(projectId, taskId, sub.id, text)}
         onKeyDown={onKeyDown}
         onBlur={onNormalize}
         onRemove={() => actions.removeSub(projectId, taskId, sub.id)}
@@ -79,19 +109,30 @@ interface SortableTaskCardProps {
   task: EodTask
 }
 
-export const SortableTaskCard = memo(function SortableTaskCard({ task }: SortableTaskCardProps) {
+export const SortableTaskCard = memo(function SortableTaskCard({
+  task,
+}: SortableTaskCardProps) {
   const { mode, actions, focus } = useEodApi()
   const projectId = useProjectId()
   const { activeId } = useEodDndState()
   const anyItemDragging = activeId !== null
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: task.id })
-  const { setNodeRef: setSubDropRef, isOver: isSubOver } = useDroppable({ id: `subs:${task.id}` })
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id })
+  const { setNodeRef: setSubDropRef, isOver: isSubOver } = useDroppable({
+    id: `subs:${task.id}`,
+  })
 
   const onNormalize = useCallback(() => {
     const normalized = normalizeTaskText(task.text)
-    if (normalized !== task.text) actions.updateTask(projectId, task.id, normalized)
+    if (normalized !== task.text)
+      actions.updateTask(projectId, task.id, normalized)
   }, [task.text, task.id, projectId, actions])
 
   const onKeyDown = bulletKeyDown(task.text, {
@@ -110,11 +151,20 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
     },
     onArrowDown: () => focus.focusNext(`task:${task.id}`),
     onArrowUp: () => focus.focusPrev(`task:${task.id}`),
-    onAltD:              () => actions.duplicateItem({ type: 'task', projectId, taskId: task.id }),
-    onAltArrowUp:        () => actions.moveUp({ type: 'task', projectId, taskId: task.id }),
-    onAltArrowDown:      () => actions.moveDown({ type: 'task', projectId, taskId: task.id }),
-    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'task', projectId, taskId: task.id }); focus.focus(`task:${task.id}`) },
-    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'task', projectId, taskId: task.id }); focus.focus(`task:${task.id}`) },
+    onAltD: () =>
+      actions.duplicateItem({ type: "task", projectId, taskId: task.id }),
+    onAltArrowUp: () =>
+      actions.moveUp({ type: "task", projectId, taskId: task.id }),
+    onAltArrowDown: () =>
+      actions.moveDown({ type: "task", projectId, taskId: task.id }),
+    onAltShiftArrowUp: () => {
+      actions.reorderUp({ type: "task", projectId, taskId: task.id })
+      focus.focus(`task:${task.id}`)
+    },
+    onAltShiftArrowDown: () => {
+      actions.reorderDown({ type: "task", projectId, taskId: task.id })
+      focus.focus(`task:${task.id}`)
+    },
   })
 
   return (
@@ -122,17 +172,19 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        'group/card rounded-lg border border-border/40 bg-muted/5',
-        isDragging && 'opacity-40 z-10 relative shadow-lg',
-        task.meetingKey && 'border-l-2 border-l-primary',
+        "group/card rounded-lg border border-border/40 bg-muted/5",
+        isDragging && "relative z-10 opacity-40 shadow-lg",
+        task.meetingKey && "border-l-2 border-l-primary"
       )}
     >
       <BulletRow
-        inputRef={focus.reg(`task:${task.id}`) as React.RefCallback<HTMLInputElement>}
+        inputRef={
+          focus.reg(`task:${task.id}`) as React.RefCallback<HTMLInputElement>
+        }
         text={task.text}
         placeholder="Ticket or task description"
         marker="task"
-        onUpdate={text => actions.updateTask(projectId, task.id, text)}
+        onUpdate={(text) => actions.updateTask(projectId, task.id, text)}
         onKeyDown={onKeyDown}
         onBlur={onNormalize}
         onRemove={() => actions.removeTask(projectId, task.id)}
@@ -147,13 +199,13 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
       <div
         ref={setSubDropRef}
         className={cn(
-          'px-4 space-y-0.5 transition-all',
-          task.subBullets.length > 0 ? 'pb-1' : '',
+          "space-y-0.5 px-4 transition-all",
+          task.subBullets.length > 0 ? "pb-1" : "",
           isSubOver
-            ? 'py-2 rounded-b-lg bg-muted/20'
+            ? "rounded-b-lg bg-muted/20 py-2"
             : anyItemDragging && task.subBullets.length === 0
-              ? 'py-2 rounded-b-lg border border-dashed border-border/60'
-              : '',
+              ? "rounded-b-lg border border-dashed border-border/60 py-2"
+              : ""
         )}
       >
         {anyItemDragging && task.subBullets.length === 0 && !isSubOver && (
@@ -162,23 +214,23 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
           </span>
         )}
         <SortableContext
-          items={task.subBullets.map(s => s.id)}
+          items={task.subBullets.map((s) => s.id)}
           strategy={verticalListSortingStrategy}
         >
-          {task.subBullets.map(sub => (
+          {task.subBullets.map((sub) => (
             <SortableSub key={sub.id} taskId={task.id} sub={sub} />
           ))}
         </SortableContext>
       </div>
 
       {/* Add sub-bullet hint */}
-      {mode !== 'zen' && (
+      {mode !== "zen" && (
         <div
           className={cn(
-            'flex items-center gap-1 px-4 pl-10',
-            mode === 'comfortable'
-              ? 'pb-2.5 pt-0.5'
-              : 'h-7 opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 transition-opacity duration-150',
+            "flex items-center gap-1 px-4 pl-10",
+            mode === "comfortable"
+              ? "pt-0.5 pb-2.5"
+              : "h-7 opacity-0 transition-opacity duration-150 group-focus-within/card:opacity-100 group-hover/card:opacity-100"
           )}
         >
           <Button
@@ -187,12 +239,12 @@ export const SortableTaskCard = memo(function SortableTaskCard({ task }: Sortabl
             size="xs"
             tabIndex={-1}
             onClick={() => actions.addSub(projectId, task.id)}
-            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             + sub-bullet
           </Button>
           <Kbd className="ml-1 h-5 text-xs">
-            {task.subBullets.length === 0 ? 'Tab' : 'Enter'}
+            {task.subBullets.length === 0 ? "Tab" : "Enter"}
           </Kbd>
         </div>
       )}
@@ -209,15 +261,24 @@ interface SortableSectionItemProps {
 }
 
 export const SortableSectionItem = memo(function SortableSectionItem({
-  sk, item, placeholder,
+  sk,
+  item,
+  placeholder,
 }: SortableSectionItemProps) {
   const { actions, focus } = useEodApi()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id })
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id })
 
   const onNormalize = useCallback(() => {
     const normalized = normalizeTaskText(item.text)
-    if (normalized !== item.text) actions.updateSectionItem(sk, item.id, normalized)
+    if (normalized !== item.text)
+      actions.updateSectionItem(sk, item.id, normalized)
   }, [item.text, item.id, sk, actions])
 
   const onKeyDown = bulletKeyDown(item.text, {
@@ -229,25 +290,38 @@ export const SortableSectionItem = memo(function SortableSectionItem({
     },
     onArrowDown: () => focus.focusNext(`section:${sk}:${item.id}`),
     onArrowUp: () => focus.focusPrev(`section:${sk}:${item.id}`),
-    onAltD:              () => actions.duplicateItem({ type: 'section', sk, itemId: item.id }),
-    onAltArrowUp:        () => actions.moveUp({ type: 'section', sk, itemId: item.id }),
-    onAltArrowDown:      () => actions.moveDown({ type: 'section', sk, itemId: item.id }),
-    onAltShiftArrowUp:   () => { actions.reorderUp({ type: 'section', sk, itemId: item.id }); focus.focus(`section:${sk}:${item.id}`) },
-    onAltShiftArrowDown: () => { actions.reorderDown({ type: 'section', sk, itemId: item.id }); focus.focus(`section:${sk}:${item.id}`) },
+    onAltD: () =>
+      actions.duplicateItem({ type: "section", sk, itemId: item.id }),
+    onAltArrowUp: () =>
+      actions.moveUp({ type: "section", sk, itemId: item.id }),
+    onAltArrowDown: () =>
+      actions.moveDown({ type: "section", sk, itemId: item.id }),
+    onAltShiftArrowUp: () => {
+      actions.reorderUp({ type: "section", sk, itemId: item.id })
+      focus.focus(`section:${sk}:${item.id}`)
+    },
+    onAltShiftArrowDown: () => {
+      actions.reorderDown({ type: "section", sk, itemId: item.id })
+      focus.focus(`section:${sk}:${item.id}`)
+    },
   })
 
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(isDragging && 'opacity-40')}
+      className={cn(isDragging && "opacity-40")}
     >
       <BulletRow
-        inputRef={focus.reg(`section:${sk}:${item.id}`) as React.RefCallback<HTMLInputElement>}
+        inputRef={
+          focus.reg(
+            `section:${sk}:${item.id}`
+          ) as React.RefCallback<HTMLInputElement>
+        }
         text={item.text}
         placeholder={placeholder}
         marker="task"
-        onUpdate={text => actions.updateSectionItem(sk, item.id, text)}
+        onUpdate={(text) => actions.updateSectionItem(sk, item.id, text)}
         onKeyDown={onKeyDown}
         onBlur={onNormalize}
         onRemove={() => actions.removeSectionItem(sk, item.id)}
@@ -255,8 +329,8 @@ export const SortableSectionItem = memo(function SortableSectionItem({
         dragAttributes={attributes}
         dragListeners={listeners}
         className={cn(
-          item.meetingKey && 'border-l-2 border-primary',
-          item.leaveKey && 'border-l-2 border-primary',
+          item.meetingKey && "border-l-2 border-primary",
+          item.leaveKey && "border-l-2 border-primary"
         )}
       />
     </div>
@@ -272,7 +346,9 @@ interface SimpleSectionProps {
 }
 
 export const SimpleSection = memo(function SimpleSection({
-  sk, section, placeholder,
+  sk,
+  section,
+  placeholder,
 }: SimpleSectionProps) {
   const { mode, actions, focus } = useEodApi()
   const { activeId } = useEodDndState()
@@ -284,30 +360,35 @@ export const SimpleSection = memo(function SimpleSection({
       <div
         ref={setNodeRef}
         className={cn(
-          'flex items-center gap-3 rounded transition-all',
+          "flex items-center gap-3 rounded transition-all",
           isOver
-            ? 'min-h-10 bg-muted/20 px-2'
+            ? "min-h-10 bg-muted/20 px-2"
             : anyItemDragging
-              ? 'min-h-10 border border-dashed border-border/60 px-2'
-              : 'min-h-8',
+              ? "min-h-10 border border-dashed border-border/60 px-2"
+              : "min-h-8"
         )}
       >
         <Button
           variant="outline"
           size="xs"
           ref={focus.reg(`na:${sk}`) as React.RefCallback<HTMLButtonElement>}
-          className="text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           onClick={() => actions.addSectionItem(sk, null)}
-          onKeyDown={e => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); focus.focusNext(`na:${sk}`) }
-            else if (e.key === 'ArrowUp') { e.preventDefault(); focus.focusPrev(`na:${sk}`) }
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") {
+              e.preventDefault()
+              focus.focusNext(`na:${sk}`)
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault()
+              focus.focusPrev(`na:${sk}`)
+            }
           }}
         >
           N/A
         </Button>
-        {mode !== 'zen' && (
+        {mode !== "zen" && (
           <span className="text-xs text-muted-foreground/40">
-            {isOver || anyItemDragging ? 'Drop to add' : 'Click to edit'}
+            {isOver || anyItemDragging ? "Drop to add" : "Click to edit"}
           </span>
         )}
       </div>
@@ -315,22 +396,30 @@ export const SimpleSection = memo(function SimpleSection({
   }
 
   const lastItemId = section.items[section.items.length - 1]?.id ?? null
-  const hasSystemItems = section.items.some(i => i.meetingKey || i.leaveKey)
+  const hasSystemItems = section.items.some((i) => i.meetingKey || i.leaveKey)
 
   return (
     <div ref={setNodeRef}>
-      <SortableContext items={section.items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-        {section.items.map(item => (
-          <SortableSectionItem key={item.id} sk={sk} item={item} placeholder={placeholder} />
+      <SortableContext
+        items={section.items.map((i) => i.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {section.items.map((item) => (
+          <SortableSectionItem
+            key={item.id}
+            sk={sk}
+            item={item}
+            placeholder={placeholder}
+          />
         ))}
       </SortableContext>
-      {mode !== 'zen' && (
+      {mode !== "zen" && (
         <div
           className={cn(
-            'flex items-center gap-2',
-            mode === 'comfortable'
-              ? 'pt-1'
-              : 'h-7 opacity-0 group-hover/section:opacity-100 group-focus-within/section:opacity-100 transition-opacity duration-150',
+            "flex items-center gap-2",
+            mode === "comfortable"
+              ? "pt-1"
+              : "h-7 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100"
           )}
         >
           <Button
@@ -338,7 +427,7 @@ export const SimpleSection = memo(function SimpleSection({
             size="xs"
             tabIndex={-1}
             onClick={() => actions.addSectionItem(sk, lastItemId)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             + Add item
           </Button>
@@ -348,7 +437,7 @@ export const SimpleSection = memo(function SimpleSection({
               size="xs"
               tabIndex={-1}
               onClick={() => actions.setSectionNA(sk)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Set N/A
             </Button>

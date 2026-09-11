@@ -122,10 +122,8 @@ export function PortalTotalCard({
         {/* Break time */}
         {breakMinutes > 0 && (
           <div className="mt-3 flex items-center gap-2">
-            <p className="text-xs tracking-wider uppercase opacity-35">
-              Break
-            </p>
-            <span className="font-mono text-xs px-1 font-semibold tabular-nums text-amber-400/70">
+            <p className="text-xs tracking-wider uppercase opacity-35">Break</p>
+            <span className="px-1 font-mono text-xs font-semibold text-amber-400/70 tabular-nums">
               {formatBreakDuration(breakMinutes)}
             </span>
           </div>

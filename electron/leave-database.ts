@@ -43,9 +43,9 @@ export interface LeaveRecord {
   user_id: number
   leave_type_id: number
   leave_name: string
-  start_date: string        // YYYY-MM-DD
+  start_date: string // YYYY-MM-DD
   start_type: number
-  end_date: string          // YYYY-MM-DD
+  end_date: string // YYYY-MM-DD
   end_type: number
   total_days: number
   comment: string | null
@@ -60,7 +60,8 @@ export interface LeaveRecord {
 // ── Write ─────────────────────────────────────────────────────────────────────
 
 export function upsertLeave(leave: LeaveRecord): void {
-  getDb().prepare(`
+  getDb()
+    .prepare(`
     INSERT OR REPLACE INTO leaves (
       app_id, user_id, leave_type_id, leave_name,
       start_date, start_type, end_date, end_type,
@@ -72,13 +73,24 @@ export function upsertLeave(leave: LeaveRecord): void {
       ?, ?, ?, ?,
       ?, ?, ?, datetime('now')
     )
-  `).run(
-    leave.app_id, leave.user_id, leave.leave_type_id, leave.leave_name,
-    leave.start_date, leave.start_type, leave.end_date, leave.end_type,
-    leave.total_days, leave.comment ?? null, leave.status,
-    leave.is_approved_by_pm ? 1 : 0,
-    leave.available_days ?? null, leave.created_at, leave.modified_at ?? null
-  )
+  `)
+    .run(
+      leave.app_id,
+      leave.user_id,
+      leave.leave_type_id,
+      leave.leave_name,
+      leave.start_date,
+      leave.start_type,
+      leave.end_date,
+      leave.end_type,
+      leave.total_days,
+      leave.comment ?? null,
+      leave.status,
+      leave.is_approved_by_pm ? 1 : 0,
+      leave.available_days ?? null,
+      leave.created_at,
+      leave.modified_at ?? null
+    )
 }
 
 export function clearLeaves(): void {
@@ -93,7 +105,10 @@ export function getApprovedLeaves(): LeaveRecord[] {
     .all() as LeaveRecord[]
 }
 
-export function getLeavesByDateRange(startDate: string, endDate: string): LeaveRecord[] {
+export function getLeavesByDateRange(
+  startDate: string,
+  endDate: string
+): LeaveRecord[] {
   // Returns leaves that overlap with [startDate, endDate]
   return getDb()
     .prepare(
@@ -110,7 +125,10 @@ export function getLeavesForDate(date: string): LeaveRecord[] {
  * Returns approved (status=5) leaves that overlap with [fromDate, toDate].
  * Both dates are YYYY-MM-DD strings. Used for EOD holiday auto-import.
  */
-export function getUpcomingApprovedLeaves(fromDate: string, toDate: string): LeaveRecord[] {
+export function getUpcomingApprovedLeaves(
+  fromDate: string,
+  toDate: string
+): LeaveRecord[] {
   return getDb()
     .prepare(
       "SELECT * FROM leaves WHERE status = 5 AND start_date <= ? AND end_date >= ? ORDER BY start_date ASC"

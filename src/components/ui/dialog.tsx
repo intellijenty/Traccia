@@ -56,7 +56,7 @@ function DialogContent({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
-  overlayBlur?: string;
+  overlayBlur?: string
 }) {
   return (
     <DialogPortal>

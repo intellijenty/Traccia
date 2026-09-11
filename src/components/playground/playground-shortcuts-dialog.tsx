@@ -26,7 +26,10 @@ const GROUPS: Group[] = [
       { label: "Start / disconnect wire", keys: ["W"] },
       { label: "Confirm wire", keys: ["Enter"] },
       { label: "Cancel wire", keys: ["Esc"] },
-      { label: "Direct connect", keys: ["Alt", { text: "click row", muted: true }] },
+      {
+        label: "Direct connect",
+        keys: ["Alt", { text: "click row", muted: true }],
+      },
     ],
   },
   {
@@ -71,7 +74,10 @@ function ShortcutRow({ label, keys }: Row) {
             return <Kbd key={i}>{k}</Kbd>
           }
           return (
-            <span key={i} className="text-[11px] text-muted-foreground/60 italic">
+            <span
+              key={i}
+              className="text-[11px] text-muted-foreground/60 italic"
+            >
               {k.text}
             </span>
           )
@@ -86,7 +92,10 @@ interface PlaygroundShortcutsDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function PlaygroundShortcutsDialog({ open, onOpenChange }: PlaygroundShortcutsDialogProps) {
+export function PlaygroundShortcutsDialog({
+  open,
+  onOpenChange,
+}: PlaygroundShortcutsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -106,7 +115,7 @@ export function PlaygroundShortcutsDialog({ open, onOpenChange }: PlaygroundShor
 
           <Separator />
 
-          <div className="max-h-[60vh] overflow-y-auto px-6 py-4 scrollbar-hide">
+          <div className="scrollbar-hide max-h-[60vh] overflow-y-auto px-6 py-4">
             <div className="space-y-4">
               {GROUPS.map((group) => (
                 <div key={group.heading}>

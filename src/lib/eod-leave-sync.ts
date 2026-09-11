@@ -1,18 +1,18 @@
-import type { EodFormState, EodSectionItem } from './eod-types'
-import { makeId } from './eod-types'
+import type { EodFormState, EodSectionItem } from "./eod-types"
+import { makeId } from "./eod-types"
 
 // ── Formatting ────────────────────────────────────────────────────────────────
 
-const ORDINAL_SUFFIXES = ['th', 'st', 'nd', 'rd']
+const ORDINAL_SUFFIXES = ["th", "st", "nd", "rd"]
 
 function ordinalSuffix(day: number): string {
   const mod100 = day % 100
   const mod10 = day % 10
-  return mod100 >= 11 && mod100 <= 13 ? 'th' : ORDINAL_SUFFIXES[mod10] ?? 'th'
+  return mod100 >= 11 && mod100 <= 13 ? "th" : (ORDINAL_SUFFIXES[mod10] ?? "th")
 }
 
 function parseLocal(dateStr: string): Date {
-  return new Date(dateStr + 'T00:00:00')
+  return new Date(dateStr + "T00:00:00")
 }
 
 function formatRangeText(startStr: string, endStr: string): string {
@@ -20,8 +20,8 @@ function formatRangeText(startStr: string, endStr: string): string {
   const e = parseLocal(endStr)
   const sDay = s.getDate()
   const eDay = e.getDate()
-  const sMonth = s.toLocaleString('en-US', { month: 'long' })
-  const eMonth = e.toLocaleString('en-US', { month: 'long' })
+  const sMonth = s.toLocaleString("en-US", { month: "long" })
+  const eMonth = e.toLocaleString("en-US", { month: "long" })
   const sYear = s.getFullYear()
   const eYear = e.getFullYear()
 
@@ -37,8 +37,8 @@ function formatRangeText(startStr: string, endStr: string): string {
 
   if (sMonth !== eMonth) {
     // Same year, different months: "29th May – 2nd Jun 2026"
-    const sMonthShort = s.toLocaleString('en-US', { month: 'short' })
-    const eMonthShort = e.toLocaleString('en-US', { month: 'short' })
+    const sMonthShort = s.toLocaleString("en-US", { month: "short" })
+    const eMonthShort = e.toLocaleString("en-US", { month: "short" })
     return `${sDay}${ordinalSuffix(sDay)} ${sMonthShort} - ${eDay}${ordinalSuffix(eDay)} ${eMonthShort} ${eYear}`
   }
 
@@ -57,11 +57,11 @@ function groupConsecutive(dates: string[]): Array<[string, string]> {
 
   for (let i = 1; i < dates.length; i++) {
     const curr = dates[i]
-    const next = new Date(prev + 'T00:00:00')
+    const next = new Date(prev + "T00:00:00")
     next.setDate(next.getDate() + 1)
-    const nextStr = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+    const nextStr = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`
     if (nextStr === curr) {
-      prev = curr  // extend current group
+      prev = curr // extend current group
     } else {
       groups.push([start, prev])
       start = curr
@@ -87,10 +87,10 @@ function groupConsecutive(dates: string[]): Array<[string, string]> {
  */
 export function applyLeavesSync(
   state: EodFormState,
-  incomingDates: string[],
+  incomingDates: string[]
 ): EodFormState {
   // Keep user-entered items (no leaveKey); always recompute system leave items
-  const userItems = state.upcomingHolidays.items.filter(i => !i.leaveKey)
+  const userItems = state.upcomingHolidays.items.filter((i) => !i.leaveKey)
 
   // Group consecutive dates → one item per range
   const ranges = groupConsecutive(incomingDates)
