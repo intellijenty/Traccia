@@ -34,15 +34,10 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@floating-ui/react-dom": "^2.1.8",
     "@fontsource-variable/geist": "^5.2.8",
     "@hugeicons/core-free-icons": "^4.1.1",
     "@hugeicons/react": "^1.1.6",
-    "@react-email/components": "^1.0.12",
-    "@react-email/render": "^2.0.8",
     "@rexa-developer/tiks": "^0.1.8",
-    "@tailwindcss/vite": "^4.2.1",
-    "@tiptap/extension-color": "^3.23.1",
     "@tiptap/extension-highlight": "^3.23.1",
     "@tiptap/extension-image": "^3.23.1",
     "@tiptap/extension-link": "^3.23.1",
@@ -75,6 +70,7 @@
     "web-haptics": "^0.0.6"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
