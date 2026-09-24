@@ -35,7 +35,6 @@ interface PortalTotalCardProps {
   targetMinutes?: number
   adjustmentLabel?: string | null
   breakMinutes?: number
-  /** Signed correction to portal minutes, estimated from local punches. */
   etaOffsetMinutes?: number
 }
 
@@ -48,8 +47,6 @@ export function PortalTotalCard({
   etaOffsetMinutes = 0,
 }: PortalTotalCardProps) {
   const remainingMinutes = Math.max(0, targetMinutes - totalMinutes)
-  // ETA runs on the local-corrected total; every other number on this card
-  // stays on portal-confirmed time.
   const etaRemainingMinutes = Math.max(
     0,
     targetMinutes - totalMinutes - etaOffsetMinutes

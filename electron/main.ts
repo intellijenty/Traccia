@@ -11,7 +11,6 @@ import {
   insertEntry,
   getLastEntry,
   closeDatabase,
-  calculateTotalSecondsForDate,
   getAllSettings,
 } from "./database"
 
@@ -87,12 +86,6 @@ function syncLoginItem(enabled: boolean): void {
   }
 }
 
-function formatTime(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  return `${hours}h ${String(minutes).padStart(2, "0")}m`
-}
-
 function getLocalDate(): string {
   return new Date().toLocaleDateString("en-CA")
 }
@@ -106,28 +99,7 @@ function notifyRenderer(): void {
 
 function refreshTray(): void {
   const lastEntry = getLastEntry()
-  const status = lastEntry?.type === "LOGIN" ? "in" : "out"
-  const totalSeconds = calculateTotalSecondsForDate(getLocalDate())
-  const timeStr = formatTime(totalSeconds)
-
-  updateTrayStatus(
-    status,
-    timeStr,
-    mainWindow,
-    handlePunchIn,
-    handlePunchOut,
-    handleQuit
-  )
-}
-
-function handlePunchIn(): void {
-  insertEntry("LOGIN", "manual", "via manual")
-  notifyRenderer()
-}
-
-function handlePunchOut(): void {
-  insertEntry("LOGOUT", "manual", "via manual")
-  notifyRenderer()
+  updateTrayStatus(lastEntry?.type === "LOGIN" ? "in" : "out")
 }
 
 function handleQuit(): void {
@@ -337,7 +309,7 @@ app.whenReady().then(() => {
   )
 
   // Tray
-  createTray(mainWindow, handlePunchIn, handlePunchOut, handleQuit)
+  createTray(mainWindow, handleQuit)
   refreshTray()
 
   // Midnight auto-split (closes open session at day boundary)

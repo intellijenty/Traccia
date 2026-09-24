@@ -90,8 +90,6 @@ export function PortalSection({
     workWindowStart
   )
 
-  // The portal lags behind the gate. Correct the ETA with the local record:
-  // add the punch-in it has not seen, deduct the breaks it has not seen.
   const projectedMinutes =
     isToday && portalData?.success && localEvents?.length
       ? estimatePortalTotalMinutes(portalData, localEvents)

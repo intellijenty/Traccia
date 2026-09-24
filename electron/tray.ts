@@ -6,7 +6,6 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 let tray: Tray | null = null
-let isIn = false
 
 function getIconPath(status: "in" | "out"): string {
   const iconName = status === "in" ? "icon-green.png" : "icon-red.png"
@@ -23,8 +22,6 @@ function createTrayIcon(status: "in" | "out"): Electron.NativeImage {
 
 function buildContextMenu(
   mainWindow: BrowserWindow | null,
-  onPunchIn: () => void,
-  onPunchOut: () => void,
   onQuit: () => void
 ): Menu {
   return Menu.buildFromTemplate([
@@ -39,17 +36,6 @@ function buildContextMenu(
     },
     { type: "separator" },
     {
-      label: "Punch IN",
-      enabled: !isIn,
-      click: onPunchIn,
-    },
-    {
-      label: "Punch OUT",
-      enabled: isIn,
-      click: onPunchOut,
-    },
-    { type: "separator" },
-    {
       label: "Quit",
       click: onQuit,
     },
@@ -58,17 +44,13 @@ function buildContextMenu(
 
 export function createTray(
   mainWindow: BrowserWindow | null,
-  onPunchIn: () => void,
-  onPunchOut: () => void,
   onQuit: () => void
 ): Tray {
   const icon = createTrayIcon("out")
   tray = new Tray(icon)
 
-  tray.setToolTip("Traccia - OUT")
-  tray.setContextMenu(
-    buildContextMenu(mainWindow, onPunchIn, onPunchOut, onQuit)
-  )
+  tray.setToolTip("Traccia")
+  tray.setContextMenu(buildContextMenu(mainWindow, onQuit))
 
   tray.on("click", () => {
     if (mainWindow) {
@@ -84,26 +66,9 @@ export function createTray(
   return tray
 }
 
-export function updateTrayStatus(
-  status: "in" | "out",
-  timeStr: string,
-  mainWindow: BrowserWindow | null,
-  onPunchIn: () => void,
-  onPunchOut: () => void,
-  onQuit: () => void
-): void {
+export function updateTrayStatus(status: "in" | "out"): void {
   if (!tray) return
-
-  isIn = status === "in"
-  const icon = createTrayIcon(status)
-  tray.setImage(icon)
-
-  const statusText = status === "in" ? "IN" : "OUT"
-  tray.setToolTip(`Traccia - ${statusText} | Today: ${timeStr}`)
-
-  tray.setContextMenu(
-    buildContextMenu(mainWindow, onPunchIn, onPunchOut, onQuit)
-  )
+  tray.setImage(createTrayIcon(status))
 }
 
 export function destroyTray(): void {
