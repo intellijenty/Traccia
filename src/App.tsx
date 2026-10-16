@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { PeopleTodayBar } from "@/components/people-today-bar"
 import { StatusCard } from "@/components/status-card"
 import { TotalCard } from "@/components/total-card"
 import { ManualEntry } from "@/components/manual-entry"
@@ -368,6 +369,8 @@ function WideLayout({
           />
         </div>
 
+        <PeopleTodayBar />
+
         {/* Portal blur overlay */}
         {!portalConnected && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-[3px]">
@@ -527,6 +530,8 @@ function UltraWideLayout({
             onCycleMark={onCycleMark}
           />
         </div>
+
+        <PeopleTodayBar />
 
         {/* Portal blur overlay */}
         {!portalConnected && (

@@ -4,6 +4,7 @@
  * Operations (in order):
  *   1. syncLeaves           — fetch approved leaves from portal, update day_marks
  *   2. syncNonPermanentDays — refresh non-permanent portal cache entries, promote eligible ones
+ *   3. syncPeopleToday      — snapshot today's on-leave and birthday lists
  *
  * Strategy:
  *   - The last-synced date is persisted in the settings table under "lastDailySyncDate".
@@ -21,6 +22,7 @@ import { syncLeaves, type LeaveSyncResult } from "./leave-sync"
 import { syncNonPermanentDays, type SyncSummary } from "./portal-sync"
 import { getSetting, setSetting } from "./database"
 import { getHrmsConnectionStatus } from "./hrms"
+import { refreshPeopleToday } from "./people-today"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,7 @@ export interface DailySyncReport {
   skipReason?: "already_synced" | "no_credentials"
   leaves?: LeaveSyncResult
   portalDays?: SyncSummary
+  peopleToday?: { success: boolean; failed: string[] }
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -54,12 +57,23 @@ function isSyncDue(): boolean {
 
 // ── Core sync operations ──────────────────────────────────────────────────────
 
+async function syncPeopleToday(): Promise<DailySyncReport["peopleToday"]> {
+  try {
+    const { failed } = await refreshPeopleToday()
+    return { success: failed.length === 0, failed }
+  } catch (err) {
+    console.error("[daily-sync] People today failed:", err)
+    return { success: false, failed: ["onLeave", "birthdays"] }
+  }
+}
+
 async function runSyncOperations(): Promise<
-  Pick<DailySyncReport, "leaves" | "portalDays">
+  Pick<DailySyncReport, "leaves" | "portalDays" | "peopleToday">
 > {
   const leaves = await syncLeaves()
   const portalDays = await syncNonPermanentDays()
-  return { leaves, portalDays }
+  const peopleToday = await syncPeopleToday()
+  return { leaves, portalDays, peopleToday }
 }
 
 const store = new ElectronStore()

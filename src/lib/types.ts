@@ -212,6 +212,37 @@ export interface ILicenseAPI {
   checkStatus: () => Promise<boolean>
 }
 
+export interface LeavePerson {
+  userId: number
+  name: string
+  leaveName: string
+  startDate: string
+  endDate: string | null
+  startType: number
+  endType: number
+}
+
+export interface BirthdayPerson {
+  userId: number
+  name: string
+}
+
+export interface PeopleList<T> {
+  date: string
+  fetchedAt: string
+  people: T[]
+}
+
+export interface PeopleTodaySnapshot {
+  onLeave: PeopleList<LeavePerson> | null
+  birthdays: PeopleList<BirthdayPerson> | null
+}
+
+export interface PeopleTodayRefreshResult {
+  snapshot: PeopleTodaySnapshot
+  failed: ("onLeave" | "birthdays")[]
+}
+
 export interface ElectronAPI {
   isAlphaUser: () => Promise<boolean>
 
@@ -325,7 +356,10 @@ export interface ElectronAPI {
       promoted: number
       failed: number
     }
+    peopleToday?: { success: boolean; failed: string[] }
   }>
+  peopleTodayGet: () => Promise<PeopleTodaySnapshot>
+  peopleTodayRefresh: () => Promise<PeopleTodayRefreshResult>
 
   // Miss-punch playground drafts
   misspunchDraftGet: (date: string) => Promise<string | null>

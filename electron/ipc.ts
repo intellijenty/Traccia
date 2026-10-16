@@ -56,6 +56,7 @@ import {
 } from "./portal-cache"
 import { syncNonPermanentDays } from "./portal-sync"
 import { runDailySync } from "./daily-sync"
+import { getPeopleTodaySnapshot, refreshPeopleToday } from "./people-today"
 import { getOutlookMeetings } from "../src/lib/outlook-meetings"
 import type { OutlookMeeting } from "../src/lib/outlook-meetings"
 import { claude } from "./claude-service"
@@ -951,6 +952,9 @@ export function registerIpcHandlers(
   ipcMain.handle("portal-sync-non-permanent", async () => {
     return syncNonPermanentDays()
   })
+
+  ipcMain.handle("people-today-get", () => getPeopleTodaySnapshot())
+  ipcMain.handle("people-today-refresh", () => refreshPeopleToday())
 
   // ── EOD Draft ──
 

@@ -55,10 +55,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   portalInvalidateAll: () => ipcRenderer.invoke("portal-cache-invalidate-all"),
   portalPopulate: (dates: string[]) =>
     ipcRenderer.invoke("portal-cache-populate", dates),
-  portalSyncNonPermanent: () =>
-    ipcRenderer.invoke("portal-sync-non-permanent"),
+  portalSyncNonPermanent: () => ipcRenderer.invoke("portal-sync-non-permanent"),
   dailySyncRun: (force?: boolean) =>
     ipcRenderer.invoke("daily-sync-run", force),
+  peopleTodayGet: () => ipcRenderer.invoke("people-today-get"),
+  peopleTodayRefresh: () => ipcRenderer.invoke("people-today-refresh"),
 
   // ── Miss-punch playground drafts ──
   misspunchDraftGet: (date: string) =>
@@ -73,11 +74,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getDayTarget: (date: string) => ipcRenderer.invoke("get-day-target", date),
   setDayTarget: (date: string, type: string, value: string | null) =>
     ipcRenderer.invoke("set-day-target", date, type, value),
-  deleteDayTarget: (date: string) => ipcRenderer.invoke("delete-day-target", date),
+  deleteDayTarget: (date: string) =>
+    ipcRenderer.invoke("delete-day-target", date),
 
   // ── Work windows ──
-  getWorkWindow: (date: string) =>
-    ipcRenderer.invoke("get-work-window", date),
+  getWorkWindow: (date: string) => ipcRenderer.invoke("get-work-window", date),
   setWorkWindow: (
     date: string,
     startTime: string,
@@ -129,8 +130,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("update:checking", fn)
     return () => ipcRenderer.removeListener("update:checking", fn)
   },
-  onUpdateAvailable: (cb: (info: { version: string; releaseNotes?: string }) => void) => {
-    const fn = (_: unknown, info: { version: string; releaseNotes?: string }) => cb(info)
+  onUpdateAvailable: (
+    cb: (info: { version: string; releaseNotes?: string }) => void
+  ) => {
+    const fn = (_: unknown, info: { version: string; releaseNotes?: string }) =>
+      cb(info)
     ipcRenderer.on("update:available", fn)
     return () => ipcRenderer.removeListener("update:available", fn)
   },
@@ -139,8 +143,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("update:not-available", fn)
     return () => ipcRenderer.removeListener("update:not-available", fn)
   },
-  onUpdateProgress: (cb: (p: { percent: number; transferred: number; total: number }) => void) => {
-    const fn = (_: unknown, p: { percent: number; transferred: number; total: number }) => cb(p)
+  onUpdateProgress: (
+    cb: (p: { percent: number; transferred: number; total: number }) => void
+  ) => {
+    const fn = (
+      _: unknown,
+      p: { percent: number; transferred: number; total: number }
+    ) => cb(p)
     ipcRenderer.on("update:progress", fn)
     return () => ipcRenderer.removeListener("update:progress", fn)
   },
@@ -157,9 +166,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // ── Claude usage ──
   getClaudeUsage: (): Promise<
-    | { ok: true; data: { session: { utilization: number; resetsAt: string }; weekly: { utilization: number; resetsAt: string }; fetchedAt: number } }
+    | {
+        ok: true
+        data: {
+          session: { utilization: number; resetsAt: string }
+          weekly: { utilization: number; resetsAt: string }
+          fetchedAt: number
+        }
+      }
     | { ok: false; error: string }
-  > => ipcRenderer.invoke('usage:claude-get'),
+  > => ipcRenderer.invoke("usage:claude-get"),
 
   // ── EOD Draft ──
   eodOpenInOutlook: (payload: {
@@ -168,22 +184,34 @@ contextBridge.exposeInMainWorld("electronAPI", {
     subject: string
     htmlBody: string
     plainText: string
-  }) => ipcRenderer.invoke('eod:open-in-outlook', payload) as Promise<{ method: 'com' | 'mailto' | 'eml' }>,
+  }) =>
+    ipcRenderer.invoke("eod:open-in-outlook", payload) as Promise<{
+      method: "com" | "mailto" | "eml"
+    }>,
 
-  onOutlookPhase: (cb: (phase: 'prewarming' | 'done') => void) => {
-    const fn = (_e: unknown, phase: 'prewarming' | 'done') => cb(phase)
-    ipcRenderer.on('eod:outlook-phase', fn)
-    return () => ipcRenderer.removeListener('eod:outlook-phase', fn)
+  onOutlookPhase: (cb: (phase: "prewarming" | "done") => void) => {
+    const fn = (_e: unknown, phase: "prewarming" | "done") => cb(phase)
+    ipcRenderer.on("eod:outlook-phase", fn)
+    return () => ipcRenderer.removeListener("eod:outlook-phase", fn)
   },
 
   eodGetMeetingsToday: (): Promise<
-    { ok: true; meetings: { title: string; duration: number; start: string; responseStatus: number }[] } |
-    { ok: false; error: string }
-  > => ipcRenderer.invoke('eod:get-meetings-today'),
+    | {
+        ok: true
+        meetings: {
+          title: string
+          duration: number
+          start: string
+          responseStatus: number
+        }[]
+      }
+    | { ok: false; error: string }
+  > => ipcRenderer.invoke("eod:get-meetings-today"),
 
-  eodGetUpcomingLeaves: (windowDays: number): Promise<
-    { ok: true; dates: string[] } | { ok: false; error: string }
-  > => ipcRenderer.invoke('eod:get-upcoming-leaves', windowDays),
+  eodGetUpcomingLeaves: (
+    windowDays: number
+  ): Promise<{ ok: true; dates: string[] } | { ok: false; error: string }> =>
+    ipcRenderer.invoke("eod:get-upcoming-leaves", windowDays),
 
   // ── AI / Claude ──────────────────────────────────────────────────────────────
 
@@ -197,7 +225,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   }): Promise<
     | { ok: true; text: string; durationMs: number }
     | { ok: false; error: string; code: string }
-  > => ipcRenderer.invoke('ai:generate', options),
+  > => ipcRenderer.invoke("ai:generate", options),
 
   // Streaming generation — call once, then listen for ai:chunk / ai:done / ai:error
   aiStream: (options: {
@@ -206,42 +234,54 @@ contextBridge.exposeInMainWorld("electronAPI", {
     model?: string
     timeoutMs?: number
     requestId?: string
-  }): Promise<{ requestId: string }> => ipcRenderer.invoke('ai:stream', options),
+  }): Promise<{ requestId: string }> =>
+    ipcRenderer.invoke("ai:stream", options),
 
   // Cancel an in-flight request (buffered or streaming)
   aiCancel: (requestId: string): void => {
-    void ipcRenderer.invoke('ai:cancel', requestId)
+    void ipcRenderer.invoke("ai:cancel", requestId)
   },
 
   // Alpha feature flag
-  isAlphaUser: (): Promise<boolean> => ipcRenderer.invoke('alpha:is-user'),
+  isAlphaUser: (): Promise<boolean> => ipcRenderer.invoke("alpha:is-user"),
 
   // Check if Claude Code is installed on this machine
   aiAvailable: (): Promise<{
     available: boolean
     version?: string
     error?: string
-  }> => ipcRenderer.invoke('ai:available'),
+  }> => ipcRenderer.invoke("ai:available"),
 
   // Push event: streaming text chunk — returns a cleanup function
   onAiChunk: (cb: (data: { requestId: string; chunk: string }) => void) => {
-    const fn = (_: unknown, data: { requestId: string; chunk: string }) => cb(data)
-    ipcRenderer.on('ai:chunk', fn)
-    return () => ipcRenderer.removeListener('ai:chunk', fn)
+    const fn = (_: unknown, data: { requestId: string; chunk: string }) =>
+      cb(data)
+    ipcRenderer.on("ai:chunk", fn)
+    return () => ipcRenderer.removeListener("ai:chunk", fn)
   },
 
   // Push event: streaming complete — returns a cleanup function
-  onAiDone: (cb: (data: { requestId: string; text: string; durationMs: number }) => void) => {
-    const fn = (_: unknown, data: { requestId: string; text: string; durationMs: number }) => cb(data)
-    ipcRenderer.on('ai:done', fn)
-    return () => ipcRenderer.removeListener('ai:done', fn)
+  onAiDone: (
+    cb: (data: { requestId: string; text: string; durationMs: number }) => void
+  ) => {
+    const fn = (
+      _: unknown,
+      data: { requestId: string; text: string; durationMs: number }
+    ) => cb(data)
+    ipcRenderer.on("ai:done", fn)
+    return () => ipcRenderer.removeListener("ai:done", fn)
   },
 
   // Push event: streaming or buffered error — returns a cleanup function
-  onAiError: (cb: (data: { requestId: string; error: string; code: string }) => void) => {
-    const fn = (_: unknown, data: { requestId: string; error: string; code: string }) => cb(data)
-    ipcRenderer.on('ai:error', fn)
-    return () => ipcRenderer.removeListener('ai:error', fn)
+  onAiError: (
+    cb: (data: { requestId: string; error: string; code: string }) => void
+  ) => {
+    const fn = (
+      _: unknown,
+      data: { requestId: string; error: string; code: string }
+    ) => cb(data)
+    ipcRenderer.on("ai:error", fn)
+    return () => ipcRenderer.removeListener("ai:error", fn)
   },
 
   // ── EOD AI generation ──────────────────────────────────────────────────────
@@ -252,10 +292,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     pastEods: Array<{ date: string; plainText: string }>
     meetings: Array<{ title: string; durationMin: number }>
     notes: string
-    filterMode: 'blocklist' | 'allowlist'
+    filterMode: "blocklist" | "allowlist"
     filterPaths: string[]
     instructions: string
-  }): Promise<{ requestId: string }> => ipcRenderer.invoke('eod:ai-generate', payload),
+  }): Promise<{ requestId: string }> =>
+    ipcRenderer.invoke("eod:ai-generate", payload),
 
   // Write-phase-only rerun of an existing draft with one refinement instruction
   eodAiRefine: (payload: {
@@ -263,40 +304,84 @@ contextBridge.exposeInMainWorld("electronAPI", {
     previousDraft: unknown
     instruction: string
     instructions: string
-  }): Promise<{ requestId: string }> => ipcRenderer.invoke('eod:ai-refine', payload),
+  }): Promise<{ requestId: string }> =>
+    ipcRenderer.invoke("eod:ai-refine", payload),
 
   // Projects seen in Claude sessions (today + historical) for the filter checklist
-  eodAiListProjects: (): Promise<Array<{ path: string; sessionsToday: number }>> =>
-    ipcRenderer.invoke('eod:ai-list-projects'),
+  eodAiListProjects: (): Promise<
+    Array<{ path: string; sessionsToday: number }>
+  > => ipcRenderer.invoke("eod:ai-list-projects"),
 
-  onEodAiPhase: (cb: (data: { requestId: string; phase: string; label: string }) => void) => {
-    const fn = (_: unknown, data: { requestId: string; phase: string; label: string }) => cb(data)
-    ipcRenderer.on('eod:ai-phase', fn)
-    return () => ipcRenderer.removeListener('eod:ai-phase', fn)
+  onEodAiPhase: (
+    cb: (data: { requestId: string; phase: string; label: string }) => void
+  ) => {
+    const fn = (
+      _: unknown,
+      data: { requestId: string; phase: string; label: string }
+    ) => cb(data)
+    ipcRenderer.on("eod:ai-phase", fn)
+    return () => ipcRenderer.removeListener("eod:ai-phase", fn)
   },
 
-  onEodAiDone: (cb: (data: { requestId: string; draft: unknown; dropped: string[]; droppedTickets?: string[]; durationMs: number }) => void) => {
-    const fn = (_: unknown, data: { requestId: string; draft: unknown; dropped: string[]; droppedTickets?: string[]; durationMs: number }) => cb(data)
-    ipcRenderer.on('eod:ai-done', fn)
-    return () => ipcRenderer.removeListener('eod:ai-done', fn)
+  onEodAiDone: (
+    cb: (data: {
+      requestId: string
+      draft: unknown
+      dropped: string[]
+      droppedTickets?: string[]
+      durationMs: number
+    }) => void
+  ) => {
+    const fn = (
+      _: unknown,
+      data: {
+        requestId: string
+        draft: unknown
+        dropped: string[]
+        droppedTickets?: string[]
+        durationMs: number
+      }
+    ) => cb(data)
+    ipcRenderer.on("eod:ai-done", fn)
+    return () => ipcRenderer.removeListener("eod:ai-done", fn)
   },
 
-  onEodAiError: (cb: (data: { requestId: string; error: string; code: string; raw?: string; logPath?: string }) => void) => {
-    const fn = (_: unknown, data: { requestId: string; error: string; code: string; raw?: string; logPath?: string }) => cb(data)
-    ipcRenderer.on('eod:ai-error', fn)
-    return () => ipcRenderer.removeListener('eod:ai-error', fn)
+  onEodAiError: (
+    cb: (data: {
+      requestId: string
+      error: string
+      code: string
+      raw?: string
+      logPath?: string
+    }) => void
+  ) => {
+    const fn = (
+      _: unknown,
+      data: {
+        requestId: string
+        error: string
+        code: string
+        raw?: string
+        logPath?: string
+      }
+    ) => cb(data)
+    ipcRenderer.on("eod:ai-error", fn)
+    return () => ipcRenderer.removeListener("eod:ai-error", fn)
   },
 
   // ── Entries export ──
-  exportFile: (format: "csv" | "json", date: string): Promise<{ success: boolean; filePath?: string; error?: string }> =>
+  exportFile: (
+    format: "csv" | "json",
+    date: string
+  ): Promise<{ success: boolean; filePath?: string; error?: string }> =>
     ipcRenderer.invoke("entries:export-file", { format, date }),
 
   showItemInFolder: (filePath: string): Promise<void> =>
     ipcRenderer.invoke("shell:show-item-in-folder", filePath),
 })
 
-contextBridge.exposeInMainWorld('licenseAPI', {
-  getHwid: () => ipcRenderer.invoke('license:get-hwid'),
-  submitLicense: (key: string) => ipcRenderer.invoke('license:submit', key),
-  checkStatus: () => ipcRenderer.invoke('license:check-status'),
-});
+contextBridge.exposeInMainWorld("licenseAPI", {
+  getHwid: () => ipcRenderer.invoke("license:get-hwid"),
+  submitLicense: (key: string) => ipcRenderer.invoke("license:submit", key),
+  checkStatus: () => ipcRenderer.invoke("license:check-status"),
+})
