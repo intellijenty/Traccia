@@ -1,3 +1,36 @@
+## v0.4.4 - October 2026
+
+### ✦ Introducing Traccia on Foundation of Modern Tooling
+
+#### The JavaScript build tools are gone. Traccia is now built on the Vite 8 and Oxc, all Rust-powered toolchain.
+
+### NEW
+
+**Toolchain Migration:**
+- **Vite 8** - Rolldown and Oxc replace Rollup and esbuild. Renderer builds are `~3.3x` faster and main builds are `~14.5x` faster.
+- **Oxc** - oxlint + oxfmt Replace ESLint and Prettier. Formatting is `~5x` faster.
+- **TypeScript 7** - The native go compiler. Type checks are `~2.5x` faster.
+- **Vitest -** `98%` code coverage with variety tests.
+<br/>
+<br/>
+
+**Time Pulse:**
+- You can now see BIRTHDAY ppl and ON LEAVE ppl directly in Traccia on wider screen. (with wider details🙂)
+
+### IMPROVED
+
+**Time Pulse:**
+- **Live Portal ETA** - ETA now counts your local punches and breaks the portal hasn't synced yet.
+<br/>
+<br/>
+
+**Traccia Intelligence:**
+- Traccia Intelligence is now way more improved than prior version.
+- Cut and enhanced underlying System prompt. now it generate more accurate EOD.
+- Traccia Intelligence now generates EOD up to 50-70% faster.
+- **Show Diagnostics** - When a generation fails, one click shows you what went wrong with full logs that you can actually debug.
+- Bitbucket is removed from stack. It never actually ran. 😛
+
 ## v0.4.3 - June 2026
 
 ### IMPROVED
