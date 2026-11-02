@@ -36,6 +36,14 @@ function getBaseUrl(): string {
   return getSetting("hrmsBaseUrl") || "https://roimaint.in:7000/api"
 }
 
+function extractTokenCookie(setCookies: string[]): string | null {
+  for (const cookie of setCookies) {
+    const match = /^\s*token=([^;]*)/.exec(cookie)
+    if (match?.[1]) return decodeURIComponent(match[1])
+  }
+  return null
+}
+
 function getStoredCredentials(): { email: string; password: string } | null {
   const email = getSetting("hrmsEmail")
   const encPassword = getSetting("hrmsPassword")
@@ -109,22 +117,26 @@ export async function hrmsLogin(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: creds.email, password: creds.password }),
+      credentials: "omit",
     })
 
-    if (!response.ok) {
-      return {
-        success: false,
-        message: `HTTP ${response.status}: ${response.statusText}`,
-      }
-    }
-
-    const result = (await response.json()) as HrmsEnvelope<{
+    const result = (await response.json().catch(() => ({}))) as HrmsEnvelope<{
       user_id: number
       name: string
     }>
 
-    if (result.code === 1 && result.token && result.data) {
-      token = result.token
+    if (!response.ok) {
+      return {
+        success: false,
+        message:
+          result.message || `HTTP ${response.status}: ${response.statusText}`,
+      }
+    }
+
+    const sessionToken = extractTokenCookie(response.headers.getSetCookie())
+
+    if (sessionToken && result.data?.user_id) {
+      token = sessionToken
       userId = result.data.user_id
       userName = result.data.name
 

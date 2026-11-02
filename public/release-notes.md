@@ -1,3 +1,12 @@
+## v0.4.5 - November 2026
+
+### The latest portal update broke things? We fixed them before you even noticed
+
+### FIXED
+- Fixed APIs that broke due to recent changes in the portal. (more improvements are on the pipeline)
+
+### Fast Shipping is how we roll.🚢😉
+
 ## v0.4.4 - October 2026
 
 ### ✦ Introducing Traccia on Foundation of Modern Tooling
