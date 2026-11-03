@@ -1,3 +1,9 @@
+## v0.4.6 - November 2026
+
+### FIXED
+
+- Fixed floating point overflow in few places.
+
 ## v0.4.5 - November 2026
 
 ### The latest portal update broke things? We fixed them before you even noticed
