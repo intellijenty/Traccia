@@ -1,3 +1,4 @@
+import { exactPortalMinutes } from "./portal-minutes"
 import type { PortalData, PunchEntry } from "./types"
 
 export function estimatePortalTotalMinutes(
@@ -5,9 +6,11 @@ export function estimatePortalTotalMinutes(
   localEvents: PunchEntry[],
   now: number = Date.now()
 ): number | null {
-  const closedMinutes =
-    portal.totalMinutes -
-    (portal.isCurrentlyIn ? portal.activeSessionMinutes : 0)
+  const closedMinutes = exactPortalMinutes(
+    portal.entries,
+    now,
+    portal.isCurrentlyIn ? portal.lastInTime : null
+  )
 
   const sorted = [...localEvents].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -44,7 +47,7 @@ export function estimatePortalTotalMinutes(
   if (lastLogout !== null) breakMs += overlap(lastLogout, now, windowStart, now)
 
   const workedMs = Math.max(0, now - windowStart - breakMs)
-  return closedMinutes + Math.floor(workedMs / 60_000)
+  return Math.floor(closedMinutes + workedMs / 60_000)
 }
 
 function overlap(start: number, end: number, lo: number, hi: number): number {

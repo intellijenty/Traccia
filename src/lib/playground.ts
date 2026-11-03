@@ -13,6 +13,7 @@
  */
 
 import type { PortalEntry, PunchEntry, EntryTrigger } from "@/lib/types"
+import { minutesBetween } from "@/lib/portal-minutes"
 
 export type PunchOrigin = "anchor" | "added"
 
@@ -138,9 +139,9 @@ export function pairPunches(punches: { time: string }[]): PairResult {
 export function workingMinutes(pair: PairResult): number {
   let mins = 0
   for (const s of pair.sessions) {
-    if (s.outTime) mins += Math.floor((ms(s.outTime) - ms(s.inTime)) / 60000)
+    if (s.outTime) mins += minutesBetween(ms(s.inTime), ms(s.outTime))
   }
-  return mins
+  return Math.floor(mins)
 }
 
 // ── Local events → sessions ──────────────────────────────────────────────────

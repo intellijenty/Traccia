@@ -26,9 +26,10 @@ function formatBreakMins(minutes: number): string {
 
 function formatDuration(minutes: number | null, isActive: boolean): string {
   if (isActive) return "running"
-  if (minutes === null || minutes === 0) return "<1m"
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
+  const whole = minutes === null ? 0 : Math.floor(minutes)
+  if (whole === 0) return "<1m"
+  const h = Math.floor(whole / 60)
+  const m = whole % 60
   if (h === 0) return `${m}m`
   return `${h}h ${m}m`
 }

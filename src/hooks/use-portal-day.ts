@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react"
 import { usePortalStoreContext } from "@/contexts/portal-store"
+import { summarizePortalDay } from "@/lib/portal-minutes"
 import type { HrmsConnectionStatus, PortalData } from "@/lib/types"
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000
@@ -59,17 +60,13 @@ export function usePortalDay(date?: string): UsePortalDayResult {
     const data = entry.data
     if (!isToday || !data.isCurrentlyIn || !data.lastInTime) return data
 
-    const activeSessionMinutes = Math.max(
-      0,
-      Math.floor((Date.now() - new Date(data.lastInTime).getTime()) / 60000)
+    const live = summarizePortalDay(data.entries)
+    if (
+      live.totalMinutes === data.totalMinutes &&
+      live.activeSessionMinutes === data.activeSessionMinutes
     )
-    const diff = activeSessionMinutes - data.activeSessionMinutes
-    if (diff <= 0) return data
-    return {
-      ...data,
-      activeSessionMinutes,
-      totalMinutes: data.totalMinutes + diff,
-    }
+      return data
+    return { ...data, ...live }
   }, [entry, isToday, store.liveTick]) // oxlint-disable-line react-hooks/exhaustive-deps
 
   const isSyncing = store.syncing.has(targetDate)

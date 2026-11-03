@@ -27,6 +27,16 @@ export interface CacheStatus {
   cachedAt: string | null
 }
 
+function floorCachedMinutes<T>(data: T): T {
+  if (data === null || typeof data !== "object") return data
+  const day = data as Record<string, unknown>
+  for (const key of ["totalMinutes", "activeSessionMinutes"]) {
+    const value = day[key]
+    if (typeof value === "number") day[key] = Math.floor(value)
+  }
+  return data
+}
+
 export function getFromCache(date: string): CacheEntry | null {
   const row = getDb()
     .prepare(
@@ -37,7 +47,7 @@ export function getFromCache(date: string): CacheEntry | null {
     | undefined
   if (!row) return null
   return {
-    data: JSON.parse(row.data),
+    data: floorCachedMinutes(JSON.parse(row.data)),
     cachedAt: row.cached_at,
     permanent: row.is_permanent === 1,
   }

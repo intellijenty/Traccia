@@ -1,5 +1,9 @@
 import { net, safeStorage } from "electron"
 import { getSetting, setSetting } from "./database"
+import {
+  exactPortalMinutes,
+  summarizePortalDay,
+} from "../src/lib/portal-minutes"
 
 let token: string | null = null
 let userId: number | null = null
@@ -253,32 +257,10 @@ export async function hrmsGetWorkingHours(
 
     const entries = result.data || []
 
-    let totalMinutes = 0
-    let isCurrentlyIn = false
-    let lastInTime: string | null = null
-    let activeSessionMinutes = 0
-
-    for (const entry of entries) {
-      if (entry.workingmins != null) {
-        totalMinutes += entry.workingmins
-      }
-      if (entry.outtime === null) {
-        isCurrentlyIn = true
-        lastInTime = entry.intime
-        activeSessionMinutes = Math.floor(
-          (Date.now() - new Date(entry.intime).getTime()) / 60000
-        )
-        totalMinutes += activeSessionMinutes
-      }
-    }
-
     return {
       success: true,
       entries,
-      totalMinutes,
-      isCurrentlyIn,
-      lastInTime,
-      activeSessionMinutes,
+      ...summarizePortalDay(entries),
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Connection failed"
@@ -312,26 +294,14 @@ export async function hrmsGetWeekHours(
         return { date, totalMinutes: 0, missPunchCount: 0, sessionCount: 0 }
       }
 
-      let totalMinutes = 0
-      let missPunchCount = 0
-
-      for (const entry of result.entries) {
-        if (entry.outtime === null && date !== today) {
-          // Past date with null outtime = miss punch — exclude
-          missPunchCount++
-          continue
-        }
-        if (entry.workingmins != null) {
-          totalMinutes += entry.workingmins
-        }
-        if (entry.outtime === null && date === today) {
-          // Currently checked in — add live minutes
-          const active = Math.floor(
-            (Date.now() - new Date(entry.intime).getTime()) / 60000
-          )
-          totalMinutes += active
-        }
-      }
+      const countedEntries =
+        date === today
+          ? result.entries
+          : result.entries.filter((entry) => entry.outtime !== null)
+      const missPunchCount = result.entries.length - countedEntries.length
+      const totalMinutes = Math.floor(
+        exactPortalMinutes(countedEntries, Date.now())
+      )
 
       return {
         date,
