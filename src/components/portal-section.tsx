@@ -256,14 +256,6 @@ export function PortalSection({
 }
 
 // ── Fix miss-punch entry button ──
-// Eligible when: a past day 1–7 days ago has an unpaired (open) punch.
-
-function daysAgo(date: string): number {
-  const today = getLocalDate()
-  const a = new Date(today + "T00:00:00").getTime()
-  const b = new Date(date + "T00:00:00").getTime()
-  return Math.round((a - b) / 86400000)
-}
 
 function hasMissPunch(entries: PortalEntry[]): boolean {
   // A past-day entry with no out-time = dangling = miss-punch.
@@ -278,11 +270,8 @@ function FixMissPunchButton({
   entries: PortalEntry[]
 }) {
   const { dayMarks } = useDayMarks()
-  const ago = daysAgo(date)
-  // Eligible on a real portal dangling punch OR a manual "mp" day-mark.
   const flagged = hasMissPunch(entries) || dayMarks.get(date) === "mp"
-  const eligible = ago >= 1 && ago <= 7 && flagged
-  if (!eligible) return null
+  if (!flagged || date === getLocalDate()) return null
 
   return (
     <Button
