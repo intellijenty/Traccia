@@ -45,7 +45,7 @@
     "@tiptap/pm": "^3.30.6",
     "@tiptap/react": "^3.30.6",
     "@tiptap/starter-kit": "^3.30.6",
-    "better-sqlite3": "^12.8.0",
+    "better-sqlite3": "^13.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "electron-store": "^8.2.0",
@@ -76,12 +76,11 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.1.1",
-    "electron": "^41.1.1",
+    "electron": "^43.8.10",
     "electron-builder": "^26.8.1",
     "oxfmt": "^0.67.0",
     "oxlint": "^1.80.0",
     "oxlint-tsgolint": "^7.0.2001",
-    "shadcn": "^4.1.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
     "vite-plugin-electron": "^1.1.2",
@@ -89,6 +88,7 @@
   },
   "overrides": {
     "@tiptap/extension-bubble-menu": "3.30.6",
-    "@tiptap/extension-floating-menu": "3.30.6"
+    "@tiptap/extension-floating-menu": "3.30.6",
+    "minimatch@>=7.0.0 <11.0.1": "^11.0.8"
   }
 }

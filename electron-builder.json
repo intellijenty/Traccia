@@ -3,16 +3,13 @@
   "productName": "Traccia",
   "files": [
     "dist-react/**/*",
-    "dist-electron/**/*"
+    "dist-electron/**/*",
+    "!node_modules/better-sqlite3/prebuilds/{darwin,linux}*"
   ],
   "extraResources": [
     {
       "from": "resources",
       "to": "."
-    },
-    {
-      "from": "node_modules/better-sqlite3/build",
-      "to": "better-sqlite3/build"
     }
   ],
   "icon": "./resources/desktopIcon.png",
