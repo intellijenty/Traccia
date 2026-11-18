@@ -1,3 +1,13 @@
+## v0.4.7 - November 2026
+
+### We believe every application should be secure by default.
+
+### FIXED
+
+- Fixed security vulnerabilities found in synk and npm reports.
+
+At Traccia we believe you can have the best of both worlds - exceptional user experience and top-tier security.
+
 ## v0.4.6 - November 2026
 
 ### FIXED
